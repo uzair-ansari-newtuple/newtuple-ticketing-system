@@ -12,7 +12,7 @@ import { api } from "@/lib/api";
 import type { IncidentDetail } from "@/lib/types";
 import { useSession } from "@/store/session";
 
-const MAX_COPIES = 10;
+const MAX_COPIES = 99;
 const PRINTERS = [1, 2];
 
 /** The CitiTrends "Action needed" card: print a replacement tag, put it on the item, then confirm it was added. */
@@ -20,7 +20,7 @@ export function PrintPanel({ d }: { d: IncidentDetail }) {
   const qc = useQueryClient();
   const token = useSession((s) => s.token)!;
   const [printer, setPrinter] = useState(1);
-  const [copies, setCopies] = useState(1);
+  const [copies, setCopies] = useState(d.missing_price_tag_count);
   const [markdown, setMarkdown] = useState(false);
   const m = d.selected?.metadata;
 

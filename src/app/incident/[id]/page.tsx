@@ -7,6 +7,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { use, useEffect, useState } from "react";
 import { toast } from "sonner";
+import { ItemCount } from "@/components/item-count";
 import { AppShell } from "@/components/app-shell";
 import { Barcode } from "@/components/barcode";
 import { SourceBadge } from "@/components/field-source";
@@ -102,8 +103,9 @@ function SimilarItem({ c, onResolve, busy, assistHref }: { c: Candidate; onResol
 function ActionCard({ d, token }: { d: IncidentDetail; token: string }) {
   const qc = useQueryClient();
   const [picked, setPicked] = useState<string | null>(d.candidates[0]?.key ?? null);
+  const [count, setCount] = useState(d.missing_price_tag_count);
   const refresh = () => Promise.all([qc.invalidateQueries({ queryKey: ["incident", d.id] }), qc.invalidateQueries({ queryKey: ["incidents"] })]);
-  const confirm = useMutation({ mutationFn: (key: string | null) => api.confirmIncident(token, d.id, key), onSuccess: () => { toast.success("Match confirmed"); return refresh(); }, onError: (e: Error) => toast.error(e.message) });
+  const confirm = useMutation({ mutationFn: (key: string | null) => api.confirmIncident(token, d.id, key, count), onSuccess: () => { toast.success("Match confirmed"); return refresh(); }, onError: (e: Error) => toast.error(e.message) });
   const dispose = useMutation({ mutationFn: (x: Disposition) => api.setDisposition(token, d.id, x), onSuccess: () => { toast.success("Ticket closed"); return refresh(); }, onError: (e: Error) => toast.error(e.message) });
 
   useEffect(() => {
@@ -130,12 +132,13 @@ function ActionCard({ d, token }: { d: IncidentDetail; token: string }) {
         );
       }
       if (d.gating === "GREEN" && d.candidates[0]) {
-        return <Card><CardContent><SimilarItem c={d.candidates[0]} busy={confirm.isPending} assistHref={assistHref} onResolve={() => confirm.mutate(d.candidates[0].key)} /></CardContent></Card>;
+        return <Card><CardContent className="space-y-3"><ItemCount value={count} onChange={setCount} /><SimilarItem c={d.candidates[0]} busy={confirm.isPending} assistHref={assistHref} onResolve={() => confirm.mutate(d.candidates[0].key)} /></CardContent></Card>;
       }
       return (
         <Card>
           <CardContent className="space-y-3">
             <div className="flex items-center justify-between"><h2 className="font-bold">Which item is it?</h2>{d.gating ? <GatingBadge gating={d.gating} /> : null}</div>
+            <ItemCount value={count} onChange={setCount} />
             <div className="space-y-2">{d.candidates.map((c) => <CandidateCard key={c.key} c={c} selected={c.key === picked} onSelect={() => setPicked(c.key)} />)}</div>
             <Button size="lg" className="w-full" disabled={!picked || confirm.isPending} onClick={() => confirm.mutate(picked)}>{confirm.isPending ? <Loader2 className="animate-spin" /> : <CheckCircle2 />} Resolve &amp; Print</Button>
             <p className="text-center text-xs text-muted-foreground">Not the right item?</p>
@@ -166,6 +169,7 @@ function ActionCard({ d, token }: { d: IncidentDetail; token: string }) {
               <div><p className="font-bold">Action needed</p><p className="text-sm text-muted-foreground">The resolver found the item. Accept it, then print a replacement tag.</p></div>
               <CandidateCard c={{ key: "rec", sku: r.recommended.Sku, metadata: r.recommended, score: 1, evidence: "barcode", thumb: null }} selected onSelect={() => undefined} />
               {r.comment ? <p className="rounded-xl bg-muted/70 p-3 text-sm">“{r.comment}”</p> : null}
+              <ItemCount value={count} onChange={setCount} />
               <Button size="lg" className="w-full" disabled={confirm.isPending} onClick={() => confirm.mutate(null)}>{confirm.isPending ? <Loader2 className="animate-spin" /> : <CheckCircle2 />} Accept &amp; print tag</Button>
             </CardContent>
           </Card>

@@ -85,10 +85,10 @@ export const api = {
 
   getIncidentImages: (token: string, id: string) => request<{ images: StoredImage[] }>(`/incidents/${id}/images`, { token }),
 
-  confirmIncident: (token: string, id: string, candidateKey: string | null) =>
-    request<{ state: string }>(`/incidents/${id}/confirm`, { method: "POST", token, body: JSON.stringify({ candidate_key: candidateKey, acknowledged: true }) }),
+  confirmIncident: (token: string, id: string, candidateKey: string | null, itemCount?: number) =>
+    request<{ state: string }>(`/incidents/${id}/confirm`, { method: "POST", token, body: JSON.stringify({ candidate_key: candidateKey, acknowledged: true, missing_price_tag_count: itemCount }) }),
 
-  escalateIncident: (token: string, id: string, body: { reason: EscalationReason; note: string; item_age: ItemAge }) =>
+  escalateIncident: (token: string, id: string, body: { reason: EscalationReason; note: string; item_age: ItemAge; missing_price_tag_count: number }) =>
     request<{ state: string }>(`/incidents/${id}/escalate`, { method: "POST", token, body: JSON.stringify(body) }),
 
   setDisposition: (token: string, id: string, disposition: Disposition) =>

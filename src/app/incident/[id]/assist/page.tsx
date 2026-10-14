@@ -7,6 +7,7 @@ import { useSearchParams } from "next/navigation";
 import { use, useState } from "react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/app-shell";
+import { ItemCount } from "@/components/item-count";
 import { REASONS } from "@/components/status";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -32,12 +33,13 @@ export default function AssistPage({ params }: { params: Promise<{ id: string }>
   const [reason, setReason] = useState<EscalationReason | null>(null);
   const [age, setAge] = useState<ItemAge | null>(null);
   const [note, setNote] = useState("");
+  const [count, setCount] = useState(1);
 
   const suggested = requested && REASON_KEYS.includes(requested) ? requested : d?.gating === "RED" ? ((d.gating_reason as EscalationReason | null) ?? "LOW_EVIDENCE") : "USER_UNSURE";
   const chosen = reason ?? suggested;
 
   const send = useMutation({
-    mutationFn: () => api.escalateIncident(token!, id, { reason: chosen, note, item_age: age! }),
+    mutationFn: () => api.escalateIncident(token!, id, { reason: chosen, note, item_age: age!, missing_price_tag_count: count }),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["incident", id] });
       void qc.invalidateQueries({ queryKey: ["incidents"] });
@@ -88,6 +90,10 @@ export default function AssistPage({ params }: { params: Promise<{ id: string }>
               </button>
             ))}
           </div>
+        </section>
+
+        <section>
+          <ItemCount value={count} onChange={setCount} />
         </section>
 
         <section>
