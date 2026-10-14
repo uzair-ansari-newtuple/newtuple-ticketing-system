@@ -4,6 +4,7 @@ import { getPool } from "@/lib/db";
 import { jsonError, userFromRequest } from "@/lib/mock/http";
 import { numberDisplay, scopeClause, toSummary, type IncidentRow, logEvent } from "@/lib/mock/incidents";
 import type { ClientAnalysis, ImagePayload, Incident, QualityCheckResult } from "@/lib/types";
+import { mirror } from "@/lib/sm/mirror";
 
 const MAX_IMAGES = 5;
 const LIST_LIMIT = 100;
@@ -79,6 +80,8 @@ export async function POST(request: Request) {
   } finally {
     client.release();
   }
+
+  mirror(incidentId);
 
   const incident: Incident = {
     incident_id: incidentId,

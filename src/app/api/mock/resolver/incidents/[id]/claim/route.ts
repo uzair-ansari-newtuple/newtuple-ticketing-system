@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getPool } from "@/lib/db";
 import { jsonError, userFromRequest } from "@/lib/mock/http";
 import { loadRow, logEvent } from "@/lib/mock/incidents";
+import { mirror } from "@/lib/sm/mirror";
 
 export async function POST(request: Request, ctx: RouteContext<"/api/mock/resolver/incidents/[id]/claim">) {
   const user = await userFromRequest(request);
@@ -14,5 +15,6 @@ export async function POST(request: Request, ctx: RouteContext<"/api/mock/resolv
   const resolver = { ...row.resolver, status: "IN_PROGRESS", claimed_by: user.username };
   await pool.query(`UPDATE incidents SET resolver = $2, current_state = 'RESOLUTION_IN_PROGRESS', updated_at = now() WHERE id = $1`, [id, JSON.stringify(resolver)]);
   await logEvent(pool, id, "CLAIMED", user.username, {});
+  mirror(id, { resolver_id: user.id, resolver_name: user.username, resolver_lane_state: "IN_PROGRESS" }, "to_inprogress");
   return NextResponse.json({ state: "RESOLUTION_IN_PROGRESS", resolver });
 }

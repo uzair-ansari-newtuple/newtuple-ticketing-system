@@ -3,6 +3,7 @@ import { getPool } from "@/lib/db";
 import { jsonError, userFromRequest } from "@/lib/mock/http";
 import { loadRow, logEvent } from "@/lib/mock/incidents";
 import type { Disposition } from "@/lib/types";
+import { mirror } from "@/lib/sm/mirror";
 
 const DISPOSITIONS: Disposition[] = ["DISCARD", "RETURN_TO_VENDOR", "DONATE"];
 
@@ -21,5 +22,6 @@ export async function POST(request: Request, ctx: RouteContext<"/api/mock/incide
 
   await pool.query(`UPDATE incidents SET current_state = 'CLOSED', disposition = $2, unread_for_store = false, updated_at = now() WHERE id = $1`, [id, body.disposition]);
   await logEvent(pool, id, "DISPOSITION", user.username, { disposition: body.disposition });
+  mirror(id, { disposition: body.disposition, closed_at: new Date().toISOString() });
   return NextResponse.json({ state: "CLOSED", disposition: body.disposition });
 }

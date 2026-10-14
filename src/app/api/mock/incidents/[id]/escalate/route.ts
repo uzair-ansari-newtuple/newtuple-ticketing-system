@@ -3,6 +3,7 @@ import { getPool } from "@/lib/db";
 import { jsonError, userFromRequest } from "@/lib/mock/http";
 import { loadRow, logEvent } from "@/lib/mock/incidents";
 import type { EscalationReason, ItemAge } from "@/lib/types";
+import { mirror } from "@/lib/sm/mirror";
 
 const REASONS: EscalationReason[] = ["TOO_MANY_CANDIDATES", "LOW_EVIDENCE", "CATALOG_UNAVAILABLE", "USER_UNSURE", "PRINT_FAILURE", "OTHER"];
 const AGES: ItemAge[] = ["NEW_FREIGHT", "OLD_MERCHANDISE"];
@@ -31,5 +32,6 @@ export async function POST(request: Request, ctx: RouteContext<"/api/mock/incide
     [id, JSON.stringify(escalation), JSON.stringify(resolver), body.item_age],
   );
   await logEvent(pool, id, "ESCALATED", user.username, { reason: body.reason, note });
+  mirror(id, { escalation_note: `${body.reason}${note ? `: ${note}` : ""}`, item_age: body.item_age, priority: body.item_age === "NEW_FREIGHT" ? "HIGH" : "LOW", resolver_lane_state: "NEW" });
   return NextResponse.json({ state: "ESCALATED", escalation });
 }

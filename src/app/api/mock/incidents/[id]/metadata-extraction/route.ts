@@ -7,6 +7,7 @@ import { logEvent } from "@/lib/mock/incidents";
 import { listProducts } from "@/lib/mock/products";
 import { EXTRACTION_DURATION_MS } from "@/lib/mock/store";
 import type { ClientAnalysis, MetadataExtraction } from "@/lib/types";
+import { mirror } from "@/lib/sm/mirror";
 
 const RUNNING_AFTER_MS = 300;
 
@@ -62,6 +63,18 @@ export async function GET(request: Request, ctx: RouteContext<"/api/mock/inciden
      WHERE id = $1 AND extraction IS NULL`,
     [id, JSON.stringify(result), succeeded ? "CANDIDATES_READY" : "FAILED", JSON.stringify(candidates), gating, reason],
   );
-  if (updated.rowCount) await logEvent(getPool(), id, succeeded ? "ANALYZED" : "ANALYSIS_FAILED", "system", { gating, candidates: candidates.length });
+  if (updated.rowCount) {
+    await logEvent(getPool(), id, succeeded ? "ANALYZED" : "ANALYSIS_FAILED", "system", { gating, candidates: candidates.length });
+    const meta = built?.normalized_metadata;
+    mirror(id, {
+      gating_tier: gating,
+      candidate_count: candidates.length,
+      brand: meta?.Brand ?? undefined,
+      department: meta?.DepartmentName ?? undefined,
+      ocr_text: built?.ocr_text ?? undefined,
+      extracted_metadata: meta ?? undefined,
+      edw_candidates: candidates.map((c) => ({ sku: c.sku, score: c.score, evidence: c.evidence })),
+    });
+  }
   return NextResponse.json<MetadataExtraction>({ ...base, ...result, updated_at: new Date().toISOString() });
 }

@@ -5,6 +5,7 @@ import { jsonError, userFromRequest } from "@/lib/mock/http";
 import { loadRow, logEvent } from "@/lib/mock/incidents";
 import { getProductBySku } from "@/lib/mock/products";
 import type { ResolverDecision } from "@/lib/types";
+import { mirror } from "@/lib/sm/mirror";
 
 const DECISIONS: ResolverDecision[] = ["RECOMMEND", "CANT_RESOLVE", "NOT_APPAREL"];
 const MAX_COMMENT = 500;
@@ -34,5 +35,9 @@ export async function POST(request: Request, ctx: RouteContext<"/api/mock/resolv
   const resolver = { ...row.resolver, status: "RESOLVED", decision: body.decision, recommended, comment: comment || null, responded_at: new Date().toISOString() };
   await pool.query(`UPDATE incidents SET resolver = $2, current_state = 'RESOLVER_RESPONSE_RECEIVED', unread_for_store = true, updated_at = now() WHERE id = $1`, [id, JSON.stringify(resolver)]);
   await logEvent(pool, id, "RESOLVED", user.username, { decision: body.decision, sku: body.sku ?? null });
+  const common = { resolver_comment: comment || undefined, resolver_lane_state: "RESOLVED" };
+  if (body.decision === "RECOMMEND") mirror(id, { ...common, resolver_decision: "resolved", selected_candidate: body.sku }, "to_resolved");
+  else if (body.decision === "NOT_APPAREL") mirror(id, { ...common, resolver_decision: "unable", resolver_reason_codes: "not_cititrends_merchandise" }, "to_notctmerch");
+  else mirror(id, { ...common, resolver_decision: "unable", resolver_reason_codes: "no_match_found" }, "to_cantresolve");
   return NextResponse.json({ state: "RESOLVER_RESPONSE_RECEIVED", resolver });
 }

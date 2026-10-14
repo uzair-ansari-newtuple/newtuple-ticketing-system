@@ -4,6 +4,7 @@ import { jsonError, userFromRequest } from "@/lib/mock/http";
 import { MIN_PRINT_SCORE } from "@/lib/mock/flow";
 import { loadRow, logEvent } from "@/lib/mock/incidents";
 import type { Candidate } from "@/lib/types";
+import { mirror } from "@/lib/sm/mirror";
 
 export async function POST(request: Request, ctx: RouteContext<"/api/mock/incidents/[id]/confirm">) {
   const user = await userFromRequest(request);
@@ -31,5 +32,6 @@ export async function POST(request: Request, ctx: RouteContext<"/api/mock/incide
 
   await pool.query(`UPDATE incidents SET selected = $2, current_state = 'CONFIRMED', unread_for_store = false, updated_at = now() WHERE id = $1`, [id, JSON.stringify(selected)]);
   await logEvent(pool, id, "CONFIRMED", user.username, { sku: selected.sku, score: selected.score });
+  mirror(id, { selected_candidate: selected.sku ?? undefined });
   return NextResponse.json({ state: "CONFIRMED", selected });
 }
