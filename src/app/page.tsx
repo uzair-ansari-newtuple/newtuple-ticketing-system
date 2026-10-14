@@ -10,6 +10,7 @@ import { Reveal, StaggerList, StaggerListItem } from "@/components/motion";
 import { ListSkeleton } from "@/components/skeletons";
 import { TicketRow } from "@/components/ticket-row";
 import { Button } from "@/components/ui/button";
+import { QueryError } from "@/components/query-error";
 import { useIncidents } from "@/lib/queries";
 import type { IncidentSummary } from "@/lib/types";
 import { useCapture } from "@/store/capture";
@@ -44,7 +45,7 @@ function TicketList({ items }: { items: IncidentSummary[] }) {
 
 export default function HomePage() {
   const router = useRouter();
-  const { data, isLoading } = useIncidents();
+  const { data, isLoading, isError, error, refetch } = useIncidents();
   const resetCapture = useCapture((s) => s.reset);
   const user = useSession((s) => s.user);
   const token = useSession((s) => s.token);
@@ -82,6 +83,8 @@ export default function HomePage() {
 
       {isLoading ? (
         <Section title="Tickets"><ListSkeleton rows={3} /></Section>
+      ) : isError ? (
+        <Section title="Tickets"><QueryError error={error} onRetry={() => void refetch()} /></Section>
       ) : items.length === 0 ? (
         <p className="mt-12 text-center text-sm text-muted-foreground">No tickets yet. Start with a photo or a quick scan.</p>
       ) : (

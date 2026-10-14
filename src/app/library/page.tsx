@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ListSkeleton } from "@/components/skeletons";
 import { api } from "@/lib/api";
+import { QueryError } from "@/components/query-error";
 import { useProducts } from "@/lib/queries";
 import { useLibrary } from "@/store/library";
 import { useSession } from "@/store/session";
@@ -23,7 +24,7 @@ export default function LibraryPage() {
   const items = useLibrary((s) => s.items);
   const remove = useLibrary((s) => s.remove);
   const refresh = useLibrary((s) => s.refresh);
-  const { data, isLoading } = useProducts();
+  const { data, isLoading, isError, error, refetch } = useProducts();
   const products = data?.items ?? [];
 
   useEffect(() => {
@@ -42,20 +43,22 @@ export default function LibraryPage() {
   return (
     <AppShell
       title="Catalog"
-      subtitle="Products and photos stored in the database. Photos are matched by vector search."
+      subtitle="The products this app can recognise by photo or barcode."
       back="/"
       footer={<Button render={<Link href="/library/new" />} nativeButton={false} size="lg" className="w-full"><Plus /> Add a product</Button>}
     >
       <h2 className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Products ({products.length})</h2>
       {isLoading ? (
         <ListSkeleton rows={6} />
+      ) : isError ? (
+        <QueryError error={error} onRetry={() => void refetch()} />
       ) : products.length === 0 ? (
         <Reveal>
           <Card className="border border-dashed ring-0">
             <CardContent className="grid place-items-center gap-2 py-6 text-center">
               <span className="grid size-11 place-items-center rounded-full bg-primary/10 text-primary"><LibraryIcon size={20} /></span>
               <p className="font-semibold">No products yet</p>
-              <p className="max-w-xs text-sm text-muted-foreground">Add products with photos. New photos that look like them are matched automatically.</p>
+              <p className="max-w-xs text-sm text-muted-foreground">Without products, nothing can be matched. Add your products with photos and barcodes.</p>
             </CardContent>
           </Card>
         </Reveal>

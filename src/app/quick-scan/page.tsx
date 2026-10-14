@@ -1,19 +1,17 @@
 "use client";
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Camera, ChevronRight, ImagePlus, Loader2, ScanBarcode, Search } from "lucide-react";
-import { AnimatePresence } from "motion/react";
+import { Camera, ImagePlus, Keyboard, Loader2, ScanBarcode, Search } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
 import { useRouter } from "next/navigation";
 import { useCallback, useRef, useState } from "react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/app-shell";
 import { BarcodeScanner } from "@/components/barcode-scanner";
 import { CameraSheet } from "@/components/camera-sheet";
-import { Stagger, StaggerItem } from "@/components/motion";
+import { Reveal } from "@/components/motion";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { api } from "@/lib/api";
 import { buildCaptureMetadata } from "@/lib/capture";
 import { makeThumb, processImage } from "@/lib/image";
@@ -31,6 +29,7 @@ export default function QuickScanPage() {
   const [scanning, setScanning] = useState(false);
   const [cameraOpen, setCameraOpen] = useState(false);
   const [typed, setTyped] = useState("");
+  const [typing, setTyping] = useState(false);
   const [working, setWorking] = useState<string | null>(null);
 
   const submit = useMutation({
@@ -106,54 +105,36 @@ export default function QuickScanPage() {
   const busy = submit.isPending || working !== null;
 
   return (
-    <AppShell title="Quick scan" subtitle="Scan a barcode or photograph a tagged item, then print." back="/">
-      <Stagger className="space-y-3">
-        <StaggerItem>
-          <button onClick={() => setScanning(true)} disabled={busy} className="w-full text-left disabled:opacity-60">
-            <Card className="transition-shadow hover:shadow-md">
-              <CardContent className="flex items-center gap-4">
-                <span className="grid size-12 place-items-center rounded-xl bg-primary/10 text-primary"><ScanBarcode size={24} /></span>
-                <div className="min-w-0 flex-1">
-                  <p className="font-semibold">Scan the barcode</p>
-                  <p className="text-sm text-muted-foreground">The barcode is on this item. Point the camera at it.</p>
-                </div>
-                <ChevronRight size={18} className="text-muted-foreground" />
-              </CardContent>
-            </Card>
-          </button>
-        </StaggerItem>
+    <AppShell title="Quick scan" subtitle="Find the item by its barcode, then print." back="/">
+      <Reveal>
+        <button onClick={() => setScanning(true)} disabled={busy} className="flex w-full flex-col items-center gap-4 rounded-3xl bg-primary px-6 py-10 text-primary-foreground shadow-lg shadow-primary/20 transition active:scale-[0.99] disabled:opacity-60">
+          <span className="grid size-20 place-items-center rounded-full bg-white/15"><ScanBarcode size={40} /></span>
+          <span className="text-xl font-bold">Scan the barcode</span>
+          <span className="text-sm opacity-80">Point the camera at the barcode on the item</span>
+        </button>
+      </Reveal>
 
-        <StaggerItem>
-          <Card>
-            <CardContent className="space-y-3">
-              <div className="flex items-center gap-4">
-                <span className="grid size-12 place-items-center rounded-xl bg-primary/10 text-primary"><Camera size={24} /></span>
-                <div className="min-w-0 flex-1">
-                  <p className="font-semibold">Photo of a tagged item</p>
-                  <p className="text-sm text-muted-foreground">A similar item nearby has the tag. We read its barcode.</p>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <Button size="lg" disabled={busy} onClick={() => setCameraOpen(true)}><Camera /> Take photo</Button>
-                <Button size="lg" variant="outline" disabled={busy} onClick={() => fileRef.current?.click()}><ImagePlus /> Upload</Button>
-              </div>
-              <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/heic,image/heif" hidden onChange={(e) => { const f = e.target.files?.[0]; if (fileRef.current) fileRef.current.value = ""; if (f) void onPhoto(f, "uploaded"); }} />
-            </CardContent>
-          </Card>
-        </StaggerItem>
+      <p className="my-5 text-center text-xs font-medium uppercase tracking-wider text-muted-foreground">or</p>
 
-        <StaggerItem>
-          <Card>
-            <CardContent className="space-y-2">
-              <Label htmlFor="upc">Or type the barcode number</Label>
-              <div className="flex gap-2">
-                <Input id="upc" inputMode="numeric" value={typed} onChange={(e) => setTyped(e.target.value)} onKeyDown={(e) => e.key === "Enter" && lookUp()} placeholder="12 or 13 digits" className="h-11" />
-                <Button size="lg" disabled={busy || typed.trim().length < 8} onClick={lookUp}><Search /> Look up</Button>
-              </div>
-            </CardContent>
-          </Card>
-        </StaggerItem>
-      </Stagger>
+      <div className="grid grid-cols-2 gap-3">
+        <Button size="lg" variant="outline" disabled={busy} onClick={() => setCameraOpen(true)}><Camera /> Photo of tag</Button>
+        <Button size="lg" variant="outline" disabled={busy} onClick={() => fileRef.current?.click()}><ImagePlus /> Upload</Button>
+      </div>
+      <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/heic,image/heif" hidden onChange={(e) => { const f = e.target.files?.[0]; if (fileRef.current) fileRef.current.value = ""; if (f) void onPhoto(f, "uploaded"); }} />
+
+      <button onClick={() => setTyping((t) => !t)} className="mx-auto mt-5 flex items-center gap-1.5 text-sm font-medium text-primary">
+        <Keyboard size={16} /> {typing ? "Hide" : "Type the number instead"}
+      </button>
+      <AnimatePresence initial={false}>
+        {typing ? (
+          <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} transition={{ duration: 0.25 }} className="overflow-hidden">
+            <div className="flex gap-2 pt-3">
+              <Input aria-label="Barcode number" autoFocus inputMode="numeric" value={typed} onChange={(e) => setTyped(e.target.value)} onKeyDown={(e) => e.key === "Enter" && lookUp()} placeholder="12 or 13 digits" className="h-11" />
+              <Button size="lg" disabled={busy || typed.trim().length < 8} onClick={lookUp}><Search /> Look up</Button>
+            </div>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
 
       {busy ? (
         <p className="mt-4 flex items-center justify-center gap-2 text-sm text-muted-foreground"><Loader2 className="animate-spin" size={16} /> {working ?? "Looking up the product"}…</p>

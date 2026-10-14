@@ -45,7 +45,7 @@ async function request<T>(path: string, init: RequestInit & { token?: string } =
     },
   });
   const body = await res.json().catch(() => ({}));
-  if (!res.ok) throw new ApiError(res.status, typeof body.detail === "string" ? body.detail : "Request failed");
+  if (!res.ok) throw new ApiError(res.status, typeof body.detail === "string" ? body.detail : `Request failed (${res.status})`);
   return body as T;
 }
 

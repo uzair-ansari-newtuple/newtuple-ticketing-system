@@ -58,7 +58,7 @@ export function AppShell({ title, subtitle, back, footer, role = "store", nav = 
   const initials = (user?.username ?? "?").slice(0, 2).toUpperCase();
 
   return (
-    <div className="flex min-h-dvh flex-1 flex-col">
+    <div className={`flex min-h-dvh flex-1 flex-col ${showNav ? "pb-[calc(4rem+env(safe-area-inset-bottom))]" : ""}`}>
       <header className="sticky top-0 z-30 border-b bg-background/75 pt-[env(safe-area-inset-top)] backdrop-blur-xl">
         <div className="mx-auto flex h-14 w-full max-w-2xl items-center gap-2 px-4">
           {back ? (
@@ -107,7 +107,7 @@ export function AppShell({ title, subtitle, back, footer, role = "store", nav = 
         <TopLoader />
       </header>
 
-      <main className={`mx-auto w-full max-w-2xl flex-1 px-4 pt-6 ${showNav ? "pb-28" : "pb-10"}`}>
+      <main className={`mx-auto w-full max-w-2xl flex-1 px-4 pt-6 pb-8`}>
         <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, ease: EASE }} className="mb-5">
           <h1 className="text-2xl font-bold tracking-tight">{title}</h1>
           {subtitle ? <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p> : null}

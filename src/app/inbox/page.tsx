@@ -9,10 +9,11 @@ import { ListSkeleton } from "@/components/skeletons";
 import { PillTabs } from "@/components/pill-tabs";
 import { TicketRow } from "@/components/ticket-row";
 import { INBOX_TABS, inTab, type InboxTab } from "@/lib/inbox";
+import { QueryError } from "@/components/query-error";
 import { useIncidents } from "@/lib/queries";
 
 export default function InboxPage() {
-  const { data, isLoading } = useIncidents();
+  const { data, isLoading, isError, error, refetch } = useIncidents();
   const [tab, setTab] = useState<InboxTab>("all");
   const items = data?.items ?? [];
   const list = items.filter((i) => inTab(i, tab));
@@ -28,6 +29,8 @@ export default function InboxPage() {
       <div className="mt-4">
         {isLoading ? (
           <ListSkeleton />
+        ) : isError ? (
+          <QueryError error={error} onRetry={() => void refetch()} />
         ) : list.length === 0 ? (
           <Card className="border border-dashed ring-0">
             <CardContent className="grid place-items-center gap-2 py-8 text-center">
