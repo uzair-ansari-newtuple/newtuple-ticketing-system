@@ -76,9 +76,9 @@ export function loadClip(onProgress?: (p: LoadProgress) => void): Promise<ClipRu
   return runtime;
 }
 
-export async function embedImage(dataUrl: string, onProgress?: (p: LoadProgress) => void): Promise<number[]> {
+export async function embedImage(source: string | Blob, onProgress?: (p: LoadProgress) => void): Promise<number[]> {
   const { tf, processor, vision } = await loadClip(onProgress);
-  const image = await tf.RawImage.fromURL(dataUrl);
+  const image = typeof source === "string" ? await tf.RawImage.fromURL(source) : await tf.RawImage.fromBlob(source);
   const inputs = await processor(image);
   const { image_embeds } = await vision(inputs);
   return normalize(Array.from(image_embeds.data as Float32Array));
