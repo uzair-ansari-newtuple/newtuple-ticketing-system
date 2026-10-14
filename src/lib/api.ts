@@ -5,14 +5,11 @@ import type {
   ItemAge,
   ResolverDecision,
   Disposition,
-  CatalogProduct,
-  NewProductBody,
   StoredImage,
   Job,
   ImagePayload,
   Incident,
   IncidentCreateBody,
-  LibraryEntry,
   MatchCandidate,
   NormalizedMetadata,
   LoginResponse,
@@ -78,24 +75,8 @@ export const api = {
   searchLibrary: (token: string, embeddings: number[][]) =>
     request<{ matches: MatchCandidate[]; brands: string[] }>("/library/search", { method: "POST", token, body: JSON.stringify({ embeddings }) }),
 
-  listLibrary: (token: string) => request<{ items: LibraryEntry[]; catalog_count: number }>("/library", { token }),
-
   addReference: (token: string, body: { metadata: NormalizedMetadata; thumb: string; embeddings: number[][] }) =>
     request<{ id: string }>("/library", { method: "POST", token, body: JSON.stringify(body) }),
-
-  async removeReference(token: string, id: string): Promise<void> {
-    const res = await fetch(`${BASE}/library/${id}`, { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
-    if (!res.ok) throw new ApiError(res.status, "Could not remove the item");
-  },
-
-  listProducts: (token: string, q = "") => request<{ items: CatalogProduct[] }>(`/products?q=${encodeURIComponent(q)}`, { token }),
-
-  createProduct: (token: string, body: NewProductBody) => request<{ sku: string }>("/products", { method: "POST", token, body: JSON.stringify(body) }),
-
-  async removeProduct(token: string, sku: string): Promise<void> {
-    const res = await fetch(`${BASE}/products/${sku}`, { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
-    if (!res.ok) throw new ApiError(res.status, "Could not remove the product");
-  },
 
   listIncidents: (token: string) => request<{ items: IncidentSummary[] }>("/incidents", { token }),
 

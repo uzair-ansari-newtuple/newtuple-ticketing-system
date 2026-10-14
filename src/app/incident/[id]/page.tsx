@@ -26,7 +26,6 @@ import { timeAgo } from "@/lib/inbox";
 import { useIncident, useIncidentImages } from "@/lib/queries";
 import { SLOTS } from "@/lib/slots";
 import type { Candidate, Disposition, IncidentDetail, NormalizedMetadata } from "@/lib/types";
-import { useLibrary } from "@/store/library";
 import { useSession } from "@/store/session";
 
 const DETAILS: { label: string; keys: (keyof NormalizedMetadata)[] }[] = [
@@ -220,7 +219,6 @@ export default function IncidentPage({ params }: { params: Promise<{ id: string 
   const token = useSession((s) => s.token);
   const { data: d, isLoading, error } = useIncident(id);
   const { data: imageData } = useIncidentImages(id);
-  const refreshLibrary = useLibrary((s) => s.refresh);
   const [active, setActive] = useState(0);
   const [added, setAdded] = useState(false);
   void router;
@@ -247,7 +245,6 @@ export default function IncidentPage({ params }: { params: Promise<{ id: string 
     if (!ex?.normalized_metadata || !d?.embeddings?.length || !d.thumb) return;
     try {
       await api.addReference(token!, { metadata: ex.normalized_metadata, thumb: d.thumb, embeddings: d.embeddings });
-      await refreshLibrary();
       setAdded(true);
       toast.success("Added to the reference library");
     } catch {

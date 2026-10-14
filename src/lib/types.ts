@@ -93,14 +93,6 @@ export interface ReferenceItem {
   catalog?: boolean;
 }
 
-export interface LibraryEntry {
-  id: string;
-  metadata: NormalizedMetadata;
-  thumb: string;
-  photos: number;
-  created_at: string;
-}
-
 export interface MatchCandidate {
   reference_id: string;
   similarity: number;
@@ -275,20 +267,4 @@ export interface CaptureMetadata {
   userAgent: string;
   blurScore: number;
   brightness: number;
-}
-
-export interface CatalogProduct extends NormalizedMetadata {
-  image_url: string;
-  searchable: boolean;
-}
-
-export interface NewProductBody {
-  name: string;
-  brand: string;
-  upc: string;
-  class_code: string;
-  color_code: string;
-  price: number;
-  images: { mime_type: "image/jpeg"; image_base64: string }[];
-  embeddings: number[][];
 }

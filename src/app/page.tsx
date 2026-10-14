@@ -14,7 +14,6 @@ import { QueryError } from "@/components/query-error";
 import { useIncidents } from "@/lib/queries";
 import type { IncidentSummary } from "@/lib/types";
 import { useCapture } from "@/store/capture";
-import { useLibrary } from "@/store/library";
 import { useSession } from "@/store/session";
 
 const NEEDS_ACTION = new Set(["CANDIDATES_READY", "CONFIRMED", "RESOLVER_RESPONSE_RECEIVED", "PRINTED", "FAILED"]);
@@ -48,16 +47,10 @@ export default function HomePage() {
   const { data, isLoading, isError, error, refetch } = useIncidents();
   const resetCapture = useCapture((s) => s.reset);
   const user = useSession((s) => s.user);
-  const token = useSession((s) => s.token);
-  const refreshLibrary = useLibrary((s) => s.refresh);
 
   useEffect(() => {
     if (user?.role === "resolver") router.replace("/resolver");
   }, [user, router]);
-
-  useEffect(() => {
-    if (token) refreshLibrary().catch(() => undefined);
-  }, [token, refreshLibrary]);
 
   const items = data?.items ?? [];
   const attention = items.filter((t) => NEEDS_ACTION.has(t.state) && !(t.state === "RESOLVER_RESPONSE_RECEIVED" && t.resolver_decision === null)).slice(0, ATTENTION_LIMIT);

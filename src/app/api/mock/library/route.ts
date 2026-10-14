@@ -7,21 +7,6 @@ import type { NormalizedMetadata } from "@/lib/types";
 const EMBEDDING_DIM = 512;
 const MAX_EMBEDDINGS = 5;
 
-export async function GET(request: Request) {
-  const storeId = await storeIdFromRequest(request);
-  if (!storeId) return jsonError(401, "Could not validate credentials");
-  const pool = getPool();
-  const items = await pool.query(
-    `SELECT i.id, i.metadata, i.thumb, i.created_at, count(e.id)::int AS photos
-     FROM reference_items i LEFT JOIN reference_embeddings e ON e.item_id = i.id
-     WHERE i.kind = 'user' AND i.store_id = $1
-     GROUP BY i.id ORDER BY i.created_at DESC`,
-    [storeId],
-  );
-  const catalog = await pool.query(`SELECT count(*)::int AS count FROM reference_items WHERE kind = 'catalog'`);
-  return NextResponse.json({ items: items.rows, catalog_count: catalog.rows[0].count });
-}
-
 export async function POST(request: Request) {
   const storeId = await storeIdFromRequest(request);
   if (!storeId) return jsonError(401, "Could not validate credentials");

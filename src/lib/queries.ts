@@ -32,8 +32,3 @@ export function useResolverQueue() {
   const token = useSession((s) => s.token);
   return useQuery({ queryKey: ["resolver-queue"], queryFn: () => api.resolverQueue(token!), enabled: Boolean(token), refetchInterval: POLL_MS });
 }
-
-export function useProducts(q = "") {
-  const token = useSession((s) => s.token);
-  return useQuery({ queryKey: ["products", q], queryFn: () => api.listProducts(token!, q), enabled: Boolean(token) });
-}
