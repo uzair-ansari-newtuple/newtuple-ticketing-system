@@ -22,6 +22,6 @@ export async function POST(request: Request, ctx: RouteContext<"/api/mock/incide
 
   await pool.query(`UPDATE incidents SET current_state = 'CLOSED', disposition = $2, unread_for_store = false, updated_at = now() WHERE id = $1`, [id, body.disposition]);
   await logEvent(pool, id, "DISPOSITION", user.username, { disposition: body.disposition });
-  mirror(id, { disposition: body.disposition, closed_at: new Date().toISOString() });
+  mirror(id, { disposition: body.disposition === "DISCARD" ? "DISCARD_TRASH" : body.disposition, closed_at: new Date().toISOString() });
   return NextResponse.json({ state: "CLOSED", disposition: body.disposition });
 }
