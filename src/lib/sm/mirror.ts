@@ -6,6 +6,9 @@ import { smEnabled, smEntityType, smFetch, smMachine } from "@/lib/sm/client";
 
 type Fields = Record<string, unknown>;
 
+const AVAILABILITY_ATTEMPTS = 10;
+const AVAILABILITY_DELAY_MS = 1000;
+
 let entityTypeId: string | null = null;
 
 /** The State Machine stores every ticket field as a string, so objects are JSON-encoded. */
@@ -41,12 +44,22 @@ async function capture(incidentId: string): Promise<string | null> {
   return created.entity_id;
 }
 
+/** A new ticket passes through its automatic early states first, so wait until the trigger is offered. */
+async function waitUntilAvailable(entityId: string, trigger: string) {
+  for (let attempt = 0; attempt < AVAILABILITY_ATTEMPTS; attempt++) {
+    const { available_transitions } = await smFetch<{ available_transitions: { trigger: string }[] }>("GET", `/entities/${entityId}/transitions/available`);
+    if (available_transitions.some((t) => t.trigger === trigger)) return;
+    await new Promise((resolve) => setTimeout(resolve, AVAILABILITY_DELAY_MS));
+  }
+}
+
 /** Saves the fields first and fires the trigger second, because a transition validates against saved data. */
 async function sync(incidentId: string, data: Fields, trigger?: string) {
   const entityId = await capture(incidentId);
   if (!entityId) return;
   if (Object.keys(data).length) await smFetch("PUT", `/entity-records/${entityId}`, { data: encode(data) });
   if (trigger) {
+    await waitUntilAvailable(entityId, trigger);
     await smFetch("POST", `/entities/${entityId}/transitions`, { entity_id: entityId, trigger, idempotency_key: randomUUID(), inputs: {} });
   }
 }
