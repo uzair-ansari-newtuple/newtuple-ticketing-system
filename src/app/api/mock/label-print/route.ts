@@ -5,7 +5,7 @@ import { jsonError, userFromRequest } from "@/lib/mock/http";
 import { loadRow, logEvent } from "@/lib/mock/incidents";
 import { isValidGtin } from "@/lib/taxonomy";
 
-const MAX_COPIES = 10;
+const MAX_COPIES = 99;
 const PRINTERS = [1, 2];
 const DUPLICATE_WINDOW_SECONDS = 10;
 const PRINTABLE = ["CONFIRMED", "PRINTED"];
