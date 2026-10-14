@@ -44,6 +44,12 @@ export const CONNECTORS = [
     response_mapping: {},
   },
   {
+    name: "Ticketing: notify L2 resolvers",
+    path: "/api/sm/notify",
+    body: { incident_id: "$entity.bot_service_incident_id", event: "L2_ESCALATED" },
+    response_mapping: {},
+  },
+  {
     name: "Ticketing: notify store",
     path: "/api/sm/notify",
     body: { incident_id: "$entity.bot_service_incident_id", event: "RESOLUTION_SENT" },
