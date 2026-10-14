@@ -1,6 +1,6 @@
 "use client";
 
-import { Camera, Home, Inbox, Library, ScanBarcode } from "lucide-react";
+import { Camera, Home, Inbox, Library } from "lucide-react";
 import { motion } from "motion/react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -11,7 +11,6 @@ const ITEMS = [
   { href: "/", label: "Home", icon: Home, match: (p: string) => p === "/" },
   { href: "/inbox", label: "Inbox", icon: Inbox, match: (p: string) => p.startsWith("/inbox") || p.startsWith("/incident") },
   { href: "/capture", label: "Capture", icon: Camera, match: (p: string) => p.startsWith("/capture") || p.startsWith("/review"), primary: true },
-  { href: "/quick-scan", label: "Scan", icon: ScanBarcode, match: (p: string) => p.startsWith("/quick-scan") },
   { href: "/library", label: "Catalog", icon: Library, match: (p: string) => p.startsWith("/library") },
 ] as const;
 
@@ -23,7 +22,7 @@ export function BottomNav() {
 
   return (
     <nav aria-label="Main" className="fixed inset-x-0 bottom-0 z-40 border-t bg-background/90 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl">
-      <ul className="mx-auto grid h-16 max-w-2xl grid-cols-5 items-end px-2">
+      <ul className="mx-auto grid h-16 max-w-2xl grid-cols-4 items-end px-2">
         {ITEMS.map(({ href, label, icon: Icon, match, ...rest }) => {
           const active = match(pathname);
           const primary = "primary" in rest;

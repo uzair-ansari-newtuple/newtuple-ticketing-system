@@ -1,6 +1,6 @@
 "use client";
 
-import { Camera, ScanBarcode } from "lucide-react";
+import { Camera } from "lucide-react";
 import { motion } from "motion/react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -66,17 +66,11 @@ export default function HomePage() {
 
   return (
     <AppShell title={`Hello, ${user?.username ?? "there"}`} subtitle={user?.store_name}>
-      <Reveal className="grid grid-cols-2 gap-3">
-        <motion.div whileTap={{ scale: 0.97 }}>
-          <Link href="/capture" onClick={resetCapture} className="flex h-full flex-col justify-between gap-6 rounded-2xl bg-primary p-4 text-primary-foreground shadow-lg shadow-primary/20">
-            <Camera size={26} />
-            <span><span className="block text-base font-bold">Photo match</span><span className="text-xs opacity-80">Photograph the item</span></span>
-          </Link>
-        </motion.div>
-        <motion.div whileTap={{ scale: 0.97 }}>
-          <Link href="/quick-scan" className="flex h-full flex-col justify-between gap-6 rounded-2xl border bg-card p-4 shadow-sm">
-            <ScanBarcode size={26} className="text-primary" />
-            <span><span className="block text-base font-bold">Quick scan</span><span className="text-xs text-muted-foreground">Scan a barcode</span></span>
+      <Reveal>
+        <motion.div whileTap={{ scale: 0.98 }}>
+          <Link href="/capture" onClick={resetCapture} className="flex items-center gap-4 rounded-2xl bg-primary p-5 text-primary-foreground shadow-lg shadow-primary/20">
+            <span className="grid size-12 place-items-center rounded-xl bg-white/15"><Camera size={26} /></span>
+            <span><span className="block text-lg font-bold">Photo match</span><span className="text-sm opacity-80">Photograph an item with a missing tag</span></span>
           </Link>
         </motion.div>
       </Reveal>
@@ -86,7 +80,7 @@ export default function HomePage() {
       ) : isError ? (
         <Section title="Tickets"><QueryError error={error} onRetry={() => void refetch()} /></Section>
       ) : items.length === 0 ? (
-        <p className="mt-12 text-center text-sm text-muted-foreground">No tickets yet. Start with a photo or a quick scan.</p>
+        <p className="mt-12 text-center text-sm text-muted-foreground">No tickets yet. Start with a photo.</p>
       ) : (
         <>
           {attention.length ? <Section title="Needs your attention"><TicketList items={attention} /></Section> : null}
