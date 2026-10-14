@@ -4,10 +4,11 @@ Run from the project root:  python3 scripts/generate-seed-images.py
 Writes public/catalog/<SKU>.jpg, public/catalog/tags/<SKU>-tag.jpg and db/seed-assets/thumbs/<SKU>.jpg.
 Uses macOS qlmanage and sips to rasterize, so it only runs on a Mac.
 """
+from xml.sax.saxutils import escape
 import json, os, subprocess, tempfile, shutil
 
 ROOT = os.getcwd()
-products = json.load(open("src/data/products.json"))
+products = json.load(open("db/seed/products.json"))
 
 COLORS = {"BLK": "#2b2b2f", "WHT": "#f5f5f2", "GRY": "#8d929b", "NVY": "#22345f", "BLU": "#3f72b8", "RED": "#c23b32",
           "MRN": "#6f2233", "PNK": "#e895ac", "PRP": "#7a54a8", "ORG": "#e08a3c", "YLW": "#e7c547", "GRN": "#4f9a5d",
@@ -86,8 +87,8 @@ def tag_svg(p):
     size = SIZES[p["classCode"]]
     return (f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 800" width="1200" height="1200"><rect width="800" height="800" fill="#ffffff"/><g transform="translate(0 150)">'
             f'<rect x="14" y="14" width="772" height="472" rx="18" fill="none" stroke="#bbbbbb" stroke-width="3" stroke-dasharray="10 8"/>'
-            f'<text x="50" y="92" font-family="Arial, Helvetica, sans-serif" font-size="52" font-weight="bold" fill="#000">{p["brand"].upper()}</text>'
-            f'<text x="50" y="146" font-family="Arial, Helvetica, sans-serif" font-size="34" fill="#000">{p["name"]}</text>'
+            f'<text x="50" y="92" font-family="Arial, Helvetica, sans-serif" font-size="52" font-weight="bold" fill="#000">{escape(p["brand"].upper())}</text>'
+            f'<text x="50" y="146" font-family="Arial, Helvetica, sans-serif" font-size="34" fill="#000">{escape(p["name"])}</text>'
             f'<text x="50" y="206" font-family="Arial, Helvetica, sans-serif" font-size="38" fill="#000">SIZE {size}</text>'
             f'<text x="750" y="206" font-family="Arial, Helvetica, sans-serif" font-size="78" font-weight="bold" text-anchor="end" fill="#000">{p["price"]}</text>'
             f'{barcode_svg(p["upc"], 190, 250, 4, 120)}</g></svg>')
