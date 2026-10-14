@@ -27,14 +27,6 @@ export interface ImagePayload {
   quality_hint: QualityHint;
 }
 
-export interface QuickScanBody {
-  path: QuickScanPath;
-  barcode: string;
-  image?: ImagePayload;
-  ocr_text?: string;
-  thumb?: string;
-}
-
 export interface IncidentCreateBody {
   quality_check_id: string;
   images: ImagePayload[];
@@ -167,7 +159,6 @@ export type IncidentState =
 
 export type Gating = "GREEN" | "YELLOW" | "RED";
 export type Lane = "PHOTO_LANE" | "FAST_LANE";
-export type QuickScanPath = "BARCODE" | "NEARBY_TAG";
 export type EscalationReason = "BARCODE_NOT_FOUND" | "TOO_MANY_CANDIDATES" | "LOW_EVIDENCE" | "CATALOG_UNAVAILABLE" | "USER_UNSURE" | "PRINT_FAILURE" | "OTHER";
 export type ItemAge = "NEW_FREIGHT" | "OLD_MERCHANDISE";
 export type ResolverDecision = "RECOMMEND" | "CANT_RESOLVE" | "NOT_APPAREL";

@@ -14,7 +14,6 @@ import type {
   IncidentCreateBody,
   LibraryEntry,
   MatchCandidate,
-  QuickScanBody,
   NormalizedMetadata,
   LoginResponse,
   MetadataExtraction,
@@ -130,9 +129,6 @@ export const api = {
     request<{ state: string }>(`/resolver/incidents/${id}/respond`, { method: "POST", token, body: JSON.stringify(body) }),
 
   searchProducts: (token: string, q: string) => request<{ items: NormalizedMetadata[] }>(`/products?q=${encodeURIComponent(q)}`, { token }),
-
-  quickScan: (token: string, body: QuickScanBody) =>
-    request<{ incident_id: string; incident_number_display: string; found: boolean; state: string }>("/incidents/quick-scan", { method: "POST", token, body: JSON.stringify(body) }),
 
   createIncident: (
     token: string,
