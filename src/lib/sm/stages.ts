@@ -51,7 +51,7 @@ export async function runAnalyze(id: string) {
     const { rows: photos } = await pool.query<StoredPhoto>(`SELECT slot, mime_type, data FROM incident_images WHERE incident_id = $1 ORDER BY position`, [id]);
     const { analysis, embeddings } = await analyzeStoredPhotos(row.store_id, photos);
     await pool.query(`UPDATE incidents SET analysis = $2, embeddings = $3, pipeline = ${markDone("analyze")}, updated_at = now() WHERE id = $1`, [id, JSON.stringify(analysis), JSON.stringify(embeddings)]);
-    row.analysis = analysis;
+    row.analysis = JSON.parse(JSON.stringify(analysis)) as ClientAnalysis;
   }
   const { analysis } = row;
   return {
