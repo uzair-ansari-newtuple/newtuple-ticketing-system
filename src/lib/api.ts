@@ -48,6 +48,7 @@ async function request<T>(path: string, init: RequestInit & { token?: string } =
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 export const api = {
+  loginProvider: () => request<{ provider: "local" | "state-machine" }>("/auth/login").then((r) => r.provider),
   login: (username: string, password: string) =>
     request<LoginResponse>("/auth/login", { method: "POST", body: JSON.stringify({ username, password }) }),
 

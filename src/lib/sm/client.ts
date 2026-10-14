@@ -7,6 +7,8 @@ export const smBaseUrl = () => process.env.SM_BASE_URL?.replace(/\/$/, "") ?? ""
 export const smMachine = () => process.env.SM_MACHINE_NAME ?? "workflow_dguyp0t8_9f7jus";
 export const smEntityType = () => process.env.SM_ENTITY_TYPE ?? "incident";
 
+export const smLoginEnabled = () => Boolean(smBaseUrl());
+
 export const smEnabled = () => Boolean(smBaseUrl() && (process.env.SM_ACCESS_TOKEN || (process.env.SM_EMAIL && process.env.SM_PASSWORD)));
 
 async function login(): Promise<string> {
@@ -42,4 +44,19 @@ export async function smFetch<T>(method: string, path: string, body?: unknown): 
     return (await res.json()) as T;
   }
   throw new Error("unreachable");
+}
+
+export type SmLogin = { ok: true; email: string } | { ok: false; status: number; detail: string };
+
+/** Checks an email and password against the State Machine. The app keeps the role and store of each user in its own database. */
+export async function smSignIn(email: string, password: string): Promise<SmLogin> {
+  const res = await fetch(`${smBaseUrl()}/auth/login`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ email, password }),
+    signal: AbortSignal.timeout(TIMEOUT_MS),
+  });
+  const body = (await res.json().catch(() => null)) as { detail?: string; user?: { email?: string } } | null;
+  if (!res.ok) return { ok: false, status: res.status, detail: typeof body?.detail === "string" ? body.detail : "Sign in failed" };
+  return { ok: true, email: body?.user?.email ?? email };
 }
