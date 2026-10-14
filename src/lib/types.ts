@@ -214,6 +214,7 @@ export interface IncidentSummary {
   short_number: number;
   disposition: Disposition | null;
   new_tag_added: boolean;
+  missing_price_tag_count: number;
   store_id: string;
   created_at: string;
   updated_at: string;

@@ -23,6 +23,7 @@ export interface IncidentRow {
   unread_for_store: boolean;
   disposition: Disposition | null;
   new_tag_added: boolean;
+  missing_price_tag_count: number;
   created_at: Date;
   updated_at: Date;
 }
@@ -62,6 +63,7 @@ export function toSummary(row: IncidentRow): IncidentSummary {
     short_number: row.number,
     disposition: row.disposition,
     new_tag_added: row.new_tag_added,
+    missing_price_tag_count: row.missing_price_tag_count,
     store_id: row.store_id,
     created_at: row.created_at.toISOString(),
     updated_at: row.updated_at.toISOString(),
