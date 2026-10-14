@@ -46,7 +46,6 @@ const GATING: Record<Gating, { label: string; variant: Variant }> = {
 };
 
 export const REASONS: Record<EscalationReason, { label: string; description: string }> = {
-  BARCODE_NOT_FOUND: { label: "Barcode not in the catalog", description: "The barcode is valid but we don't have this item." },
   TOO_MANY_CANDIDATES: { label: "Too many similar items", description: "Several items look right and I can't tell which." },
   LOW_EVIDENCE: { label: "Not enough to identify it", description: "The photos don't give enough to find the item." },
   CATALOG_UNAVAILABLE: { label: "Analysis unavailable", description: "The image analysis or catalog could not run." },

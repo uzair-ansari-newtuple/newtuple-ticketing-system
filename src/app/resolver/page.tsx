@@ -7,7 +7,6 @@ import { AppShell } from "@/components/app-shell";
 import { SafeImg } from "@/components/safe-img";
 import { StaggerList, StaggerListItem } from "@/components/motion";
 import { PillTabs } from "@/components/pill-tabs";
-import { Badge } from "@/components/ui/badge";
 import { StateBadge } from "@/components/status";
 import { Card, CardContent } from "@/components/ui/card";
 import { ListSkeleton } from "@/components/skeletons";
@@ -31,7 +30,6 @@ function Row({ t }: { t: IncidentSummary }) {
             <div className="flex items-center gap-2">
               <p className="font-semibold">{t.number_display}</p>
               <StateBadge s={t} />
-              {t.lane === "FAST_LANE" ? <Badge variant="outline">Quick scan</Badge> : null}
             </div>
             <p className="truncate text-sm text-muted-foreground">{t.summary} · {t.store_id}</p>
             <p className="text-xs text-muted-foreground">{formatDateTime(t.updated_at)}</p>

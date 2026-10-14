@@ -76,7 +76,7 @@ export interface NormalizedMetadata {
   Price: string | null;
 }
 
-export type FieldSource = "image_match" | "classifier" | "ocr" | "barcode";
+export type FieldSource = "image_match" | "classifier" | "ocr";
 
 export interface LabelScore {
   code: string;
@@ -158,8 +158,7 @@ export type IncidentState =
   | "FAILED";
 
 export type Gating = "GREEN" | "YELLOW" | "RED";
-export type Lane = "PHOTO_LANE" | "FAST_LANE";
-export type EscalationReason = "BARCODE_NOT_FOUND" | "TOO_MANY_CANDIDATES" | "LOW_EVIDENCE" | "CATALOG_UNAVAILABLE" | "USER_UNSURE" | "PRINT_FAILURE" | "OTHER";
+export type EscalationReason = "TOO_MANY_CANDIDATES" | "LOW_EVIDENCE" | "CATALOG_UNAVAILABLE" | "USER_UNSURE" | "PRINT_FAILURE" | "OTHER";
 export type ItemAge = "NEW_FREIGHT" | "OLD_MERCHANDISE";
 export type ResolverDecision = "RECOMMEND" | "CANT_RESOLVE" | "NOT_APPAREL";
 export type Disposition = "DISCARD" | "RETURN_TO_VENDOR" | "DONATE";
@@ -209,7 +208,6 @@ export interface IncidentEvent {
 
 export interface IncidentSummary {
   id: string;
-  lane: Lane;
   number_display: string;
   state: IncidentState;
   gating: Gating | null;

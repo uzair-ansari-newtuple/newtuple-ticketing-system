@@ -19,7 +19,7 @@ export function TicketRow({ t }: { t: IncidentSummary }) {
               <p className="truncate font-bold uppercase">{t.title}</p>
               {t.unread ? <span className="size-2.5 shrink-0 rounded-full bg-primary" aria-label="Unread" /> : null}
             </div>
-            <p className="truncate text-sm text-muted-foreground">#{t.short_number}{t.department ? ` · Dept ${t.department}` : ""}{t.lane === "FAST_LANE" ? " · Quick scan" : ""}</p>
+            <p className="truncate text-sm text-muted-foreground">#{t.short_number}{t.department ? ` · Dept ${t.department}` : ""}</p>
           </div>
           <div className="flex shrink-0 flex-col items-end gap-1">
             <StateBadge s={t} />

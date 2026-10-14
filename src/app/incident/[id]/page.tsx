@@ -50,7 +50,6 @@ const BLOCKED_COPY: Record<string, string> = {
   TOO_MANY_CANDIDATES: "Too many items look similar, so we can't pick one safely.",
   LOW_EVIDENCE: "We couldn't find a close enough match for this item.",
   CATALOG_UNAVAILABLE: "The image analysis could not run for this ticket.",
-  BARCODE_NOT_FOUND: "This barcode is valid, but the item isn't in the catalog.",
 };
 const DISPOSITIONS: { key: Disposition; label: string; icon: React.ElementType }[] = [
   { key: "DISCARD", label: "Discard", icon: Trash2 },
@@ -206,7 +205,7 @@ function ActionCard({ d, token }: { d: IncidentDetail; token: string }) {
       return (
         <Card className="ring-2 ring-destructive/30">
           <CardContent className="space-y-3">
-            <div className="flex items-center gap-2 font-semibold text-destructive"><AlertTriangle size={18} /> {d.lane === "FAST_LANE" ? "Not in the catalog" : "Analysis failed"}</div>
+            <div className="flex items-center gap-2 font-semibold text-destructive"><AlertTriangle size={18} /> Analysis failed</div>
             <p className="text-sm text-muted-foreground">{d.extraction?.error_message}</p>
             {assist}
           </CardContent>
@@ -238,12 +237,11 @@ export default function IncidentPage({ params }: { params: Promise<{ id: string 
 
   const ex = d.extraction;
   const meta = d.selected?.metadata ?? ex?.normalized_metadata;
-  const isFast = d.lane === "FAST_LANE";
   const match = d.analysis.match;
   const failed = ex?.status === "failed" || (!meta && d.state !== "METADATA_PENDING");
   const photos = imageData?.images ?? [];
   const photo = photos[Math.min(active, Math.max(photos.length - 1, 0))];
-  const canAdd = Boolean(!isFast && !failed && !match && !added && d.embeddings?.length && d.thumb && ex?.normalized_metadata);
+  const canAdd = Boolean(!failed && !match && !added && d.embeddings?.length && d.thumb && ex?.normalized_metadata);
 
   async function addToLibrary() {
     if (!ex?.normalized_metadata || !d?.embeddings?.length || !d.thumb) return;
@@ -267,7 +265,6 @@ export default function IncidentPage({ params }: { params: Promise<{ id: string 
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <StateBadge s={d} />
         <PriorityBadge priority={d.priority} />
-        {isFast ? <Badge variant="outline">Quick scan</Badge> : null}
         {d.gating && d.state === "CANDIDATES_READY" ? <GatingBadge gating={d.gating} /> : null}
       </div>
 
@@ -340,9 +337,7 @@ export default function IncidentPage({ params }: { params: Promise<{ id: string 
               <CardContent>
                 <h3 className="flex items-center gap-2 text-sm font-bold"><CircleHelp size={16} className="text-primary" /> How we identified this</h3>
                 <p className="mt-2 text-sm text-muted-foreground">
-                  {isFast
-                    ? `Quick scan looked up barcode ${meta?.Barcode ?? ""} in the catalog. It skips photo matching and goes straight to printing.`
-                    : match
+                  {match
                       ? `Your photo is ${Math.round(match.similarity * 100)}% similar to a saved item. Vector search in the database found it, and matches above ${Math.round(d.analysis.match_threshold * 100)}% are accepted.`
                       : d.analysis.top_matches[0]
                         ? `The closest saved item was ${Math.round(d.analysis.top_matches[0].similarity * 100)}% similar (needs ${Math.round(d.analysis.match_threshold * 100)}%). Category and color came from the image, brand, size and barcode from the tag.`

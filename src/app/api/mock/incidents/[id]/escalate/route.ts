@@ -4,7 +4,7 @@ import { jsonError, userFromRequest } from "@/lib/mock/http";
 import { loadRow, logEvent } from "@/lib/mock/incidents";
 import type { EscalationReason, ItemAge } from "@/lib/types";
 
-const REASONS: EscalationReason[] = ["BARCODE_NOT_FOUND", "TOO_MANY_CANDIDATES", "LOW_EVIDENCE", "CATALOG_UNAVAILABLE", "USER_UNSURE", "PRINT_FAILURE", "OTHER"];
+const REASONS: EscalationReason[] = ["TOO_MANY_CANDIDATES", "LOW_EVIDENCE", "CATALOG_UNAVAILABLE", "USER_UNSURE", "PRINT_FAILURE", "OTHER"];
 const AGES: ItemAge[] = ["NEW_FREIGHT", "OLD_MERCHANDISE"];
 const ESCALATABLE = ["CANDIDATES_READY", "CONFIRMED", "FAILED", "PRINTED"];
 const MAX_NOTE = 500;

@@ -1,12 +1,12 @@
 import type { Pool, PoolClient } from "pg";
 import type { DbUser } from "@/lib/mock/auth";
-import type { Candidate, ClientAnalysis, Disposition, Lane, Escalation, Gating, IncidentDetail, IncidentEvent, IncidentState, IncidentSummary, ItemAge, MetadataExtraction, PrintJob, ResolverState } from "@/lib/types";
+import type { Candidate, ClientAnalysis, Disposition, Escalation, Gating, IncidentDetail, IncidentEvent, IncidentState, IncidentSummary, ItemAge, MetadataExtraction, PrintJob, ResolverState } from "@/lib/types";
 
 export interface IncidentRow {
   id: string;
   number: number;
   store_id: string;
-  capture_profile_id: Lane;
+  capture_profile_id: string;
   current_state: IncidentState;
   gating: Gating | null;
   gating_reason: string | null;
@@ -48,7 +48,6 @@ export function toSummary(row: IncidentRow): IncidentSummary {
   const meta = row.selected?.metadata ?? row.extraction?.normalized_metadata;
   return {
     id: row.id,
-    lane: row.capture_profile_id,
     number_display: numberDisplay(row.number),
     state: row.current_state,
     gating: row.gating,

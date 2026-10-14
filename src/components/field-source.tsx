@@ -1,4 +1,4 @@
-import { Barcode, ScanText, Sparkles, Library } from "lucide-react";
+import { ScanText, Sparkles, Library } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import type { FieldSource } from "@/lib/types";
 
@@ -6,7 +6,6 @@ const META: Record<FieldSource, { label: string; icon: React.ElementType; varian
   image_match: { label: "Library match", icon: Library, variant: "default" },
   classifier: { label: "Image AI", icon: Sparkles, variant: "secondary" },
   ocr: { label: "Tag text", icon: ScanText, variant: "outline" },
-  barcode: { label: "Barcode", icon: Barcode, variant: "default" },
 };
 
 export function SourceBadge({ source, confidence }: { source: FieldSource; confidence: number }) {
