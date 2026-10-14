@@ -15,7 +15,7 @@ import { hashPassword } from "@/lib/mock/auth";
 import { buildCandidates, gate } from "@/lib/mock/flow";
 import { buildExtraction } from "@/lib/mock/extract";
 import { CLASSES, parseTagText } from "@/lib/taxonomy";
-import type { Candidate, CaptureMetadata, ClientAnalysis, Escalation, EscalationReason, Gating, IncidentState, ItemAge, MatchCandidate, MetadataExtraction, ResolverState } from "@/lib/types";
+import type { Candidate, CaptureMetadata, ClientAnalysis, Escalation, EscalationReason, IncidentState, ItemAge, MatchCandidate, MetadataExtraction, ResolverState } from "@/lib/types";
 
 process.loadEnvFile(".env");
 
@@ -39,7 +39,6 @@ const dataUrl = (path: string) => `data:image/jpeg;base64,${file(path).toString(
 
 interface Spec {
   n: number;
-  lane?: "PHOTO_LANE" | "FAST_LANE";
   state: IncidentState;
   minutes: number;
   sku?: string;
@@ -52,7 +51,6 @@ interface Spec {
   resolver?: Omit<ResolverState, "responded_at"> & { respondedMinutesAgo?: number };
   unread?: boolean;
   print?: { copies: number; printer: number };
-  quick?: { path: "BARCODE" | "NEARBY_TAG"; barcode: string };
   disposition?: "DISCARD" | "RETURN_TO_VENDOR" | "DONATE";
   tagAdded?: boolean;
 }
@@ -67,12 +65,10 @@ const SPECS: Spec[] = [
   { n: 7, state: "RESOLVER_RESPONSE_RECEIVED", minutes: 120, sku: "SKU-1017", similarity: 0.5, weakClass: true, tag: "none", unread: true, escalation: { reason: "USER_UNSURE", note: "Looks like a mug set?", age: "OLD_MERCHANDISE" }, resolver: { status: "RESOLVED", claimed_by: "resolver1", decision: "NOT_APPAREL", recommended: null, comment: "This is a home item, not apparel. Send it to the home department.", respondedMinutesAgo: 45 } },
   { n: 8, state: "CONFIRMED", minutes: 30, sku: "SKU-1004", similarity: 0.95, tag: "full", confirmed: "SKU-1004" },
   { n: 9, state: "PRINTED", minutes: 300, sku: "SKU-1011", similarity: 0.94, tag: "full", confirmed: "SKU-1011", print: { copies: 2, printer: 1 } },
-  { n: 10, lane: "FAST_LANE", state: "COMPLETED", minutes: 600, sku: "SKU-1001", quick: { path: "BARCODE", barcode: bySku("SKU-1001").upc }, confirmed: "SKU-1001", print: { copies: 3, printer: 2 }, tagAdded: true },
-  { n: 11, lane: "FAST_LANE", state: "FAILED", minutes: 25, quick: { path: "BARCODE", barcode: "036000291452" } },
-  { n: 12, state: "RESOLVER_RESPONSE_RECEIVED", minutes: 500, sku: "SKU-1016", similarity: 0.5, weakClass: true, tag: "none", escalation: { reason: "LOW_EVIDENCE", note: "Heavy coat, no label", age: "OLD_MERCHANDISE" }, resolver: { status: "RESOLVED", claimed_by: "resolver1", decision: "CANT_RESOLVE", recommended: null, comment: "Not enough detail. Ask the vendor for a packing list.", respondedMinutesAgo: 400 } },
-  { n: 13, state: "CLOSED", minutes: 1500, sku: "SKU-1017", similarity: 0.5, weakClass: true, tag: "none", escalation: { reason: "USER_UNSURE", note: "Might be a pet bed", age: "OLD_MERCHANDISE" }, resolver: { status: "RESOLVED", claimed_by: "resolver1", decision: "NOT_APPAREL", recommended: null, comment: "Pet item. Not CT merchandise.", respondedMinutesAgo: 1400 }, disposition: "DONATE" },
-  { n: 14, state: "COMPLETED", minutes: 2000, sku: "SKU-1013", similarity: 0.5, weakClass: true, tag: "none", escalation: { reason: "LOW_EVIDENCE", note: "No tag", age: "NEW_FREIGHT" }, resolver: { status: "RESOLVED", claimed_by: "resolver1", decision: "RECOMMEND", recommended: productMetadata(bySku("SKU-1013")), comment: "Wrap midi dress, maroon.", respondedMinutesAgo: 1900 }, confirmed: "SKU-1013", print: { copies: 1, printer: 1 }, tagAdded: true },
-  { n: 15, lane: "FAST_LANE", state: "CONFIRMED", minutes: 10, sku: "SKU-1012", quick: { path: "NEARBY_TAG", barcode: bySku("SKU-1012").upc }, confirmed: "SKU-1012", tag: "full" },
+  { n: 10, state: "COMPLETED", minutes: 600, sku: "SKU-1001", similarity: 0.95, tag: "full", confirmed: "SKU-1001", print: { copies: 3, printer: 2 }, tagAdded: true },
+  { n: 11, state: "RESOLVER_RESPONSE_RECEIVED", minutes: 500, sku: "SKU-1016", similarity: 0.5, weakClass: true, tag: "none", escalation: { reason: "LOW_EVIDENCE", note: "Heavy coat, no label", age: "OLD_MERCHANDISE" }, resolver: { status: "RESOLVED", claimed_by: "resolver1", decision: "CANT_RESOLVE", recommended: null, comment: "Not enough detail. Ask the vendor for a packing list.", respondedMinutesAgo: 400 } },
+  { n: 12, state: "CLOSED", minutes: 1500, sku: "SKU-1017", similarity: 0.5, weakClass: true, tag: "none", escalation: { reason: "USER_UNSURE", note: "Might be a pet bed", age: "OLD_MERCHANDISE" }, resolver: { status: "RESOLVED", claimed_by: "resolver1", decision: "NOT_APPAREL", recommended: null, comment: "Pet item. Not CT merchandise.", respondedMinutesAgo: 1400 }, disposition: "DONATE" },
+  { n: 13, state: "COMPLETED", minutes: 2000, sku: "SKU-1013", similarity: 0.5, weakClass: true, tag: "none", escalation: { reason: "LOW_EVIDENCE", note: "No tag", age: "NEW_FREIGHT" }, resolver: { status: "RESOLVED", claimed_by: "resolver1", decision: "RECOMMEND", recommended: productMetadata(bySku("SKU-1013")), comment: "Wrap midi dress, maroon.", respondedMinutesAgo: 1900 }, confirmed: "SKU-1013", print: { copies: 1, printer: 1 }, tagAdded: true },
 ];
 
 function tagText(p: Product): string {
@@ -182,49 +178,24 @@ try {
 
   for (const spec of SPECS) {
     const id = `${ID_PREFIX}${String(spec.n).padStart(2, "0")}`;
-    const lane = spec.lane ?? "PHOTO_LANE";
     const created = minutesAgo(spec.minutes);
-    const events: { type: string; actor: string; at: Date; detail?: object }[] = [{ type: "CREATED", actor: "store112", at: created, detail: { lane } }];
+    const events: { type: string; actor: string; at: Date; detail?: object }[] = [{ type: "CREATED", actor: "store112", at: created, detail: { lane: "PHOTO_LANE" } }];
     const stamp = (offset: number) => new Date(created.getTime() + offset * 60_000);
 
-    let analysis: ClientAnalysis;
-    let extraction: Partial<MetadataExtraction>;
-    let candidates: Candidate[] = [];
-    let gating: Gating | null = null;
-    let gatingReason: string | null = null;
     let selected: Candidate | null = null;
     const state = spec.state;
 
-    if (spec.quick) {
-      analysis = { model: "quick-scan", match: null, top_matches: [], match_threshold: 0.88, classification: null, ocr: null, error: null };
-      const product = PRODUCTS.find((p) => p.upc === spec.quick!.barcode);
-      if (product) {
-        const metadata = productMetadata(product);
-        selected = { key: product.sku, sku: product.sku, metadata, score: 1, evidence: "barcode", thumb: null };
-        candidates = [selected];
-        extraction = { status: "completed", model_name: "barcode lookup", prompt_version: "fast-lane", normalized_metadata: metadata, ocr_text: spec.tag === "full" ? tagText(product) : null, confidence: 1, warnings: [], missing_fields: ["Size"], field_sources: Object.fromEntries(Object.entries(metadata).filter(([, v]) => v).map(([k]) => [k, { source: "barcode", confidence: 1 }])), error_message: null };
-        events.push({ type: "BARCODE_MATCHED", actor: "system", at: stamp(0), detail: { barcode: spec.quick.barcode, sku: product.sku } }, { type: "CONFIRMED", actor: "system", at: stamp(0) });
-      } else {
-        extraction = { status: "failed", model_name: "barcode lookup", prompt_version: "fast-lane", error_message: `Barcode ${spec.quick.barcode} is valid but is not in the catalog.` };
-        gating = "RED";
-        gatingReason = "BARCODE_NOT_FOUND";
-        events.push({ type: "BARCODE_NOT_FOUND", actor: "system", at: stamp(0), detail: { barcode: spec.quick.barcode } });
-      }
-    } else {
-      analysis = buildAnalysis(spec, refIds);
-      const built = buildExtraction(analysis);
-      extraction = { ...built, status: "completed", model_name: "clip-vit-base-patch32 + tesseract", prompt_version: "browser-v1" };
-      candidates = buildCandidates(analysis, built.normalized_metadata, PRODUCTS);
-      const g = gate(candidates, false);
-      gating = g.gating;
-      gatingReason = g.reason;
-      events.push({ type: "ANALYZED", actor: "system", at: stamp(1), detail: { gating, candidates: candidates.length } });
-    }
+    const analysis: ClientAnalysis = buildAnalysis(spec, refIds);
+    const built = buildExtraction(analysis);
+    const extraction: Partial<MetadataExtraction> = { ...built, status: "completed", model_name: "clip-vit-base-patch32 + tesseract", prompt_version: "browser-v1" };
+    const candidates: Candidate[] = buildCandidates(analysis, built.normalized_metadata, PRODUCTS);
+    const { gating, reason: gatingReason } = gate(candidates, false);
+    events.push({ type: "ANALYZED", actor: "system", at: stamp(1), detail: { gating, candidates: candidates.length } });
 
     if (spec.confirmed) {
       const p = bySku(spec.confirmed);
       selected = candidates.find((c) => c.key === spec.confirmed) ?? { key: p.sku, sku: p.sku, metadata: productMetadata(p), score: 0.96, evidence: "barcode", thumb: null };
-      if (!spec.quick) events.push({ type: "CONFIRMED", actor: "store112", at: stamp(3), detail: { sku: p.sku } });
+      events.push({ type: "CONFIRMED", actor: "store112", at: stamp(3), detail: { sku: p.sku } });
     }
 
     let escalation: Escalation | null = null;
@@ -244,11 +215,10 @@ try {
     if (spec.tagAdded) events.push({ type: "NEW_TAG_ADDED", actor: "store112", at: stamp(8) });
     if (spec.disposition) events.push({ type: "DISPOSITION", actor: "store112", at: stamp(30), detail: { disposition: spec.disposition } });
 
-    const heroSku = spec.sku ?? spec.quick?.barcode;
-    const hero = spec.sku ? spec.sku : PRODUCTS.find((p) => p.upc === heroSku)?.sku;
+    const hero = spec.sku;
     const images: { slot: string; path: string; name: string }[] = [];
-    if (spec.quick?.path !== "BARCODE") {
-      if (hero && lane === "PHOTO_LANE") images.push({ slot: "front", path: `public/catalog/${hero}.jpg`, name: `${hero}-front.jpg` });
+    {
+      if (hero) images.push({ slot: "front", path: `public/catalog/${hero}.jpg`, name: `${hero}-front.jpg` });
       if (spec.tag === "full" && hero) images.push({ slot: "tag", path: `public/catalog/tags/${hero}-tag.jpg`, name: `${hero}-tag.jpg` });
     }
     const thumb = hero ? dataUrl(`db/seed-assets/thumbs/${hero}.jpg`) : null;
@@ -257,7 +227,7 @@ try {
       `INSERT INTO incidents (id, number, store_id, capture_profile_id, current_state, metadata_job_id, image_count, analysis, embeddings, thumb,
                               gating, gating_reason, candidates, selected, item_age, escalation, resolver, extraction, unread_for_store, disposition, new_tag_added, created_at, updated_at)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$22)`,
-      [id, 9000 + spec.n, STORE_ID, lane, state, randomUUID(), images.length, JSON.stringify(analysis), JSON.stringify(lane === "PHOTO_LANE" && hero ? embeddingsBySku.get(hero) ?? [] : []), thumb,
+      [id, 9000 + spec.n, STORE_ID, "PHOTO_LANE", state, randomUUID(), images.length, JSON.stringify(analysis), JSON.stringify(hero ? embeddingsBySku.get(hero) ?? [] : []), thumb,
        gating, gatingReason, JSON.stringify(candidates), selected ? JSON.stringify(selected) : null, spec.escalation?.age ?? null, escalation ? JSON.stringify(escalation) : null, resolver ? JSON.stringify(resolver) : null, JSON.stringify(extraction), spec.unread ?? false, spec.disposition ?? null, spec.tagAdded ?? false, minutesAgo(Math.max(0, spec.minutes - 4))],
     );
     await client.query(`UPDATE incidents SET created_at = $2 WHERE id = $1`, [id, created]);
@@ -271,7 +241,7 @@ try {
     if (spec.print && selected?.metadata.Barcode) {
       await client.query(`INSERT INTO print_jobs (id, incident_id, store_id, upc, sku, printer, copies, status, message, created_at) VALUES ($1,$2,$3,$4,$5,$6,$7,'accepted','Label sent to the printer',$8)`, [randomUUID(), id, STORE_ID, selected.metadata.Barcode, selected.sku, spec.print.printer, spec.print.copies, stamp(6)]);
     }
-    console.log(`TK-${String(9000 + spec.n).padStart(6, "0")}  ${state.padEnd(28)} ${lane === "FAST_LANE" ? "quick scan" : (gating ?? "").padEnd(10)} ${images.length} image(s)`);
+    console.log(`TK-${String(9000 + spec.n).padStart(6, "0")}  ${state.padEnd(28)} ${(gating ?? "").padEnd(10)} ${images.length} image(s)`);
   }
 
   await client.query("COMMIT");
