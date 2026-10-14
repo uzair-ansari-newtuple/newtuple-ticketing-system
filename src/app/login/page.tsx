@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRight, Loader2, ScanSearch, ShieldCheck, Ticket } from "lucide-react";
+import { ArrowRight, Eye, EyeOff, Loader2, ScanSearch, ShieldCheck, Ticket } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -22,11 +22,24 @@ export default function LoginPage() {
   const router = useRouter();
   const token = useSession((s) => s.token);
   const signIn = useSession((s) => s.signIn);
-  const [username, setUsername] = useState("store112");
-  const [password, setPassword] = useState("store123");
+  const [provider, setProvider] = useState<"local" | "state-machine" | null>(null);
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const role = useSession((s) => s.user?.role);
+  const viaStateMachine = provider === "state-machine";
+
+  useEffect(() => {
+    api.loginProvider().then((p) => {
+      setProvider(p);
+      if (p === "local") {
+        setUsername("store112");
+        setPassword("store123");
+      }
+    }).catch(() => setProvider("local"));
+  }, []);
 
   useEffect(() => {
     if (token) router.replace(role === "resolver" ? "/resolver" : "/");
@@ -81,23 +94,28 @@ export default function LoginPage() {
         <Reveal delay={0.15} className="w-full max-w-sm">
           <form onSubmit={submit}>
             <h2 className="text-2xl font-bold tracking-tight">Sign in</h2>
-            <p className="mt-1 text-sm text-muted-foreground">Use the demo account to explore the flow.</p>
+            <p className="mt-1 text-sm text-muted-foreground">{viaStateMachine ? "Use your State Machine account." : "Use the demo account to explore the flow."}</p>
 
             <div className="mt-6 space-y-2">
-              <Label htmlFor="username">Username</Label>
-              <Input id="username" value={username} onChange={(e) => setUsername(e.target.value)} autoCapitalize="none" autoComplete="username" className="h-11" />
+              <Label htmlFor="username">{viaStateMachine ? "Email" : "Username"} <span className="text-destructive" aria-hidden>*</span></Label>
+              <Input id="username" value={username} onChange={(e) => setUsername(e.target.value)} autoCapitalize="none" autoComplete="username" type={viaStateMachine ? "email" : "text"} required placeholder={viaStateMachine ? "you@company.com" : "Enter your username"} className="h-11" />
             </div>
             <div className="mt-4 space-y-2">
-              <Label htmlFor="password">Password</Label>
-              <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" className="h-11" />
+              <Label htmlFor="password">Password <span className="text-destructive" aria-hidden>*</span></Label>
+              <div className="relative">
+                <Input id="password" type={showPassword ? "text" : "password"} value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" required placeholder="Enter your password" className="h-11 pr-11" />
+                <button type="button" onClick={() => setShowPassword((v) => !v)} aria-label={showPassword ? "Hide password" : "Show password"} aria-pressed={showPassword} className="absolute right-1 top-1/2 grid size-9 -translate-y-1/2 place-items-center rounded-md text-muted-foreground transition-colors hover:text-foreground">
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
             </div>
 
-            <div className="mt-4 flex gap-2 text-xs">
+            {provider === "local" ? <div className="mt-4 flex gap-2 text-xs">
               <button type="button" className="rounded-full bg-muted px-3 py-1.5 font-medium" onClick={() => { setUsername("store112"); setPassword("store123"); }}>Store demo</button>
               <button type="button" className="rounded-full bg-muted px-3 py-1.5 font-medium" onClick={() => { setUsername("resolver1"); setPassword("resolver123"); }}>Resolver demo</button>
-            </div>
+            </div> : null}
 
-            <Button type="submit" size="lg" disabled={busy} className="mt-6 w-full">
+            <Button type="submit" size="lg" disabled={busy || !provider} className="mt-6 w-full">
               {busy ? <Loader2 className="animate-spin" /> : null}
               {busy ? "Signing in" : "Continue"}
               {!busy ? <ArrowRight /> : null}
