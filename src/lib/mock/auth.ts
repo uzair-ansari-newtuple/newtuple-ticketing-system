@@ -58,6 +58,11 @@ export async function verifyLogin(pool: Pool, username: string, password: string
   return user;
 }
 
+export async function findUserByEmail(pool: Pool, email: string): Promise<DbUser | null> {
+  const { rows } = await pool.query<DbUser>(`SELECT id, username, role, store_id, store_name FROM users WHERE lower(email) = lower($1)`, [email]);
+  return rows[0] ?? null;
+}
+
 export async function findUserById(pool: Pool, id: string): Promise<DbUser | null> {
   const { rows } = await pool.query<DbUser>(`SELECT id, username, role, store_id, store_name FROM users WHERE id = $1`, [id]);
   return rows[0] ?? null;
