@@ -30,6 +30,25 @@ export const CONNECTORS = [
     path: "/api/sm/identify",
     response_mapping: { gating_tier: "gating_tier", candidate_count: "candidate_count", edw_candidates: "edw_candidates_json" },
   },
+  {
+    name: "Ticketing: look up product by barcode",
+    path: "/api/sm/gtin-lookup",
+    body: { gtin: "$entity.gtin" },
+    response_mapping: {},
+    expose_as_tool: true,
+  },
+  {
+    name: "Ticketing: print label",
+    path: "/api/sm/print-label",
+    body: { incident_id: "$entity.bot_service_incident_id" },
+    response_mapping: {},
+  },
+  {
+    name: "Ticketing: notify store",
+    path: "/api/sm/notify",
+    body: { incident_id: "$entity.bot_service_incident_id", event: "RESOLUTION_SENT" },
+    response_mapping: {},
+  },
 ];
 
 const { access_token: token } = await call("POST", "/auth/login", { email: process.env.SM_EMAIL, password: process.env.SM_PASSWORD });
@@ -45,11 +64,12 @@ for (const c of CONNECTORS) {
     method: "POST",
     path: c.path,
     content_type: "application/json",
-    body_template: BODY,
+    body_template: c.body ?? BODY,
     auth_type: "api_key",
     auth_config: { in: "header", name: "X-API-Key" },
     secrets: { api_key: KEY },
     response_mapping: c.response_mapping,
+    expose_as_tool: Boolean(c.expose_as_tool),
     success_when: { status_in: [200], json_path: "ok", equals: "True" },
   };
   const found = items.find((x) => x.name === c.name);
