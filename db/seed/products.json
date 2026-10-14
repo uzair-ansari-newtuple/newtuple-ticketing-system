@@ -1,0 +1,155 @@
+[
+  {
+    "sku": "SKU-1001",
+    "upc": "812345000016",
+    "name": "Essential Crew Tee",
+    "brand": "Northline",
+    "classCode": "1001",
+    "colorCode": "BLK",
+    "price": "$9.99"
+  },
+  {
+    "sku": "SKU-1002",
+    "upc": "812345000023",
+    "name": "Graphic Print Tee",
+    "brand": "Street Theory",
+    "classCode": "1001",
+    "colorCode": "WHT",
+    "price": "$12.99"
+  },
+  {
+    "sku": "SKU-1003",
+    "upc": "812345000030",
+    "name": "Oxford Button-Down Shirt",
+    "brand": "Harbor & Pine",
+    "classCode": "1002",
+    "colorCode": "BLU",
+    "price": "$22.99"
+  },
+  {
+    "sku": "SKU-1004",
+    "upc": "812345000047",
+    "name": "Piqu\u00e9 Polo Shirt",
+    "brand": "Northline",
+    "classCode": "1003",
+    "colorCode": "NVY",
+    "price": "$16.99"
+  },
+  {
+    "sku": "SKU-1005",
+    "upc": "812345000054",
+    "name": "Fleece Pullover Hoodie",
+    "brand": "Northline",
+    "classCode": "1004",
+    "colorCode": "GRY",
+    "price": "$29.99"
+  },
+  {
+    "sku": "SKU-1006",
+    "upc": "812345000061",
+    "name": "Cable Knit Sweater",
+    "brand": "Harbor & Pine",
+    "classCode": "1005",
+    "colorCode": "BGE",
+    "price": "$27.99"
+  },
+  {
+    "sku": "SKU-1007",
+    "upc": "812345000078",
+    "name": "Slim Fit Stretch Jeans",
+    "brand": "Denim Works",
+    "classCode": "2001",
+    "colorCode": "BLU",
+    "price": "$24.99"
+  },
+  {
+    "sku": "SKU-1008",
+    "upc": "812345000085",
+    "name": "Straight Leg Black Jeans",
+    "brand": "Denim Works",
+    "classCode": "2001",
+    "colorCode": "BLK",
+    "price": "$26.99"
+  },
+  {
+    "sku": "SKU-1009",
+    "upc": "812345000092",
+    "name": "Stretch Chino Pants",
+    "brand": "Harbor & Pine",
+    "classCode": "2002",
+    "colorCode": "KHK",
+    "price": "$23.99"
+  },
+  {
+    "sku": "SKU-1010",
+    "upc": "812345000108",
+    "name": "Cargo Shorts",
+    "brand": "Trailhead",
+    "classCode": "2003",
+    "colorCode": "OLV",
+    "price": "$17.99"
+  },
+  {
+    "sku": "SKU-1011",
+    "upc": "812345000115",
+    "name": "Tapered Joggers",
+    "brand": "Street Theory",
+    "classCode": "2004",
+    "colorCode": "GRY",
+    "price": "$19.99"
+  },
+  {
+    "sku": "SKU-1012",
+    "upc": "812345000122",
+    "name": "High-Rise Leggings",
+    "brand": "Willow & Co",
+    "classCode": "2005",
+    "colorCode": "BLK",
+    "price": "$14.99"
+  },
+  {
+    "sku": "SKU-1013",
+    "upc": "812345000139",
+    "name": "Wrap Midi Dress",
+    "brand": "Willow & Co",
+    "classCode": "3001",
+    "colorCode": "MRN",
+    "price": "$34.99"
+  },
+  {
+    "sku": "SKU-1014",
+    "upc": "812345000146",
+    "name": "Pleated Midi Skirt",
+    "brand": "Willow & Co",
+    "classCode": "3002",
+    "colorCode": "PNK",
+    "price": "$21.99"
+  },
+  {
+    "sku": "SKU-1015",
+    "upc": "812345000153",
+    "name": "Denim Trucker Jacket",
+    "brand": "Denim Works",
+    "classCode": "4001",
+    "colorCode": "BLU",
+    "price": "$44.99"
+  },
+  {
+    "sku": "SKU-1016",
+    "upc": "812345000160",
+    "name": "Quilted Puffer Coat",
+    "brand": "Trailhead",
+    "classCode": "4002",
+    "colorCode": "NVY",
+    "price": "$59.99"
+  },
+  {
+    "sku": "SKU-1017",
+    "upc": "812345000177",
+    "name": "Flannel Pajama Set",
+    "brand": "Hearth",
+    "classCode": "5001",
+    "colorCode": "RED",
+    "price": "$24.99"
+  }
+]
