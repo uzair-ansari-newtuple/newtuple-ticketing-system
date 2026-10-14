@@ -30,12 +30,10 @@ Run `npm run db:migrate` and `npm run db:seed` once against the same database (f
 
 ## What the app does
 
-- **Photo Match:** capture or upload up to 5 photos, quality check, on-device image analysis, then the best matches from the catalog. Green means one clear match, yellow means choose, red is blocked and goes to a resolver.
-- **Quick Scan:** scan a barcode with the camera (or photograph a nearby tag, or type it) and go straight to printing.
+- **Photo Match:** capture or upload up to 5 photos, quality check, on-device image analysis, then the best matches from the product list. Green means one clear match, yellow means choose, red is blocked and goes to a resolver.
 - **Print tag:** barcode label with price, printer 1 or 2, copies, tag colour reminder, then **Confirm New Tag Added** completes the ticket.
 - **Request assistance / resolver desk:** reason codes, item age and note. The resolver claims, then recommends an item, says it can't be resolved, or says it isn't CT merchandise. The store gets the answer in its inbox. Unresolvable items need a disposition (Discard, Return to Vendor, Donate).
 - **Inbox:** All, In review, Resolved, Completed, Unresolvable, Unread, with status and priority badges.
-- **Catalog:** products and photos from the database. **Add product** saves a new product with photos and vector embeddings, so it becomes matchable immediately.
 
 ## How matching works
 
@@ -44,7 +42,6 @@ Run `npm run db:migrate` and `npm run db:seed` once against the same database (f
 3. **Vector search:** the vectors go to Postgres, which finds the nearest catalog items with pgvector (`vector(512)`, HNSW cosine index). 0.88 or more counts as a match.
 4. **Candidates and gating:** candidates come from an exact barcode, vector similarity, and matching brand, category and color. Gating is green, yellow or red.
 5. **Tag OCR:** `tesseract.js` reads brand, size, price and barcode. Barcodes are checked with the GTIN check digit, so a misread is rejected.
-6. **Barcode scanning:** the browser's `BarcodeDetector`, with a WebAssembly decoder for Safari and Firefox.
 
 The first run downloads the models (about 90 MB, cached after), so it needs internet once.
 
@@ -57,7 +54,7 @@ The first run downloads the models (about 90 MB, cached after), so it needs inte
 | `npm run db:seed -- --clear` | Removes the demo tickets only |
 | `python3 scripts/generate-seed-images.py` | Regenerates the sample product illustrations and price-tag images (macOS) |
 
-`public/catalog/tags/` holds sample price-tag images you can upload to try OCR and barcode reading without real tags. The product pictures are generated illustrations. To use real photos, add products in the app or drop `<SKU>.jpg` files into `public/catalog/` and run `npm run db:seed -- --embeddings`.
+`public/catalog/tags/` holds sample price-tag images you can upload to try OCR and barcode reading without real tags. The product pictures are generated illustrations. To use real photos, drop `<SKU>.jpg` files into `public/catalog/` and run `npm run db:seed -- --embeddings`, and edit `db/seed/products.json` for your own products.
 
 ## Layout
 
