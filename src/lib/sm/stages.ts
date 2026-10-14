@@ -60,6 +60,7 @@ export async function runAnalyze(id: string) {
     error: analysis.error,
     ocr_text: analysis.ocr?.text ?? "",
     ocr: analysis.ocr,
+    image_matches_json: JSON.stringify(analysis.top_matches.map((m) => ({ sku: m.metadata.Sku ?? null, similarity: m.similarity }))),
     image_matches: analysis.top_matches.map((m) => ({ sku: m.metadata.Sku ?? null, similarity: m.similarity })),
   };
 }
@@ -87,6 +88,7 @@ export async function runMapAttributes(id: string) {
     brand: meta?.Brand ?? "",
     department: meta?.DepartmentName ?? "",
     extracted_metadata: meta,
+    extracted_metadata_json: JSON.stringify(meta),
     missing_fields: row.extraction?.missing_fields ?? [],
     warnings: row.extraction?.warnings ?? [],
   };
@@ -123,5 +125,6 @@ export async function runIdentify(id: string) {
     gating_reason: reason,
     candidate_count: candidates.length,
     edw_candidates: candidates.map((c) => ({ sku: c.sku, score: c.score, evidence: c.evidence })),
+    edw_candidates_json: JSON.stringify(candidates.map((c) => ({ sku: c.sku, score: c.score, evidence: c.evidence }))),
   };
 }
