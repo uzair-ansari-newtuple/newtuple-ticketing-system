@@ -14,6 +14,8 @@ import type {
   PipelineStatus,
   QualityCheckResult,
 } from "@/lib/types";
+import type { QcLine, QcLineDetail, QcPo, QcPoDetail } from "@/lib/qc/dto";
+import type { ExceptionReason } from "@/lib/qc/types";
 import { useSession } from "@/store/session";
 
 const BASE = "/api/mock";
@@ -67,6 +69,19 @@ async function request<T>(path: string, init: RequestInit & { token?: string } =
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 export const api = {
+  qcPos: (token: string) => request<{ items: QcPo[] }>("/qc/pos", { token }),
+  qcFetchPos: (token: string) => request<{ created: string[]; items: QcPo[] }>("/qc/pos/fetch", { method: "POST", token, body: "{}" }),
+  qcStart: (token: string, poIds: string[]) => request<{ items: QcPo[] }>("/qc/pos/start", { method: "POST", token, body: JSON.stringify({ po_ids: poIds }) }),
+  qcPo: (token: string, id: string) => request<QcPoDetail>(`/qc/pos/${id}`, { token }),
+  qcComplete: (token: string, id: string, note?: string) => request<QcPoDetail>(`/qc/pos/${id}/complete`, { method: "POST", token, body: JSON.stringify({ note }) }),
+  qcLine: (token: string, id: string) => request<QcLineDetail>(`/qc/lines/${id}`, { token }),
+  qcCount: (token: string, id: string, body: { received_qty: number; photo: string }) => request<QcLineDetail>(`/qc/lines/${id}/count`, { method: "POST", token, body: JSON.stringify(body) }),
+  qcException: (token: string, id: string, body: { received_qty?: number; reason: ExceptionReason; note: string; photo?: string | null }) =>
+    request<QcLineDetail>(`/qc/lines/${id}/exception`, { method: "POST", token, body: JSON.stringify(body) }),
+  qcRecount: (token: string, id: string) => request<QcLineDetail>(`/qc/lines/${id}/recount`, { method: "POST", token, body: "{}" }),
+  qcResolve: (token: string, id: string, note: string) => request<QcLineDetail>(`/qc/lines/${id}/resolve`, { method: "POST", token, body: JSON.stringify({ note }) }),
+  qcExceptions: (token: string) => request<{ items: (QcLine & { po_state: string })[] }>("/qc/exceptions", { token }),
+
   login: (email: string, password: string) =>
     request<LoginResponse>("/auth/login", { method: "POST", body: JSON.stringify({ email, password }) }),
 

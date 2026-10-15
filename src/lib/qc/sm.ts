@@ -88,7 +88,11 @@ export async function fetchPurchaseOrders(): Promise<{ created: string[]; existi
   return { created, existing };
 }
 
-/** The count matcher: compares what was counted with what the PO asked for. `ok` is true only when they agree. */
+/**
+ * The count matcher: compares what was counted with what the PO asked for, saves the result and moves the UPC on.
+ * It fires the follow-up transition itself, because the State Machine fires a connector's outcome trigger with a fixed key per UPC,
+ * so a second count after a recount would be treated as a repeat and ignored.
+ */
 export async function matchLineCount(lineId: string) {
   const line = await getRecord(lineId);
   if (!line) return { status: 404, body: { detail: "UPC line not found" } };
@@ -97,7 +101,10 @@ export async function matchLineCount(lineId: string) {
   if (expected === null || received === null) return { status: 422, body: { detail: "The line needs an expected and a received quantity" } };
   const result = matchCount(expected, received);
   await putRecord(lineId, { count_result: result.kind.toLowerCase(), count_diff: result.diff });
-  return { status: 200, body: { ok: result.kind === "MATCH", matched: result.kind === "MATCH", result: result.kind, diff: result.diff } };
+  const matched = result.kind === "MATCH";
+  // Another caller may have moved the UPC on already (the connector and the app both run this), which is fine.
+  if ((await ticketState(lineId)).state === "COUNT_CHECK") await fire(lineId, matched ? "count_matched" : "count_mismatched").catch(() => undefined);
+  return { status: 200, body: { ok: true, matched, result: result.kind, diff: result.diff } };
 }
 
 /** Re-adds up a PO from its UPC lines, keeps its pallets in step, and moves the PO along when its exceptions are all resolved. */

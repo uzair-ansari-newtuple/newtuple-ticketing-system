@@ -4,11 +4,11 @@ import { AlertTriangle, ClipboardList } from "lucide-react";
 import { motion } from "motion/react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useQc } from "@/store/qc";
+import { useQcExceptions } from "@/lib/qc/queries";
 
 export function QcNav() {
   const pathname = usePathname();
-  const open = useQc((s) => Object.values(s.progress).flatMap((p) => Object.values(p.results)).filter((r) => r.exception && !r.exception.resolution).length);
+  const open = (useQcExceptions().data?.items ?? []).filter((l) => l.state === "EXCEPTION").length;
   const items = [
     { href: "/qc", label: "Purchase orders", icon: ClipboardList, active: !pathname.startsWith("/qc/exceptions") },
     { href: "/qc/exceptions", label: "Exceptions", icon: AlertTriangle, active: pathname.startsWith("/qc/exceptions"), badge: open },

@@ -1,6 +1,3 @@
-export type PoStatus = "FETCHED" | "IN_PROGRESS" | "COMPLETE";
-export type LineStatus = "PENDING" | "VERIFIED" | "EXCEPTION";
-
 export interface Shipment {
   id: string;
   carrier: string;
@@ -29,27 +26,6 @@ export interface PurchaseOrder {
   shipment: Shipment;
   pallets: Pallet[];
   lines: PoLine[];
-}
-
-export interface QcException {
-  reason: ExceptionReason;
-  note: string;
-  raisedAt: string;
-  resolution: { note: string; resolvedAt: string } | null;
-}
-
-export interface LineResult {
-  status: LineStatus;
-  receivedQty: number;
-  photo: string | null;
-  exception: QcException | null;
-}
-
-export interface PoProgress {
-  status: PoStatus;
-  startedAt: string | null;
-  completedAt: string | null;
-  results: Record<string, LineResult>;
 }
 
 export const EXCEPTION_REASONS = {

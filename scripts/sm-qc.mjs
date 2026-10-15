@@ -239,7 +239,7 @@ const WORKFLOWS = [
       state("PENDING", 1, { tags: ["initial"], forms: [LINE_ITEM, "DC QC line: count", "DC QC line: exception"] }),
       state("COUNT_CHECK", 2, {
         forms: [LINE_ITEM, "DC QC line: count"],
-        actions: [action("QC: count matcher", { outcome_triggers: { success: "count_matched", failed: "count_mismatched" }, failure_policy: { on_failure: "fire_trigger", trigger: "count_mismatched" } })],
+        actions: [action("QC: count matcher", { failure_policy: { on_failure: "fire_trigger", trigger: "count_mismatched" } })],
       }),
       state("COUNT_MISMATCH", 3, { forms: [LINE_ITEM, "DC QC line: count", "DC QC line: exception"] }),
       state("VERIFIED", 4, { tags: ["terminal"], forms: [LINE_ITEM, "DC QC line: count"], actions: [action("QC: roll up PO")] }),
