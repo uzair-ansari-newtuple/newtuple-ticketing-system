@@ -1,6 +1,6 @@
 "use client";
 
-import { Loader2, Save } from "lucide-react";
+import { Info, Loader2, Save } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { PalletBadge } from "@/components/qc-badges";
@@ -17,11 +17,19 @@ const GROUPS = [
 
 const digits = (v: string) => v.replace(/\D/g, "");
 
-function Field({ label, value, onChange, disabled, hint }: { label: string; value: string; onChange: (v: string) => void; disabled: boolean; hint?: string }) {
+type Help = "mdl" | "cases" | "loose";
+
+function Field({ label, value, onChange, disabled, hint, active, onInfo }: { label: string; value: string; onChange: (v: string) => void; disabled: boolean; hint?: string; active: boolean; onInfo: () => void }) {
   return (
-    <label className="block">
-      <span className="text-xs text-muted-foreground">{label}</span>
+    <div className="block">
+      <span className="flex items-center gap-1 text-xs text-muted-foreground">
+        <label htmlFor={label}>{label}</label>
+        <button type="button" onClick={onInfo} aria-label={`What is ${label.toLowerCase()}?`} aria-pressed={active} className={`grid size-5 place-items-center rounded-full outline-none transition-colors focus-visible:ring-3 focus-visible:ring-ring/50 ${active ? "bg-primary text-primary-foreground" : "text-primary hover:bg-primary/10"}`}>
+          <Info size={14} />
+        </button>
+      </span>
       <input
+        id={label}
         inputMode="numeric"
         value={value}
         disabled={disabled}
@@ -30,7 +38,7 @@ function Field({ label, value, onChange, disabled, hint }: { label: string; valu
         className="mt-1 h-11 w-full rounded-xl border bg-background px-3 text-center text-lg font-semibold outline-none focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-60"
       />
       {hint ? <span className="mt-0.5 block text-[11px] text-muted-foreground">{hint}</span> : null}
-    </label>
+    </div>
   );
 }
 
@@ -42,10 +50,19 @@ export function PalletCard({ upc, pallet, editable }: { upc: UpcDetail; pallet: 
   const [cases, setCases] = useState(pallet.full_cases_count === null ? "" : String(pallet.full_cases_count));
   const [loose, setLoose] = useState(pallet.partial_units === null ? "" : String(pallet.partial_units));
   const [open, setOpen] = useState(pallet.status !== "COMPLETE");
+  const [help, setHelp] = useState<Help | null>(null);
 
   const n = (v: string) => (v === "" ? null : Number(v));
   const total = palletTotal({ mdl_actual: n(mdl), full_cases_count: n(cases), partial_units: n(loose), bundles_per_case: null, units_per_bundle: upc.units_per_bundle, is_prepack: false });
   const match = n(cases) !== null && n(mdl) !== null ? matchCount(pallet.expected_units, total) : null;
+  const perCase = pallet.mdl_expected || 12;
+  const example = `Example: ${pallet.expected_units} units on this pallet is ${Math.floor(pallet.expected_units / perCase)} full cases of ${perCase}${pallet.expected_units % perCase ? ` plus ${pallet.expected_units % perCase} loose units` : " and no loose units"}.`;
+  const EXPLAIN: Record<Help, string> = {
+    mdl: `How many units fit in one full case. Open a case and count what is inside it. The PO expects ${pallet.mdl_expected}. If the cases you find hold a different number, type that number instead.`,
+    cases: "How many full cases are on this pallet. Count only the cases that are packed with the units-per-case number above. Do not count a case that is only partly filled.",
+    loose: "Units that are not in a full case, such as what is left in an opened or partly filled case. Add them all together. Type 0 if there are none.",
+  };
+  const toggle = (h: Help) => setHelp((cur) => (cur === h ? null : h));
   const ready = CHECKS.every(([key]) => checks[key]) && n(mdl) !== null && n(cases) !== null;
 
   function submit() {
@@ -86,10 +103,16 @@ export function PalletCard({ upc, pallet, editable }: { upc: UpcDetail; pallet: 
           <div>
             <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Count</h3>
             <div className="grid grid-cols-3 gap-2">
-              <Field label="Units per case" value={mdl} onChange={setMdl} disabled={!editable} hint={`PO says ${pallet.mdl_expected}`} />
-              <Field label="Full cases" value={cases} onChange={setCases} disabled={!editable} />
-              <Field label="Loose units" value={loose} onChange={setLoose} disabled={!editable} />
+              <Field label="Units per case" value={mdl} onChange={setMdl} disabled={!editable} hint={`PO says ${pallet.mdl_expected}`} active={help === "mdl"} onInfo={() => toggle("mdl")} />
+              <Field label="Full cases" value={cases} onChange={setCases} disabled={!editable} active={help === "cases"} onInfo={() => toggle("cases")} />
+              <Field label="Loose units" value={loose} onChange={setLoose} disabled={!editable} active={help === "loose"} onInfo={() => toggle("loose")} />
             </div>
+            {help ? (
+              <div role="note" className="mt-3 rounded-xl bg-primary/8 p-3 text-sm leading-relaxed">
+                <p>{EXPLAIN[help]}</p>
+                <p className="mt-2 text-xs text-muted-foreground">Total = full cases × units per case + loose units. {example}</p>
+              </div>
+            ) : null}
             <div className={`mt-3 rounded-xl p-3 text-sm font-medium ${!match ? "bg-muted text-muted-foreground" : match.result === "MATCH" ? "bg-success/12 text-success" : match.result === "SHORT" ? "bg-destructive/10 text-destructive" : "bg-warning/18 text-warning-foreground"}`} aria-live="polite">
               {match ? (match.result === "MATCH" ? `Counts match: ${total} of ${pallet.expected_units}` : `${match.result === "SHORT" ? "Short" : "Over"} by ${match.diff}: ${total} of ${pallet.expected_units}`) : "Enter the case counts to compare with the PO"}
             </div>
