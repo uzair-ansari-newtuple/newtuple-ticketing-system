@@ -58,7 +58,7 @@ export default function HomePage() {
   const recent = items.filter((t) => !shown.has(t.id)).slice(0, RECENT_LIMIT);
 
   return (
-    <AppShell title={`Hello, ${user?.username ?? "there"}`} subtitle={user?.store_name}>
+    <AppShell title={`Hello, ${user?.name ?? "there"}`} subtitle={user?.store_name}>
       <Reveal>
         <motion.div whileTap={{ scale: 0.98 }}>
           <Link href="/capture" onClick={resetCapture} className="flex items-center gap-4 rounded-2xl bg-primary p-5 text-primary-foreground shadow-lg shadow-primary/20">

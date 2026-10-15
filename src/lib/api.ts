@@ -15,6 +15,7 @@ import type {
   PipelineStatus,
   QualityCheckResult,
 } from "@/lib/types";
+import { useSession } from "@/store/session";
 
 const BASE = "/api/mock";
 const POLL_INTERVAL_MS = 1000;
@@ -29,16 +30,36 @@ export class ApiError extends Error {
   }
 }
 
+let refreshing: Promise<string | null> | null = null;
+
+/** Asks the State Machine for a fresh token. Calls made at the same moment share one refresh. */
+function refreshAccessToken(): Promise<string | null> {
+  refreshing ??= (async () => {
+    const { refreshToken, setTokens, signOut } = useSession.getState();
+    if (!refreshToken) return null;
+    const res = await fetch(`${BASE}/auth/refresh`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ refresh_token: refreshToken }) });
+    if (!res.ok) {
+      signOut();
+      return null;
+    }
+    const tokens = (await res.json()) as { access_token: string; refresh_token: string };
+    setTokens(tokens.access_token, tokens.refresh_token);
+    return tokens.access_token;
+  })().finally(() => {
+    refreshing = null;
+  });
+  return refreshing;
+}
+
 async function request<T>(path: string, init: RequestInit & { token?: string } = {}): Promise<T> {
   const { token, headers, ...rest } = init;
-  const res = await fetch(`${BASE}${path}`, {
-    ...rest,
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...headers,
-    },
-  });
+  const send = (bearer?: string) =>
+    fetch(`${BASE}${path}`, { ...rest, headers: { "Content-Type": "application/json", ...(bearer ? { Authorization: `Bearer ${bearer}` } : {}), ...headers } });
+  let res = await send(token);
+  if (res.status === 401 && token) {
+    const fresh = await refreshAccessToken();
+    if (fresh) res = await send(fresh);
+  }
   const body = await res.json().catch(() => ({}));
   if (!res.ok) throw new ApiError(res.status, typeof body.detail === "string" ? body.detail : `Request failed (${res.status})`);
   return body as T;
@@ -47,9 +68,8 @@ async function request<T>(path: string, init: RequestInit & { token?: string } =
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 export const api = {
-  loginProvider: () => request<{ provider: "local" | "state-machine" }>("/auth/login").then((r) => r.provider),
-  login: (username: string, password: string) =>
-    request<LoginResponse>("/auth/login", { method: "POST", body: JSON.stringify({ username, password }) }),
+  login: (email: string, password: string) =>
+    request<LoginResponse>("/auth/login", { method: "POST", body: JSON.stringify({ email, password }) }),
 
   async runQualityCheck(
     token: string,

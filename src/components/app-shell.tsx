@@ -55,7 +55,7 @@ export function AppShell({ title, subtitle, back, footer, role = "store", nav = 
   }
 
   const showNav = nav && role === "store";
-  const initials = (user?.username ?? "?").slice(0, 2).toUpperCase();
+  const initials = (user?.name ?? "?").split(/\s+/).map((w) => w[0]).join("").slice(0, 2).toUpperCase();
 
   return (
     <div className={`flex min-h-dvh flex-1 flex-col ${showNav ? "pb-[calc(4rem+env(safe-area-inset-bottom))]" : ""}`}>
@@ -79,7 +79,7 @@ export function AppShell({ title, subtitle, back, footer, role = "store", nav = 
             <DropdownMenuContent align="end" className="w-56">
               <DropdownMenuGroup>
                 <DropdownMenuLabel>
-                  <p className="font-semibold text-foreground">{user?.username}</p>
+                  <p className="font-semibold text-foreground">{user?.name}</p>
                   <p className="text-xs font-normal text-muted-foreground">{user?.store_name}</p>
                 </DropdownMenuLabel>
               </DropdownMenuGroup>

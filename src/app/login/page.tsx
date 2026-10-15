@@ -22,24 +22,12 @@ export default function LoginPage() {
   const router = useRouter();
   const token = useSession((s) => s.token);
   const signIn = useSession((s) => s.signIn);
-  const [provider, setProvider] = useState<"local" | "state-machine" | null>(null);
-  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
   const role = useSession((s) => s.user?.role);
-  const viaStateMachine = provider === "state-machine";
-
-  useEffect(() => {
-    api.loginProvider().then((p) => {
-      setProvider(p);
-      if (p === "local") {
-        setUsername("store112");
-        setPassword("store123");
-      }
-    }).catch(() => setProvider("local"));
-  }, []);
 
   useEffect(() => {
     if (token) router.replace(role === "resolver" ? "/resolver" : "/");
@@ -49,7 +37,7 @@ export default function LoginPage() {
     e.preventDefault();
     setBusy(true);
     try {
-      const res = await api.login(username, password);
+      const res = await api.login(email, password);
       signIn(res);
       toast.success("Signed in");
       router.replace(res.user.role === "resolver" ? "/resolver" : "/");
@@ -94,11 +82,11 @@ export default function LoginPage() {
         <Reveal delay={0.15} className="w-full max-w-sm">
           <form onSubmit={submit}>
             <h2 className="text-2xl font-bold tracking-tight">Sign in</h2>
-            <p className="mt-1 text-sm text-muted-foreground">{viaStateMachine ? "Use your State Machine account." : "Use the demo account to explore the flow."}</p>
+            <p className="mt-1 text-sm text-muted-foreground">Use the account you were given.</p>
 
             <div className="mt-6 space-y-2">
-              <Label htmlFor="username">{viaStateMachine ? "Email" : "Username"} <span className="text-destructive" aria-hidden>*</span></Label>
-              <Input id="username" value={username} onChange={(e) => setUsername(e.target.value)} autoCapitalize="none" autoComplete="username" type={viaStateMachine ? "email" : "text"} required placeholder={viaStateMachine ? "you@company.com" : "Enter your username"} className="h-11" />
+              <Label htmlFor="email">Email <span className="text-destructive" aria-hidden>*</span></Label>
+              <Input id="email" value={email} onChange={(e) => setEmail(e.target.value)} autoCapitalize="none" autoComplete="email" type="email" required placeholder="you@company.com" className="h-11" />
             </div>
             <div className="mt-4 space-y-2">
               <Label htmlFor="password">Password <span className="text-destructive" aria-hidden>*</span></Label>
@@ -110,12 +98,7 @@ export default function LoginPage() {
               </div>
             </div>
 
-            {provider === "local" ? <div className="mt-4 flex gap-2 text-xs">
-              <button type="button" className="rounded-full bg-muted px-3 py-1.5 font-medium" onClick={() => { setUsername("store112"); setPassword("store123"); }}>Store demo</button>
-              <button type="button" className="rounded-full bg-muted px-3 py-1.5 font-medium" onClick={() => { setUsername("resolver1"); setPassword("resolver123"); }}>Resolver demo</button>
-            </div> : null}
-
-            <Button type="submit" size="lg" disabled={busy || !provider} className="mt-6 w-full">
+            <Button type="submit" size="lg" disabled={busy} className="mt-6 w-full">
               {busy ? <Loader2 className="animate-spin" /> : null}
               {busy ? "Signing in" : "Continue"}
               {!busy ? <ArrowRight /> : null}
