@@ -9,7 +9,7 @@ const QUALITY_TTL_MS = 15 * 60 * 1000;
 const MIN_BLUR_SCORE = 12;
 const MIN_BRIGHTNESS = 45;
 const BLOWN_OUT_BRIGHTNESS = 252;
-const MIN_SIDE_PX = 480;
+const MIN_SIDE_PX = 400;
 
 function judge(image: ImagePayload): QualityImageResult {
   const { blur_score, brightness, width, height } = image.quality_hint;
