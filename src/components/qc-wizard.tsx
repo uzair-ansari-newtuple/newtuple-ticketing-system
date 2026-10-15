@@ -200,7 +200,7 @@ function StepUpcs({ shipment, onPick, onReview }: { shipment: ShipmentDetail; on
         })}
       </ul>
 
-      <p className="mt-4 rounded-xl bg-primary/8 p-3 text-xs leading-relaxed">Work through all {t.upcs} UPCs from the PO. UPCs flagged with an exception are held, but the rest of the PO can still proceed. The Review PO button appears once all non-held UPCs are approved.</p>
+      <p className="mt-4 rounded-xl bg-primary/8 p-3 text-xs leading-relaxed">Work through all {t.upcs} UPCs from the PO. A UPC flagged with an exception is held for the supervisor, who approves it, sends it back or skips it. The Review PO button appears once every UPC is approved or skipped.</p>
 
       {ready ? (
         <div className="mt-4 rounded-2xl border border-success/40 bg-success/8 p-4">
