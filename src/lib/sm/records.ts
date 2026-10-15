@@ -40,6 +40,14 @@ export async function createRecord(typeName: string, data: Record<string, unknow
   return toRecord(await smFetch<RawRecord>("POST", "/entity-records", { entity_type_id: await entityTypeId(typeName), data }));
 }
 
+/** Lists plain records of a type (one with no workflow). `search` matches anywhere in a record, so callers should still compare the field they care about. */
+export async function listRecords(typeName: string, opts: { search?: string; limit?: number } = {}): Promise<SmRecord[]> {
+  const query = new URLSearchParams({ entity_type_name: typeName, limit: String(Math.min(opts.limit ?? 100, 100)) });
+  if (opts.search) query.set("search", opts.search);
+  const res = await smFetch<{ items: RawRecord[] }>("GET", `/entity-records?${query}`);
+  return res.items.map(toRecord);
+}
+
 export async function getRecord(id: string): Promise<SmRecord | null> {
   if (!UUID.test(id)) return null;
   try {

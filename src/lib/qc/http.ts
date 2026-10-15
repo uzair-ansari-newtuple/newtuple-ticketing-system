@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { jsonError, userFromRequest } from "@/lib/mock/http";
+import type { AppUser } from "@/lib/sm/identity";
 import { SmError } from "@/lib/sm/client";
 import { QcError } from "./service";
 
@@ -8,11 +9,12 @@ async function readJson(request: Request): Promise<Record<string, unknown>> {
 }
 
 /** Runs a DC QC handler for a signed-in user and turns its errors into the JSON the app expects. */
-export async function qcHandler(request: Request, run: (body: Record<string, unknown>) => Promise<unknown>, status = 200) {
-  if (!(await userFromRequest(request))) return jsonError(401, "Could not validate credentials");
+export async function qcHandler(request: Request, run: (body: Record<string, unknown>, user: AppUser) => Promise<unknown>, status = 200) {
+  const user = await userFromRequest(request);
+  if (!user) return jsonError(401, "Could not validate credentials");
   try {
     const body = request.method === "GET" ? {} : await readJson(request);
-    return NextResponse.json(await run(body), { status });
+    return NextResponse.json(await run(body, user), { status });
   } catch (err) {
     if (err instanceof QcError) return jsonError(err.status, err.message);
     if (err instanceof SmError) {

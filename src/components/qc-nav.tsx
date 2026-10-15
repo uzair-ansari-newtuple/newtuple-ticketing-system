@@ -4,13 +4,13 @@ import { AlertTriangle, ClipboardList } from "lucide-react";
 import { motion } from "motion/react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useQcExceptions } from "@/lib/qc/queries";
+import { useFlagged } from "@/lib/qc/queries";
 
 export function QcNav() {
   const pathname = usePathname();
-  const open = (useQcExceptions().data?.items ?? []).filter((l) => l.state === "EXCEPTION").length;
+  const open = (useFlagged().data?.items ?? []).filter((u) => u.state === "SUPERVISOR_HOLD").length;
   const items = [
-    { href: "/qc", label: "Purchase orders", icon: ClipboardList, active: !pathname.startsWith("/qc/exceptions") },
+    { href: "/qc", label: "Shipments", icon: ClipboardList, active: !pathname.startsWith("/qc/exceptions") },
     { href: "/qc/exceptions", label: "Exceptions", icon: AlertTriangle, active: pathname.startsWith("/qc/exceptions"), badge: open },
   ];
 

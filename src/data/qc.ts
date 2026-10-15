@@ -1,61 +1,73 @@
-import type { PurchaseOrder } from "@/lib/qc/types";
+export interface SeedUpc {
+  sku: string;
+  name: string;
+  units: number;
+  pallets: number;
+}
 
-const line = (sku: string, name: string, expectedQty: number, palletId: string) => ({ upc: sku, sku, name, expectedQty, palletId });
+export interface SeedShipment {
+  po_number: string;
+  shipment_number: string;
+  vendor_code: string;
+  vendor_name: string;
+  dc_id: string;
+  upcs: SeedUpc[];
+}
 
-/** Sample purchase orders for the demo, built from products in the catalog so their photos show. */
-export const SAMPLE_POS: PurchaseOrder[] = [
+const DC = "DC-ATL-01";
+const MDL = 12;
+export const CASE_SIZE = MDL;
+
+/** Sample shipments for the demo, built from catalog products so their photos show. */
+export const SEED_SHIPMENTS: SeedShipment[] = [
   {
-    id: "po-45001234",
-    number: "PO-45001234",
-    supplier: "Bright Kids Apparel Co.",
-    expectedDate: "2026-10-14",
-    shipment: { id: "SHP-88231", carrier: "XPO Logistics", trailer: "TRL-5521", arrivedAt: "2026-10-14T06:40:00Z" },
-    pallets: [{ id: "PLT-1001", position: "Dock 3 · Bay A" }, { id: "PLT-1002", position: "Dock 3 · Bay B" }],
-    lines: [
-      line("400414405536", "Flower Applique", 48, "PLT-1001"),
-      line("400427758582", "Bubble Charmed", 36, "PLT-1001"),
-      line("400428390682", "Varsity Patch", 60, "PLT-1002"),
-      line("400429151992", "Frayed Cargo", 24, "PLT-1002"),
+    po_number: "PO-45001234",
+    shipment_number: "SHP-88231",
+    vendor_code: "V-1042",
+    vendor_name: "Bright Kids Apparel Co.",
+    dc_id: DC,
+    upcs: [
+      { sku: "400414405536", name: "Flower Applique", units: 48, pallets: 1 },
+      { sku: "400427758582", name: "Bubble Charmed", units: 36, pallets: 1 },
+      { sku: "400428390682", name: "Varsity Patch", units: 60, pallets: 2 },
+      { sku: "400429151992", name: "Frayed Cargo", units: 24, pallets: 1 },
     ],
   },
   {
-    id: "po-45001301",
-    number: "PO-45001301",
-    supplier: "Sunrise Accessories Ltd.",
-    expectedDate: "2026-10-15",
-    shipment: { id: "SHP-88302", carrier: "FedEx Freight", trailer: "TRL-7710", arrivedAt: "2026-10-15T05:15:00Z" },
-    pallets: [{ id: "PLT-2001", position: "Dock 1 · Bay C" }],
-    lines: [
-      line("400425657702", "Butterflies", 120, "PLT-2001"),
-      line("400427725416", "Bluetooth Party", 40, "PLT-2001"),
-      line("400430990016", "Bling Hands", 72, "PLT-2001"),
+    po_number: "PO-45001301",
+    shipment_number: "SHP-88302",
+    vendor_code: "V-2210",
+    vendor_name: "Sunrise Accessories Ltd.",
+    dc_id: DC,
+    upcs: [
+      { sku: "400425657702", name: "Butterflies", units: 120, pallets: 2 },
+      { sku: "400427725416", name: "Bluetooth Party", units: 40, pallets: 1 },
+      { sku: "400430990016", name: "Bling Hands", units: 72, pallets: 1 },
     ],
   },
   {
-    id: "po-45001377",
-    number: "PO-45001377",
-    supplier: "Harbor Home & Bath",
-    expectedDate: "2026-10-15",
-    shipment: { id: "SHP-88377", carrier: "Old Dominion", trailer: "TRL-3308", arrivedAt: "2026-10-15T07:50:00Z" },
-    pallets: [{ id: "PLT-3001", position: "Dock 2 · Bay A" }, { id: "PLT-3002", position: "Dock 2 · Bay D" }],
-    lines: [
-      line("400427535091", "Bath Set", 30, "PLT-3001"),
-      line("400424212551", "White Set", 54, "PLT-3001"),
-      line("400426575692", "Barbie Bus", 18, "PLT-3002"),
-      line("400429495294", "Rhinestones", 90, "PLT-3002"),
-      line("400427936874", "Horseshoe", 66, "PLT-3002"),
+    po_number: "PO-45001377",
+    shipment_number: "SHP-88377",
+    vendor_code: "V-3307",
+    vendor_name: "Harbor Home & Bath",
+    dc_id: DC,
+    upcs: [
+      { sku: "400427535091", name: "Bath Set", units: 30, pallets: 1 },
+      { sku: "400424212551", name: "White Set", units: 54, pallets: 1 },
+      { sku: "400426575692", name: "Barbie Bus", units: 18, pallets: 1 },
+      { sku: "400429495294", name: "Rhinestones", units: 90, pallets: 2 },
+      { sku: "400427936874", name: "Horseshoe", units: 66, pallets: 1 },
     ],
   },
   {
-    id: "po-45001402",
-    number: "PO-45001402",
-    supplier: "Metro Outerwear Group",
-    expectedDate: "2026-10-16",
-    shipment: { id: "SHP-88411", carrier: "Estes Express", trailer: "TRL-1194", arrivedAt: "2026-10-15T09:05:00Z" },
-    pallets: [{ id: "PLT-4001", position: "Dock 4 · Bay B" }],
-    lines: [
-      line("400425792922", "Shacket", 84, "PLT-4001"),
-      line("400431701338", "Red Mints", 200, "PLT-4001"),
+    po_number: "PO-45001402",
+    shipment_number: "SHP-88411",
+    vendor_code: "V-4120",
+    vendor_name: "Metro Outerwear Group",
+    dc_id: DC,
+    upcs: [
+      { sku: "400425792922", name: "Shacket", units: 84, pallets: 1 },
+      { sku: "400431701338", name: "Red Mints", units: 200, pallets: 2 },
     ],
   },
 ];

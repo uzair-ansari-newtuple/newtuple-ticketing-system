@@ -14,8 +14,8 @@ import type {
   PipelineStatus,
   QualityCheckResult,
 } from "@/lib/types";
-import type { QcLine, QcLineDetail, QcPo, QcPoDetail } from "@/lib/qc/dto";
-import type { ExceptionReason } from "@/lib/qc/types";
+import type { QcNotification } from "@/lib/qc/service";
+import type { CheckKey, FlaggedUpc, FlagReason, Shipment, ShipmentDetail, UpcDetail } from "@/lib/qc/dto";
 import { useSession } from "@/store/session";
 
 const BASE = "/api/mock";
@@ -69,18 +69,23 @@ async function request<T>(path: string, init: RequestInit & { token?: string } =
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 export const api = {
-  qcPos: (token: string) => request<{ items: QcPo[] }>("/qc/pos", { token }),
-  qcFetchPos: (token: string) => request<{ created: string[]; items: QcPo[] }>("/qc/pos/fetch", { method: "POST", token, body: "{}" }),
-  qcStart: (token: string, poIds: string[]) => request<{ items: QcPo[] }>("/qc/pos/start", { method: "POST", token, body: JSON.stringify({ po_ids: poIds }) }),
-  qcPo: (token: string, id: string) => request<QcPoDetail>(`/qc/pos/${id}`, { token }),
-  qcComplete: (token: string, id: string, note?: string) => request<QcPoDetail>(`/qc/pos/${id}/complete`, { method: "POST", token, body: JSON.stringify({ note }) }),
-  qcLine: (token: string, id: string) => request<QcLineDetail>(`/qc/lines/${id}`, { token }),
-  qcCount: (token: string, id: string, body: { received_qty: number; photo: string }) => request<QcLineDetail>(`/qc/lines/${id}/count`, { method: "POST", token, body: JSON.stringify(body) }),
-  qcException: (token: string, id: string, body: { received_qty?: number; reason: ExceptionReason; note: string; photo?: string | null }) =>
-    request<QcLineDetail>(`/qc/lines/${id}/exception`, { method: "POST", token, body: JSON.stringify(body) }),
-  qcRecount: (token: string, id: string) => request<QcLineDetail>(`/qc/lines/${id}/recount`, { method: "POST", token, body: "{}" }),
-  qcResolve: (token: string, id: string, note: string) => request<QcLineDetail>(`/qc/lines/${id}/resolve`, { method: "POST", token, body: JSON.stringify({ note }) }),
-  qcExceptions: (token: string) => request<{ items: (QcLine & { po_state: string })[] }>("/qc/exceptions", { token }),
+  qcShipments: (token: string) => request<{ items: Shipment[] }>("/qc/shipments", { token }),
+  qcFetch: (token: string) => request<{ created: string[]; items: Shipment[] }>("/qc/shipments/fetch", { method: "POST", token, body: "{}" }),
+  qcStart: (token: string, ids: string[]) => request<{ items: Shipment[] }>("/qc/shipments/start", { method: "POST", token, body: JSON.stringify({ shipment_ids: ids }) }),
+  qcShipment: (token: string, id: string) => request<ShipmentDetail>(`/qc/shipments/${id}`, { token }),
+  qcComplete: (token: string, id: string) => request<ShipmentDetail>(`/qc/shipments/${id}/complete`, { method: "POST", token, body: "{}" }),
+  qcReceipt: (token: string, id: string, body: { action: "start" | "close" | "return"; confirmation_number?: string; note?: string }) =>
+    request<ShipmentDetail>(`/qc/shipments/${id}/receipt`, { method: "POST", token, body: JSON.stringify(body) }),
+  qcUpc: (token: string, id: string) => request<UpcDetail>(`/qc/upcs/${id}`, { token }),
+  qcPallet: (token: string, upcId: string, palletId: string, body: { checks?: Partial<Record<CheckKey, boolean>>; mdl_actual?: number; full_cases_count?: number; partial_units?: number }) =>
+    request<UpcDetail>(`/qc/upcs/${upcId}/pallets/${palletId}`, { method: "POST", token, body: JSON.stringify(body) }),
+  qcPhoto: (token: string, id: string, photo: string) => request<UpcDetail>(`/qc/upcs/${id}/photo`, { method: "POST", token, body: JSON.stringify({ photo }) }),
+  qcApprove: (token: string, id: string) => request<UpcDetail>(`/qc/upcs/${id}/approve`, { method: "POST", token, body: "{}" }),
+  qcFlag: (token: string, id: string, body: { reason: FlagReason; note: string }) => request<UpcDetail>(`/qc/upcs/${id}/flag`, { method: "POST", token, body: JSON.stringify(body) }),
+  qcResolve: (token: string, id: string, body: { action: "approve" | "return" | "wont_qc"; note: string }) => request<UpcDetail>(`/qc/upcs/${id}/resolve`, { method: "POST", token, body: JSON.stringify(body) }),
+  qcReopen: (token: string, id: string, reason: string) => request<UpcDetail>(`/qc/upcs/${id}/reopen`, { method: "POST", token, body: JSON.stringify({ reason }) }),
+  qcNotifications: (token: string) => request<{ items: QcNotification[] }>("/qc/notifications", { token }),
+  qcFlagged: (token: string) => request<{ items: FlaggedUpc[] }>("/qc/exceptions", { token }),
 
   login: (email: string, password: string) =>
     request<LoginResponse>("/auth/login", { method: "POST", body: JSON.stringify({ email, password }) }),

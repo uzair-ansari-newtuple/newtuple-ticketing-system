@@ -1,4 +1,3 @@
-import type { QcTotals } from "./dto";
+import type { ShipmentTotals } from "./dto";
 
-export const percentDone = (t: QcTotals) => (t.lines ? Math.round(((t.lines - t.pending) / t.lines) * 100) : 0);
-
+export const percentDone = (t: ShipmentTotals) => (t.upcs ? Math.round(((t.approved + t.wont_qc) / t.upcs) * 100) : 0);

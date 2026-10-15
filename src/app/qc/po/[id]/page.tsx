@@ -1,111 +1,115 @@
 "use client";
 
-import { CheckCircle2, ChevronRight, Loader2, MapPin, Package, Truck } from "lucide-react";
+import { CheckCircle2, ChevronRight, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
+import { useState } from "react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/app-shell";
 import { Reveal, StaggerList, StaggerListItem } from "@/components/motion";
-import { LineStatusBadge, PoStatusBadge } from "@/components/qc-badges";
+import { ShipmentBadge, UpcBadge } from "@/components/qc-badges";
 import { QueryError } from "@/components/query-error";
 import { SafeImg } from "@/components/safe-img";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Textarea } from "@/components/ui/textarea";
 import { productImageUrl } from "@/data/catalog";
 import { percentDone } from "@/lib/qc/progress";
-import { useQcMutations, useQcPo } from "@/lib/qc/queries";
+import { useQcMutations, useShipment } from "@/lib/qc/queries";
 
-export default function PoPage() {
+export default function ShipmentPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
-  const { data: po, isLoading, isError, error, refetch } = useQcPo(id);
-  const { start } = useQcMutations();
+  const { data: shipment, isLoading, isError, error, refetch } = useShipment(id);
+  const { start, receipt } = useQcMutations();
+  const [confirmation, setConfirmation] = useState("");
+  const [returnNote, setReturnNote] = useState("");
 
-  if (isLoading) {
-    return (
-      <AppShell title="Purchase order" back="/qc" area="qc">
-        <Skeleton className="h-40 w-full rounded-2xl" />
-      </AppShell>
-    );
-  }
-  if (isError || !po) {
-    return (
-      <AppShell title="Purchase order" back="/qc" area="qc">
-        <QueryError error={error ?? new Error("Purchase order not found")} onRetry={refetch} />
-      </AppShell>
-    );
-  }
+  if (isLoading) return <AppShell title="Shipment" back="/qc" area="qc"><Skeleton className="h-40 w-full rounded-2xl" /></AppShell>;
+  if (isError || !shipment) return <AppShell title="Shipment" back="/qc" area="qc"><QueryError error={error ?? new Error("Shipment not found")} onRetry={refetch} /></AppShell>;
 
-  const t = po.totals;
-  const inProgress = po.state === "QC_IN_PROGRESS";
-  const canComplete = inProgress && t.pending === 0;
+  const t = shipment.totals;
+  const inProgress = shipment.state === "IN_PROGRESS";
+  const canComplete = inProgress && t.blocking === 0;
+  const fail = (e: Error) => toast.error(e.message);
 
   const footer =
-    po.state === "FETCHED" ? (
-      <Button size="lg" className="h-12 w-full text-base" disabled={start.isPending} onClick={() => start.mutate([po.id], { onError: (e) => toast.error(e.message) })}>
+    shipment.state === "CREATED" ? (
+      <Button size="lg" className="h-12 w-full text-base" disabled={start.isPending} onClick={() => start.mutate([shipment.id], { onError: fail })}>
         {start.isPending ? <Loader2 className="animate-spin" /> : null} Start QC
       </Button>
     ) : inProgress ? (
-      <Button size="lg" className="h-12 w-full text-base" disabled={!canComplete} onClick={() => router.push(`/qc/po/${po.id}/complete`)}>
-        {canComplete ? "Complete QC" : `${t.pending} UPC${t.pending === 1 ? "" : "s"} left to verify`}
+      <Button size="lg" className="h-12 w-full text-base" disabled={!canComplete} onClick={() => router.push(`/qc/po/${shipment.id}/complete`)}>
+        {canComplete ? "Complete QC" : `${t.blocking} UPC${t.blocking === 1 ? "" : "s"} still to approve`}
       </Button>
     ) : undefined;
 
   return (
-    <AppShell title={po.number} subtitle={po.supplier} back="/qc" area="qc" footer={footer}>
+    <AppShell title={shipment.po_number} subtitle={shipment.vendor_name} back="/qc" area="qc" footer={footer}>
       <Reveal className="rounded-2xl border bg-card p-4 shadow-sm">
         <div className="flex items-center justify-between">
-          <PoStatusBadge state={po.state} />
-          <span className="text-xs text-muted-foreground">Shipment {po.shipment.id}</span>
+          <ShipmentBadge state={shipment.state} />
+          <span className="text-xs text-muted-foreground">{shipment.shipment_number} · {shipment.dc_id}</span>
         </div>
-        <dl className="mt-3 grid grid-cols-2 gap-3 text-sm">
-          <div className="flex items-start gap-2"><Truck size={16} className="mt-0.5 text-primary" /><div><dt className="text-xs text-muted-foreground">Carrier</dt><dd className="font-medium">{po.shipment.carrier}</dd></div></div>
-          <div className="flex items-start gap-2"><Package size={16} className="mt-0.5 text-primary" /><div><dt className="text-xs text-muted-foreground">Trailer</dt><dd className="font-medium">{po.shipment.trailer}</dd></div></div>
-        </dl>
         <div className="mt-4">
           <div className="mb-1 flex justify-between text-xs text-muted-foreground">
-            <span>{t.lines - t.pending} of {t.lines} UPCs checked</span>
-            <span>{t.exceptions ? `${t.exceptions} exception${t.exceptions === 1 ? "" : "s"}` : "No exceptions"}</span>
+            <span>{t.approved + t.wont_qc} of {t.upcs} UPCs done</span>
+            <span>{t.on_hold ? `${t.on_hold} on hold` : "None on hold"}</span>
           </div>
           <Progress value={percentDone(t)} className="h-2" />
         </div>
       </Reveal>
 
-      {po.state === "QC_COMPLETE" ? <div className="mt-4 flex items-center gap-2 rounded-xl bg-success/12 p-3 text-sm font-medium text-success"><CheckCircle2 size={18} /> QC complete for this purchase order.</div> : null}
-      {po.state === "EXCEPTIONS_OPEN" ? <div className="mt-4 rounded-xl bg-destructive/10 p-3 text-sm font-medium text-destructive">QC is done. {t.open_exceptions} open {t.open_exceptions === 1 ? "exception needs" : "exceptions need"} a supervisor on the Exceptions tab.</div> : null}
-
-      {po.pallets.map((pallet) => (
-        <section key={pallet.id} className="mt-6">
-          <div className="mb-2 flex items-center justify-between">
-            <h2 className="flex items-center gap-2 text-sm font-semibold">{pallet.name}{pallet.state === "CHECKED" ? <CheckCircle2 size={14} className="text-success" /> : null}</h2>
-            <span className="flex items-center gap-1 text-xs text-muted-foreground"><MapPin size={12} /> {pallet.position}</span>
-          </div>
-          <StaggerList className="space-y-2">
-            {po.lines.filter((l) => l.pallet === pallet.name).map((line) => {
-              const row = (
-                <div className="flex items-center gap-3 rounded-xl border bg-card p-3 shadow-sm">
-                  <SafeImg src={productImageUrl(line.sku)} className="size-14 shrink-0 rounded-lg" />
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate font-medium">{line.name}</p>
-                    <p className="font-mono text-xs text-muted-foreground">{line.upc}</p>
-                    <div className="mt-1 flex items-center gap-2">
-                      <LineStatusBadge state={line.state} />
-                      <span className="text-xs text-muted-foreground">{line.received_qty !== null ? `${line.received_qty} of ${line.expected_qty}` : `Expected ${line.expected_qty}`}</span>
-                    </div>
-                  </div>
-                  <ChevronRight size={18} className="shrink-0 text-muted-foreground" />
-                </div>
-              );
-              return (
-                <StaggerListItem key={line.id}>
-                  {po.state === "FETCHED" ? row : <Link href={`/qc/po/${po.id}/line/${line.id}`} className="block rounded-xl outline-none focus-visible:ring-3 focus-visible:ring-ring/50">{row}</Link>}
-                </StaggerListItem>
-              );
-            })}
-          </StaggerList>
+      {shipment.state === "QC_COMPLETE" || shipment.state === "RECEIPT_IN_PROGRESS" || shipment.state === "CLOSED" ? (
+        <section className="mt-4 rounded-2xl border bg-card p-4 shadow-sm">
+          <h2 className="flex items-center gap-2 text-sm font-semibold"><CheckCircle2 size={16} className="text-success" /> QC is complete</h2>
+          {shipment.state === "QC_COMPLETE" ? (
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              <Button disabled={receipt.isPending} onClick={() => receipt.mutate({ id, action: "start" }, { onError: fail })}>Start receipt</Button>
+              <Button variant="outline" disabled={receipt.isPending} onClick={() => receipt.mutate({ id, action: "return", note: returnNote }, { onError: fail })}>Return to associate</Button>
+            </div>
+          ) : shipment.state === "RECEIPT_IN_PROGRESS" ? (
+            <div className="mt-3 space-y-2">
+              <input className="h-11 w-full rounded-xl border bg-background px-3 text-sm outline-none focus-visible:ring-3 focus-visible:ring-ring/50" placeholder="Receipt confirmation number" value={confirmation} onChange={(e) => setConfirmation(e.target.value)} />
+              <div className="grid grid-cols-2 gap-2">
+                <Button disabled={!confirmation.trim() || receipt.isPending} onClick={() => receipt.mutate({ id, action: "close", confirmation_number: confirmation }, { onError: fail })}>Close receipt</Button>
+                <Button variant="outline" disabled={receipt.isPending} onClick={() => receipt.mutate({ id, action: "return", note: returnNote }, { onError: fail })}>Return to associate</Button>
+              </div>
+            </div>
+          ) : (
+            <p className="mt-2 text-sm text-muted-foreground">Receipt closed with confirmation {shipment.confirmation_number}.</p>
+          )}
+          {shipment.state !== "CLOSED" ? <Textarea className="mt-3" rows={2} placeholder="Note if returning to the associate (optional)" value={returnNote} onChange={(e) => setReturnNote(e.target.value)} /> : null}
         </section>
-      ))}
+      ) : null}
+
+      <section className="mt-6">
+        <h2 className="mb-2 text-sm font-semibold">UPCs</h2>
+        <StaggerList className="space-y-2">
+          {shipment.upcs.map((u) => {
+            const row = (
+              <div className="flex items-center gap-3 rounded-xl border bg-card p-3 shadow-sm">
+                <SafeImg src={productImageUrl(u.upc_code)} className="size-14 shrink-0 rounded-lg" />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate font-medium">{u.description}</p>
+                  <p className="font-mono text-xs text-muted-foreground">{u.upc_code} · {u.style_number}</p>
+                  <div className="mt-1 flex items-center gap-2">
+                    <UpcBadge state={u.state} />
+                    <span className="text-xs text-muted-foreground">{u.received_units ? `${u.received_units} of ${u.expected_units}` : `Expected ${u.expected_units}`}</span>
+                  </div>
+                </div>
+                <ChevronRight size={18} className="shrink-0 text-muted-foreground" />
+              </div>
+            );
+            return (
+              <StaggerListItem key={u.id}>
+                {shipment.state === "CREATED" ? row : <Link href={`/qc/po/${shipment.id}/upc/${u.id}`} className="block rounded-xl outline-none focus-visible:ring-3 focus-visible:ring-ring/50">{row}</Link>}
+              </StaggerListItem>
+            );
+          })}
+        </StaggerList>
+      </section>
     </AppShell>
   );
 }

@@ -7,30 +7,35 @@ import { useSession } from "@/store/session";
 const POLL_MS = 8_000;
 const useToken = () => useSession((s) => s.token);
 
-export function useQcPos() {
+export function useShipments() {
   const token = useToken();
-  return useQuery({ queryKey: ["qc-pos"], queryFn: () => api.qcPos(token!), enabled: Boolean(token), refetchInterval: POLL_MS });
+  return useQuery({ queryKey: ["qc-shipments"], queryFn: () => api.qcShipments(token!), enabled: Boolean(token), refetchInterval: POLL_MS });
 }
 
-export function useQcPo(id: string) {
+export function useShipment(id: string) {
   const token = useToken();
-  return useQuery({ queryKey: ["qc-po", id], queryFn: () => api.qcPo(token!, id), enabled: Boolean(token), refetchInterval: POLL_MS });
+  return useQuery({ queryKey: ["qc-shipment", id], queryFn: () => api.qcShipment(token!, id), enabled: Boolean(token), refetchInterval: POLL_MS });
 }
 
-export function useQcLine(id: string) {
+export function useUpc(id: string) {
   const token = useToken();
-  return useQuery({ queryKey: ["qc-line", id], queryFn: () => api.qcLine(token!, id), enabled: Boolean(token) });
+  return useQuery({ queryKey: ["qc-upc", id], queryFn: () => api.qcUpc(token!, id), enabled: Boolean(token) });
 }
 
-export function useQcExceptions() {
+export function useNotifications() {
   const token = useToken();
-  return useQuery({ queryKey: ["qc-exceptions"], queryFn: () => api.qcExceptions(token!), enabled: Boolean(token), refetchInterval: POLL_MS });
+  return useQuery({ queryKey: ["qc-notifications"], queryFn: () => api.qcNotifications(token!), enabled: Boolean(token), refetchInterval: POLL_MS });
 }
 
-/** Everything a step in the flow can change, so the lists, the PO and the exceptions all refresh together. */
+export function useFlagged() {
+  const token = useToken();
+  return useQuery({ queryKey: ["qc-flagged"], queryFn: () => api.qcFlagged(token!), enabled: Boolean(token), refetchInterval: POLL_MS });
+}
+
+/** Everything a step in the flow can change, so the lists, the shipment, the UPC and the flags all refresh together. */
 export function useQcRefresh() {
   const client = useQueryClient();
-  return () => Promise.all(["qc-pos", "qc-po", "qc-line", "qc-exceptions"].map((key) => client.invalidateQueries({ queryKey: [key] })));
+  return () => Promise.all(["qc-shipments", "qc-shipment", "qc-upc", "qc-flagged", "qc-notifications"].map((key) => client.invalidateQueries({ queryKey: [key] })));
 }
 
 export function useQcMutations() {
@@ -38,12 +43,15 @@ export function useQcMutations() {
   const refresh = useQcRefresh();
   const done = { onSuccess: refresh };
   return {
-    fetchPos: useMutation({ mutationFn: () => api.qcFetchPos(token), ...done }),
-    start: useMutation({ mutationFn: (poIds: string[]) => api.qcStart(token, poIds), ...done }),
-    complete: useMutation({ mutationFn: (v: { id: string; note?: string }) => api.qcComplete(token, v.id, v.note), ...done }),
-    count: useMutation({ mutationFn: (v: { id: string; received_qty: number; photo: string }) => api.qcCount(token, v.id, { received_qty: v.received_qty, photo: v.photo }), ...done }),
-    exception: useMutation({ mutationFn: (v: { id: string } & Parameters<typeof api.qcException>[2]) => api.qcException(token, v.id, v), ...done }),
-    recount: useMutation({ mutationFn: (id: string) => api.qcRecount(token, id), ...done }),
-    resolve: useMutation({ mutationFn: (v: { id: string; note: string }) => api.qcResolve(token, v.id, v.note), ...done }),
+    fetch: useMutation({ mutationFn: () => api.qcFetch(token), ...done }),
+    start: useMutation({ mutationFn: (ids: string[]) => api.qcStart(token, ids), ...done }),
+    complete: useMutation({ mutationFn: (id: string) => api.qcComplete(token, id), ...done }),
+    receipt: useMutation({ mutationFn: (v: { id: string } & Parameters<typeof api.qcReceipt>[2]) => api.qcReceipt(token, v.id, v), ...done }),
+    pallet: useMutation({ mutationFn: (v: { upcId: string; palletId: string } & Parameters<typeof api.qcPallet>[3]) => api.qcPallet(token, v.upcId, v.palletId, v), ...done }),
+    photo: useMutation({ mutationFn: (v: { id: string; photo: string }) => api.qcPhoto(token, v.id, v.photo), ...done }),
+    approve: useMutation({ mutationFn: (id: string) => api.qcApprove(token, id), ...done }),
+    flag: useMutation({ mutationFn: (v: { id: string } & Parameters<typeof api.qcFlag>[2]) => api.qcFlag(token, v.id, v), ...done }),
+    resolve: useMutation({ mutationFn: (v: { id: string } & Parameters<typeof api.qcResolve>[2]) => api.qcResolve(token, v.id, v), ...done }),
+    reopen: useMutation({ mutationFn: (v: { id: string; reason: string }) => api.qcReopen(token, v.id, v.reason), ...done }),
   };
 }

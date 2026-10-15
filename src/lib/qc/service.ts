@@ -1,15 +1,8 @@
 import { smDownload, smFetch, smUpload } from "@/lib/sm/client";
-import { fire, getRecord, listTickets, putRecord, ticketState, type TicketListItem } from "@/lib/sm/records";
-import type { CountResult, LineState, PoState, QcLine, QcLineDetail, QcPo, QcPoDetail, QcTotals } from "./dto";
-import { LINE_TYPE, machines, matchLineCount, PALLET_TYPE, PO_TYPE, QC_PHOTO_TYPE, rollUpPo } from "./sm";
-import { EXCEPTION_REASONS, type ExceptionReason } from "./types";
-
-const PO_FIELDS = ["po_number", "supplier", "expected_date", "shipment_number", "carrier", "trailer", "arrived_at", "started_at", "completed_at"];
-const LINE_FIELDS = ["line_po_id", "line_po_number", "upc", "sku", "product_name", "pallet_number", "expected_qty", "received_qty", "count_result", "count_diff", "photo_count", "exception_reason", "exception_note", "exception_raised_at", "resolution_note", "resolved_at"];
-const WAITING: LineState[] = ["PENDING", "COUNT_CHECK", "COUNT_MISMATCH"];
-
-const num = (v: unknown) => (v === null || v === undefined || v === "" ? null : Number(v));
-const text = (v: unknown) => (v === null || v === undefined ? "" : String(v));
+import { createRecord, fire, getRecord, listRecords, putRecord, ticketState, type TicketListItem } from "@/lib/sm/records";
+import { CHECKS, FLAG_REASONS, type CheckKey, type Flag, type FlagReason, type FlaggedUpc, type Pallet, type PalletStatus, type Shipment, type ShipmentDetail, type ShipmentState, type ShipmentTotals, type Upc, type UpcDetail, type UpcState } from "./dto";
+import { matchCount, palletTotal } from "./match";
+import { allOf, FLAG_TYPE, machines, matchUpcCount, NOTIFICATION_TYPE, PALLET_TYPE, QC_PHOTO_TYPE, recordsWhere, rollUpShipment, SHIPMENT_TYPE, UPC_TYPE } from "./sm";
 
 export class QcError extends Error {
   constructor(public status: number, message: string) {
@@ -17,219 +10,346 @@ export class QcError extends Error {
   }
 }
 
-async function allOf(machine: string, entityType: string, fields: string[], filters?: Record<string, string>): Promise<TicketListItem[]> {
-  const items: TicketListItem[] = [];
-  for (let offset = 0; ; offset += 200) {
-    const page = await listTickets({ fields, filters, machine, entityType, limit: 200, offset });
-    items.push(...page.items);
-    if (page.items.length < 200) return items;
-  }
-}
+const SHIPMENT_FIELDS = ["po_number", "shipment_number", "vendor_name", "vendor_code", "dc_id", "dcqc_qc_ready", "started_at", "completed_at", "confirmation_number"];
+const UPC_FIELDS = ["legacy_po_id", "po_number", "upc_code", "item_description", "style_number", "color_name", "size_label", "expected_units", "shipped_cases", "mdl", "units_per_bundle", "is_prepack", "retail_price", "dcqc_received_units", "dcqc_labels_complete", "flag_id", "dcqc_evidence_revision", "dcqc_rework_reason"];
 
-function lineFrom(i: TicketListItem): QcLine {
-  const f = i.fields;
-  const reason = text(f.exception_reason).toUpperCase() as ExceptionReason;
-  return {
-    id: i.id,
-    po_id: text(f.line_po_id),
-    po_number: text(f.line_po_number),
-    upc: text(f.upc),
-    sku: text(f.sku),
-    name: text(f.product_name),
-    pallet: text(f.pallet_number),
-    expected_qty: num(f.expected_qty) ?? 0,
-    received_qty: num(f.received_qty),
-    state: i.state as LineState,
-    count_result: (text(f.count_result) || null) as CountResult | null,
-    count_diff: num(f.count_diff) ?? 0,
-    photo_count: num(f.photo_count) ?? 0,
-    exception: reason in EXCEPTION_REASONS ? { reason, note: text(f.exception_note), raised_at: text(f.exception_raised_at) || null, resolution: text(f.resolution_note) ? { note: text(f.resolution_note), resolved_at: text(f.resolved_at) || null } : null } : null,
-  };
-}
+const num = (v: unknown) => (v === null || v === undefined || v === "" ? null : Number(v));
+const text = (v: unknown) => (v === null || v === undefined ? "" : String(v));
+const bool = (v: unknown) => v === true || v === "true";
 
-/** Totals worked out from the lines themselves, so they are right even a moment before the State Machine roll-up has run. */
-function totalsOf(lines: QcLine[]): QcTotals {
-  const count = (states: LineState[]) => lines.filter((l) => states.includes(l.state)).length;
-  return {
-    lines: lines.length,
-    units: lines.reduce((s, l) => s + l.expected_qty, 0),
-    received: lines.reduce((s, l) => s + (l.received_qty ?? 0), 0),
-    pending: count(WAITING),
-    verified: count(["VERIFIED"]),
-    exceptions: count(["EXCEPTION", "EXCEPTION_RESOLVED"]),
-    open_exceptions: count(["EXCEPTION"]),
-  };
-}
-
-const poFrom = (i: TicketListItem, lines: QcLine[]): QcPo => ({
+const upcFrom = (i: TicketListItem): Upc => ({
   id: i.id,
-  number: text(i.fields.po_number),
-  supplier: text(i.fields.supplier),
-  expected_date: text(i.fields.expected_date),
-  shipment: { id: text(i.fields.shipment_number), carrier: text(i.fields.carrier), trailer: text(i.fields.trailer), arrived_at: text(i.fields.arrived_at) || null },
-  state: i.state as PoState,
-  totals: totalsOf(lines),
-  started_at: text(i.fields.started_at) || null,
-  completed_at: text(i.fields.completed_at) || null,
+  shipment_id: text(i.fields.legacy_po_id),
+  po_number: text(i.fields.po_number),
+  upc_code: text(i.fields.upc_code),
+  description: text(i.fields.item_description),
+  style_number: text(i.fields.style_number),
+  color_name: text(i.fields.color_name),
+  size_label: text(i.fields.size_label),
+  expected_units: num(i.fields.expected_units) ?? 0,
+  shipped_cases: num(i.fields.shipped_cases) ?? 0,
+  mdl: num(i.fields.mdl) ?? 0,
+  units_per_bundle: num(i.fields.units_per_bundle) ?? 1,
+  is_prepack: bool(i.fields.is_prepack),
+  retail_price: text(i.fields.retail_price),
+  state: i.state as UpcState,
+  received_units: num(i.fields.dcqc_received_units) ?? 0,
+  labels_complete: bool(i.fields.dcqc_labels_complete),
+  photo_count: num(i.fields.dcqc_evidence_revision) ?? 0,
+  rework_reason: text(i.fields.dcqc_rework_reason),
+  flag: null,
 });
 
-export async function listPos(): Promise<QcPo[]> {
-  const [pos, lines] = await Promise.all([allOf(machines.po(), PO_TYPE, PO_FIELDS), allOf(machines.line(), LINE_TYPE, LINE_FIELDS)]);
-  const byPo = new Map<string, QcLine[]>();
-  for (const l of lines.map(lineFrom)) byPo.set(l.po_id, [...(byPo.get(l.po_id) ?? []), l]);
-  return pos.map((p) => poFrom(p, byPo.get(p.id) ?? [])).sort((a, b) => a.number.localeCompare(b.number));
-}
-
-export async function getPo(id: string): Promise<QcPoDetail | null> {
-  const record = await getRecord(id);
-  if (!record || record.data.po_number === undefined) return null;
-  const [state, lineItems, palletItems] = await Promise.all([
-    ticketState(id).then((s) => s.state),
-    allOf(machines.line(), LINE_TYPE, LINE_FIELDS, { line_po_id: id }),
-    allOf(machines.pallet(), PALLET_TYPE, ["identifier", "pallet_position"], { pallet_po_id: id }),
-  ]);
-  const lines = lineItems.map(lineFrom).sort((a, b) => a.pallet.localeCompare(b.pallet) || a.name.localeCompare(b.name));
-  const po = poFrom({ id, state, fields: record.data, created_at: record.created_at, updated_at: record.updated_at }, lines);
-  let activity: QcPoDetail["activity"] = [];
-  try {
-    activity = JSON.parse(text(record.data.qc_event_log) || "[]");
-  } catch {}
+function totalsOf(upcs: Upc[]): ShipmentTotals {
+  const count = (...states: UpcState[]) => upcs.filter((u) => states.includes(u.state)).length;
   return {
-    ...po,
-    lines,
-    pallets: palletItems.map((p) => ({ id: p.id, name: text(p.fields.identifier), position: text(p.fields.pallet_position), state: p.state as "OPEN" | "CHECKED" })).sort((a, b) => a.name.localeCompare(b.name)),
-    activity,
+    upcs: upcs.length,
+    units: upcs.reduce((s, u) => s + u.expected_units, 0),
+    received: upcs.reduce((s, u) => s + u.received_units, 0),
+    waiting: count("PENDING", "IN_PROGRESS"),
+    approved: count("APPROVED"),
+    on_hold: count("SUPERVISOR_HOLD"),
+    wont_qc: count("WONT_QC"),
+    blocking: count("PENDING", "IN_PROGRESS", "SUPERVISOR_HOLD"),
   };
 }
 
-async function poStateOf(poId: string): Promise<PoState> {
-  return (await ticketState(poId)).state as PoState;
+const shipmentFrom = (i: { id: string; state: string; fields: Record<string, unknown> }, upcs: Upc[]): Shipment => ({
+  id: i.id,
+  po_number: text(i.fields.po_number),
+  shipment_number: text(i.fields.shipment_number),
+  vendor_name: text(i.fields.vendor_name),
+  vendor_code: text(i.fields.vendor_code),
+  dc_id: text(i.fields.dc_id),
+  state: i.state as ShipmentState,
+  qc_ready: upcs.length > 0 && totalsOf(upcs).blocking === 0,
+  totals: totalsOf(upcs),
+  started_at: text(i.fields.started_at) || null,
+  completed_at: text(i.fields.completed_at) || null,
+  confirmation_number: text(i.fields.confirmation_number),
+});
+
+const flagFrom = (r: { id: string; data: Record<string, unknown> }): Flag => ({
+  id: r.id,
+  reason: text(r.data.flag_code) as FlagReason,
+  note: text(r.data.note),
+  raised_at: text(r.data.raised_at),
+  status: (text(r.data.status) || "OPEN") as Flag["status"],
+  resolution_note: text(r.data.resolution_note),
+  resolved_at: text(r.data.resolved_at) || null,
+});
+
+export async function listShipments(): Promise<Shipment[]> {
+  const [shipments, upcs] = await Promise.all([allOf(machines.shipment(), SHIPMENT_TYPE, SHIPMENT_FIELDS), allOf(machines.upc(), UPC_TYPE, UPC_FIELDS)]);
+  const byShipment = new Map<string, Upc[]>();
+  for (const u of upcs.map(upcFrom)) byShipment.set(u.shipment_id, [...(byShipment.get(u.shipment_id) ?? []), u]);
+  return shipments.map((s) => shipmentFrom(s, byShipment.get(s.id) ?? [])).sort((a, b) => a.po_number.localeCompare(b.po_number));
 }
 
-export async function startPos(ids: string[]): Promise<void> {
+export async function getShipment(id: string): Promise<ShipmentDetail | null> {
+  const record = await getRecord(id);
+  if (!record || record.data.po_number === undefined || record.data.legacy_po_id === undefined) return null;
+  const [state, items] = await Promise.all([ticketState(id).then((s) => s.state), allOf(machines.upc(), UPC_TYPE, UPC_FIELDS, { legacy_po_id: id })]);
+  const upcs = items.map(upcFrom).sort((a, b) => a.description.localeCompare(b.description));
+  return { ...shipmentFrom({ id, state, fields: record.data }, upcs), upcs };
+}
+
+async function loadShipmentState(id: string): Promise<ShipmentState> {
+  return (await ticketState(id)).state as ShipmentState;
+}
+
+async function loadUpc(id: string): Promise<{ upc: Upc; data: Record<string, unknown> }> {
+  const record = await getRecord(id);
+  if (!record || record.data.upc_code === undefined) throw new QcError(404, "UPC not found");
+  const state = (await ticketState(id)).state;
+  return { upc: upcFrom({ id, state, fields: record.data, created_at: record.created_at, updated_at: record.updated_at }), data: record.data };
+}
+
+const requireShipmentInProgress = (state: ShipmentState) => {
+  if (state !== "IN_PROGRESS") throw new QcError(409, state === "CREATED" ? "Start QC on this shipment first" : "QC on this shipment is already finished");
+};
+
+function palletFrom(r: { id: string; data: Record<string, unknown> }): Pallet {
+  const d = r.data;
+  const checks = Object.fromEntries(CHECKS.map(([key]) => [key, bool(d[key])])) as Record<CheckKey, boolean>;
+  return {
+    id: r.id,
+    label: text(d.pallet_label),
+    position: num(d.position) ?? 1,
+    status: (text(d.dcqc_pallet_status) || "PENDING") as PalletStatus,
+    expected_units: num(d.expected_units) ?? 0,
+    checks,
+    mdl_expected: num(d.mdl_expected) ?? 0,
+    mdl_actual: num(d.mdl_actual),
+    bundles_per_case: num(d.bundles_per_case),
+    full_cases_count: num(d.full_cases_count),
+    partial_units: num(d.dcqc_partial_units),
+    total_units: num(d.dcqc_total_units) ?? 0,
+  };
+}
+
+async function palletsOf(upcId: string): Promise<Pallet[]> {
+  return (await recordsWhere(PALLET_TYPE, "upc_record_id", upcId)).map(palletFrom).sort((a, b) => a.position - b.position);
+}
+
+async function photosOf(upcId: string): Promise<string[]> {
+  const files = await smFetch<{ items: { file_id: string; content_type: string; metadata: Record<string, unknown> }[] }>("POST", "/filehandler/list", { owner_entity_id: upcId, type_id: QC_PHOTO_TYPE });
+  const sorted = files.items.sort((a, b) => Number(a.metadata.position ?? 0) - Number(b.metadata.position ?? 0));
+  return Promise.all(sorted.map(async (f) => `data:${f.content_type};base64,${(await smDownload(`/filehandler/${f.file_id}/download`)).bytes.toString("base64")}`));
+}
+
+export async function getUpc(id: string): Promise<UpcDetail> {
+  const { upc, data } = await loadUpc(id);
+  const [pallets, photos, shipmentState] = await Promise.all([palletsOf(id), photosOf(id), loadShipmentState(upc.shipment_id)]);
+  const flagId = text(data.flag_id);
+  const flagRecord = flagId ? await getRecord(flagId) : null;
+  return {
+    ...upc,
+    flag: flagRecord ? flagFrom({ id: flagId, data: flagRecord.data }) : null,
+    shipment_state: shipmentState,
+    pallets,
+    photos,
+    count: pallets.length && pallets.every((p) => p.status !== "PENDING") ? matchCount(upc.expected_units, upc.received_units) : null,
+  };
+}
+
+// ------------------------------------------------------------------ shipments
+
+export async function startShipments(ids: string[], userId: string): Promise<void> {
   for (const id of ids) {
-    const state = await poStateOf(id);
-    if (state === "FETCHED") await fire(id, "start_qc");
+    if ((await loadShipmentState(id)) !== "CREATED") continue;
+    await putRecord(id, { user_id: userId, record_id: id });
+    await fire(id, "qc_start");
   }
 }
 
-async function loadLine(id: string): Promise<{ line: QcLine; poState: PoState }> {
-  const record = await getRecord(id);
-  if (!record || record.data.upc === undefined) throw new QcError(404, "UPC line not found");
-  const state = (await ticketState(id)).state;
-  const line = lineFrom({ id, state, fields: record.data, created_at: record.created_at, updated_at: record.updated_at });
-  return { line, poState: await poStateOf(line.po_id) };
+export async function completeShipment(id: string): Promise<ShipmentDetail> {
+  const shipment = await getShipment(id);
+  if (!shipment) throw new QcError(404, "Shipment not found");
+  requireShipmentInProgress(shipment.state);
+  if (shipment.totals.blocking > 0) throw new QcError(409, `${shipment.totals.blocking} UPC${shipment.totals.blocking === 1 ? " is" : "s are"} not approved yet`);
+  // The State Machine checks the shipment's own counters, so bring them up to date first.
+  await rollUpShipment(shipment.upcs[0].id);
+  await fire(id, "qc_submit");
+  return (await getShipment(id)) as ShipmentDetail;
 }
 
-export async function getLine(id: string): Promise<QcLineDetail> {
-  const { line, poState } = await loadLine(id);
-  const files = await smFetch<{ items: { file_id: string; content_type: string; metadata: Record<string, unknown> }[] }>("POST", "/filehandler/list", { owner_entity_id: id, type_id: QC_PHOTO_TYPE });
-  const sorted = files.items.sort((a, b) => Number(a.metadata.position ?? 0) - Number(b.metadata.position ?? 0));
-  const photos = await Promise.all(sorted.map(async (f) => `data:${f.content_type};base64,${(await smDownload(`/filehandler/${f.file_id}/download`)).bytes.toString("base64")}`));
-  return { ...line, photos, po_state: poState };
+export async function receipt(id: string, action: unknown, input: { userId: string; confirmation_number?: unknown; note?: unknown }): Promise<ShipmentDetail> {
+  const state = await loadShipmentState(id);
+  if (action === "start" && state === "QC_COMPLETE") {
+    await putRecord(id, { supervisor_user_id: input.userId });
+    await fire(id, "receipt_start");
+  } else if (action === "close" && state === "RECEIPT_IN_PROGRESS") {
+    const confirmation = text(input.confirmation_number).trim().slice(0, 60);
+    if (!confirmation) throw new QcError(422, "Enter the receipt confirmation number");
+    await putRecord(id, { confirmation_number: confirmation });
+    await fire(id, "receipt_close");
+  } else if (action === "return" && (state === "QC_COMPLETE" || state === "RECEIPT_IN_PROGRESS")) {
+    await putRecord(id, { supervisor_user_id: input.userId, return_note: text(input.note).trim().slice(0, 500) });
+    await fire(id, "receipt_return_to_associate");
+  } else {
+    throw new QcError(409, "That receipt step is not available for this shipment now");
+  }
+  return (await getShipment(id)) as ShipmentDetail;
 }
 
-function requireInProgress(poState: PoState) {
-  if (poState !== "QC_IN_PROGRESS") throw new QcError(409, poState === "FETCHED" ? "Start QC on this purchase order first" : "QC on this purchase order is already finished");
+// ------------------------------------------------------------------ UPCs
+
+const validCount = (v: unknown): v is number => typeof v === "number" && Number.isInteger(v) && v >= 0 && v <= 1_000_000;
+
+async function begin(upc: Upc, userId: string) {
+  requireShipmentInProgress(await loadShipmentState(upc.shipment_id));
+  if (upc.state === "PENDING") {
+    await putRecord(upc.id, { user_id: userId });
+    await fire(upc.id, "upc_start");
+  } else if (upc.state !== "IN_PROGRESS") {
+    throw new QcError(409, upc.state === "APPROVED" ? "This UPC is already approved" : "This UPC cannot be changed now");
+  }
 }
 
-async function savePhoto(lineId: string, dataUrl: string, position: number) {
-  const match = /^data:(image\/(?:jpeg|png));base64,(.+)$/.exec(dataUrl);
+/** Saves one pallet's checks and counts, then updates the UPC's received units and label status from all its pallets. */
+export async function savePallet(upcId: string, palletId: string, input: { checks?: Partial<Record<CheckKey, unknown>>; mdl_actual?: unknown; bundles_per_case?: unknown; full_cases_count?: unknown; partial_units?: unknown }, userId: string): Promise<UpcDetail> {
+  const { upc } = await loadUpc(upcId);
+  await begin(upc, userId);
+  const record = await getRecord(palletId);
+  if (!record || record.data.upc_record_id !== upcId) throw new QcError(404, "Pallet not found");
+
+  const patch: Record<string, unknown> = {};
+  for (const [key] of CHECKS) if (input.checks && key in input.checks) patch[key] = Boolean(input.checks[key]);
+  for (const [field, value] of [["mdl_actual", input.mdl_actual], ["bundles_per_case", input.bundles_per_case], ["full_cases_count", input.full_cases_count], ["dcqc_partial_units", input.partial_units]] as const) {
+    if (value === undefined) continue;
+    if (!validCount(value)) throw new QcError(422, "Counts must be whole numbers");
+    patch[field] = value;
+  }
+  const merged = { ...record.data, ...patch };
+  patch.dcqc_total_units = palletTotal({ mdl_actual: num(merged.mdl_actual), full_cases_count: num(merged.full_cases_count), partial_units: num(merged.dcqc_partial_units), bundles_per_case: num(merged.bundles_per_case), units_per_bundle: upc.units_per_bundle, is_prepack: upc.is_prepack });
+  const checked = CHECKS.every(([key]) => bool(merged[key]));
+  const counted = num(merged.mdl_actual) !== null && num(merged.full_cases_count) !== null;
+  patch.dcqc_pallet_status = checked && counted ? "COMPLETE" : "IN_PROGRESS";
+  await putRecord(palletId, patch);
+
+  // The State Machine's count matcher connector adds up the pallets when the UPC is re-checked. If it is slow or down, the app runs the same check.
+  const expectedTotal = (await palletsOf(upcId)).reduce((sum, p) => sum + p.total_units, 0);
+  await fire(upcId, "count_check");
+  for (let i = 0; i < 16; i++) {
+    if (num((await getRecord(upcId))?.data.dcqc_received_units) === expectedTotal) return getUpc(upcId);
+    await new Promise((r) => setTimeout(r, 500));
+  }
+  await matchUpcCount(upcId);
+  return getUpc(upcId);
+}
+
+export async function addPhoto(upcId: string, photo: unknown, userId: string): Promise<UpcDetail> {
+  const { upc, data } = await loadUpc(upcId);
+  await begin(upc, userId);
+  const match = typeof photo === "string" ? /^data:(image\/(?:jpeg|png));base64,(.+)$/.exec(photo) : null;
   if (!match) throw new QcError(422, "The photo must be a JPEG or PNG image");
   const bytes = Buffer.from(match[2], "base64");
   if (bytes.length > 8 * 1024 * 1024) throw new QcError(413, "The photo is too large");
+  const position = num(data.dcqc_evidence_revision) ?? 0;
   const form = new FormData();
   form.append("file", new Blob([new Uint8Array(bytes)], { type: match[1] }), `upc-${position + 1}.${match[1] === "image/png" ? "png" : "jpg"}`);
-  const query = new URLSearchParams({ type_id: QC_PHOTO_TYPE, owner_entity_id: lineId, owner_entity_type: LINE_TYPE, metadata: JSON.stringify({ position }) });
-  await smUpload(`/filehandler/upload?${query}`, form);
+  const query = new URLSearchParams({ type_id: QC_PHOTO_TYPE, owner_entity_id: upcId, owner_entity_type: UPC_TYPE, metadata: JSON.stringify({ position }) });
+  const { file_id } = await smUpload<{ file_id: string }>(`/filehandler/upload?${query}`, form);
+  await putRecord(upcId, { dcqc_evidence_revision: position + 1, ...(position === 0 ? { photo_ref: file_id } : {}) });
+  return getUpc(upcId);
 }
 
-/** Waits for the count matcher connector to move the line on from COUNT_CHECK. If the connector is slow or down, the app runs the same check itself. */
-async function settle(lineId: string): Promise<LineState> {
-  for (let i = 0; i < 16; i++) {
-    const { state } = await ticketState(lineId);
-    if (state !== "COUNT_CHECK") return state as LineState;
-    await new Promise((r) => setTimeout(r, 500));
+/** Approves a UPC once its pallets are checked and counted, the count matches the PO and there is a photo. */
+export async function approveUpc(upcId: string, userId: string): Promise<UpcDetail> {
+  const detail = await getUpc(upcId);
+  requireShipmentInProgress(detail.shipment_state);
+  if (detail.state !== "IN_PROGRESS") throw new QcError(409, detail.state === "PENDING" ? "Check at least one pallet first" : "This UPC cannot be approved now");
+  if (!detail.pallets.length || detail.pallets.some((p) => p.status !== "COMPLETE")) throw new QcError(409, "Finish the checks and counts on every pallet first");
+  if (!detail.labels_complete) throw new QcError(409, "Confirm the pallet and case labels first");
+  const result = matchCount(detail.expected_units, detail.received_units);
+  if (result.result !== "MATCH") throw new QcError(409, `The count does not match the PO (${result.result === "SHORT" ? "short" : "over"} by ${result.diff}). Flag the UPC instead.`);
+  if (detail.photo_count < 1) throw new QcError(409, "Take a photo of the goods first");
+  await putRecord(upcId, { user_id: userId });
+  await fire(upcId, "upc_approve");
+  return getUpc(upcId);
+}
+
+/** Flags a UPC for the supervisor, which puts it on hold. */
+export async function flagUpc(upcId: string, input: { reason: unknown; note?: unknown }, userId: string): Promise<UpcDetail> {
+  if (typeof input.reason !== "string" || !(input.reason in FLAG_REASONS)) throw new QcError(422, "Choose a reason for the flag");
+  const { upc } = await loadUpc(upcId);
+  requireShipmentInProgress(await loadShipmentState(upc.shipment_id));
+  if (upc.state === "PENDING") await begin(upc, userId);
+  else if (upc.state !== "IN_PROGRESS") throw new QcError(409, "This UPC cannot be flagged now");
+  const flag = await createRecord(FLAG_TYPE, {
+    identifier: `FLAG-${upc.upc_code.slice(-4)}-${Date.now().toString(36)}`,
+    upc_record_id: upcId,
+    po_number: upc.po_number,
+    flag_code: input.reason,
+    note: text(input.note).trim().slice(0, 500),
+    raised_by: userId,
+    raised_at: new Date().toISOString(),
+    status: "OPEN",
+  });
+  await putRecord(upcId, { flag_id: flag.id, dcqc_active_exception_id: flag.id, dcqc_exception_status: "OPEN" });
+  await fire(upcId, "upc_flag");
+  return getUpc(upcId);
+}
+
+const OUTCOMES = {
+  approve: { trigger: "dcqc_supervisor_approve", status: "RESOLVED" },
+  return: { trigger: "upc_return_to_progress", status: "RESOLVED_RETURN_TO_QUEUE" },
+  wont_qc: { trigger: "upc_wont_qc", status: "RESOLVED_WONT_QC" },
+} as const;
+
+/** A supervisor's answer to a flag: approve the UPC, send it back to the associate, or skip it. */
+export async function resolveFlag(upcId: string, action: unknown, note: unknown, userId: string): Promise<UpcDetail> {
+  if (typeof action !== "string" || !(action in OUTCOMES)) throw new QcError(422, "Choose what to do with the UPC");
+  const outcome = OUTCOMES[action as keyof typeof OUTCOMES];
+  const { upc, data } = await loadUpc(upcId);
+  if (upc.state !== "SUPERVISOR_HOLD") throw new QcError(409, "This UPC is not on hold");
+  const flagId = text(data.flag_id);
+  await putRecord(upcId, { resolved_by_user_id: userId, dcqc_exception_status: outcome.status });
+  await fire(upcId, outcome.trigger);
+  if (flagId) await putRecord(flagId, { status: outcome.status, resolution_note: text(note).trim().slice(0, 500), resolved_at: new Date().toISOString(), resolved_by: userId });
+  return getUpc(upcId);
+}
+
+/** A supervisor sends an approved UPC back for rework. */
+export async function reopenUpc(upcId: string, reason: unknown, userId: string): Promise<UpcDetail> {
+  const why = text(reason).trim().slice(0, 500);
+  if (!why) throw new QcError(422, "Say why the UPC needs rework");
+  const { upc } = await loadUpc(upcId);
+  requireShipmentInProgress(await loadShipmentState(upc.shipment_id));
+  if (upc.state !== "APPROVED") throw new QcError(409, "Only an approved UPC can be reopened");
+  await putRecord(upcId, { supervisor_user_id: userId, dcqc_rework_reason: why });
+  await fire(upcId, "dcqc_reopen");
+  return getUpc(upcId);
+}
+
+export interface QcNotification {
+  id: string;
+  event: string;
+  recipient: string;
+  message: string;
+  po_number: string;
+  created_at: string;
+}
+
+/** The latest messages the connectors sent. */
+export async function listNotifications(): Promise<QcNotification[]> {
+  return (await listRecords(NOTIFICATION_TYPE, { limit: 100 }))
+    .map((r) => ({ id: r.id, event: text(r.data.event), recipient: text(r.data.recipient), message: text(r.data.message), po_number: text(r.data.po_number), created_at: text(r.data.created_at) }))
+    .sort((a, b) => b.created_at.localeCompare(a.created_at))
+    .slice(0, 20);
+}
+
+/** UPCs that are on hold, or whose flag was answered. */
+export async function listFlagged(): Promise<FlaggedUpc[]> {
+  const [shipments, items] = await Promise.all([allOf(machines.shipment(), SHIPMENT_TYPE, ["po_number"]), allOf(machines.upc(), UPC_TYPE, UPC_FIELDS)]);
+  const stateOf = new Map(shipments.map((s) => [s.id, s.state as ShipmentState]));
+  const flagged = items.filter((i) => text(i.fields.flag_id));
+  const out: FlaggedUpc[] = [];
+  for (const i of flagged) {
+    const upc = upcFrom(i);
+    const record = await getRecord(text(i.fields.flag_id));
+    out.push({ ...upc, flag: record ? flagFrom({ id: record.id, data: record.data }) : null, shipment_state: stateOf.get(upc.shipment_id) ?? "IN_PROGRESS" });
   }
-  await matchLineCount(lineId);
-  return (await ticketState(lineId)).state as LineState;
-}
-
-const validQty = (v: unknown): v is number => typeof v === "number" && Number.isInteger(v) && v >= 0 && v <= 1_000_000;
-
-/** Saves the count and a photo, then lets the State Machine check the count against the PO. */
-export async function submitCount(lineId: string, input: { received_qty: unknown; photo: unknown }): Promise<QcLineDetail> {
-  if (!validQty(input.received_qty)) throw new QcError(422, "Enter the number of units received");
-  if (typeof input.photo !== "string") throw new QcError(422, "Add a photo of the goods");
-  const { line, poState } = await loadLine(lineId);
-  requireInProgress(poState);
-  if (line.state !== "PENDING") throw new QcError(409, "This UPC has already been counted");
-  await savePhoto(lineId, input.photo, line.photo_count);
-  await putRecord(lineId, { received_qty: input.received_qty, photo_count: line.photo_count + 1 });
-  await fire(lineId, "submit_count");
-  await settle(lineId);
-  return getLine(lineId);
-}
-
-export async function raiseException(lineId: string, input: { received_qty?: unknown; reason: unknown; note?: unknown; photo?: unknown }): Promise<QcLineDetail> {
-  if (typeof input.reason !== "string" || !(input.reason in EXCEPTION_REASONS)) throw new QcError(422, "Choose a reason for the exception");
-  const { line, poState } = await loadLine(lineId);
-  requireInProgress(poState);
-  const note = text(input.note).trim().slice(0, 500);
-  const data: Record<string, unknown> = { exception_reason: input.reason.toLowerCase(), exception_note: note, exception_raised_at: new Date().toISOString() };
-  if (typeof input.photo === "string") {
-    await savePhoto(lineId, input.photo, line.photo_count);
-    data.photo_count = line.photo_count + 1;
-  }
-  if (line.state === "COUNT_MISMATCH") {
-    await putRecord(lineId, data);
-    await fire(lineId, "raise_exception");
-  } else if (line.state === "PENDING") {
-    if (!validQty(input.received_qty)) throw new QcError(422, "Enter the number of units received");
-    await putRecord(lineId, { ...data, received_qty: input.received_qty });
-    await fire(lineId, "raise_exception_direct");
-  } else {
-    throw new QcError(409, "This UPC cannot take an exception now");
-  }
-  return getLine(lineId);
-}
-
-export async function recount(lineId: string): Promise<QcLineDetail> {
-  const { line, poState } = await loadLine(lineId);
-  requireInProgress(poState);
-  if (line.state !== "COUNT_MISMATCH") throw new QcError(409, "Only a UPC with a count that does not match can be recounted");
-  await fire(lineId, "recount");
-  return getLine(lineId);
-}
-
-export async function resolveException(lineId: string, note: unknown): Promise<QcLineDetail> {
-  const text_ = text(note).trim().slice(0, 500);
-  if (!text_) throw new QcError(422, "Say what was done about the exception");
-  const { line } = await loadLine(lineId);
-  if (line.state !== "EXCEPTION") throw new QcError(409, "This UPC has no open exception");
-  await putRecord(lineId, { resolution_note: text_, resolved_at: new Date().toISOString() });
-  await fire(lineId, "resolve_exception");
-  return getLine(lineId);
-}
-
-export async function completePo(poId: string, note: unknown): Promise<QcPoDetail> {
-  const po = await getPo(poId);
-  if (!po) throw new QcError(404, "Purchase order not found");
-  requireInProgress(po.state);
-  if (po.totals.pending > 0) throw new QcError(409, `${po.totals.pending} UPC${po.totals.pending === 1 ? " is" : "s are"} still to check`);
-  // The State Machine checks the PO's own counters, so bring them up to date first.
-  if (po.lines[0]) await rollUpPo(po.lines[0].id);
-  const summary = text(note).trim().slice(0, 500);
-  if (summary) await putRecord(poId, { qc_summary_note: summary });
-  await fire(poId, po.totals.open_exceptions > 0 ? "complete_with_exceptions" : "complete_qc");
-  return (await getPo(poId)) as QcPoDetail;
-}
-
-export async function listExceptions(): Promise<(QcLine & { po_state: PoState })[]> {
-  const [lines, pos] = await Promise.all([allOf(machines.line(), LINE_TYPE, LINE_FIELDS), allOf(machines.po(), PO_TYPE, ["po_number"])]);
-  const stateOf = new Map(pos.map((p) => [p.id, p.state as PoState]));
-  return lines
-    .map(lineFrom)
-    .filter((l) => l.state === "EXCEPTION" || l.state === "EXCEPTION_RESOLVED")
-    .map((l) => ({ ...l, po_state: stateOf.get(l.po_id) ?? "QC_IN_PROGRESS" }));
+  return out;
 }

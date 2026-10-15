@@ -1,152 +1,171 @@
-import { SAMPLE_POS } from "@/data/qc";
-import { createRecord, enroll, fire, getRecord, listTickets, putRecord, ticketState } from "@/lib/sm/records";
-import { matchCount } from "./match";
+import { CASE_SIZE, SEED_SHIPMENTS } from "@/data/qc";
+import { createRecord, enroll, fire, getRecord, listRecords, listTickets, putRecord, type SmRecord, type TicketListItem } from "@/lib/sm/records";
 
-export const PO_TYPE = "dc_po";
-export const LINE_TYPE = "dc_upc_line";
-export const PALLET_TYPE = "dc_pallet";
+export const SHIPMENT_TYPE = "shipment";
+export const UPC_TYPE = "upc";
+export const PALLET_TYPE = "pallet";
+export const FLAG_TYPE = "dcqc_flag";
+export const NOTIFICATION_TYPE = "dcqc_notification";
 export const QC_PHOTO_TYPE = "qc_photo";
 
 export const machines = {
-  po: () => process.env.SM_QC_PO_MACHINE_NAME ?? "workflow_rwwrhtt9_ozj7v1",
-  line: () => process.env.SM_QC_LINE_MACHINE_NAME ?? "workflow_d1sypkdp_stg9mc",
-  pallet: () => process.env.SM_QC_PALLET_MACHINE_NAME ?? "workflow_p6zh6gv4_sgjmey",
+  shipment: () => process.env.SM_DCQC_SHIPMENT_MACHINE_NAME ?? "workflow_16vxtmhg_icn0of",
+  upc: () => process.env.SM_DCQC_UPC_MACHINE_NAME ?? "workflow_bbt46ntb_5ymb45",
 };
 
-const WAITING = ["PENDING", "COUNT_CHECK", "COUNT_MISMATCH"];
-const SETTLED = ["VERIFIED", "EXCEPTION", "EXCEPTION_RESOLVED"];
-const asNumber = (v: unknown) => (v === null || v === undefined || v === "" ? null : Number(v));
+/** A UPC that still stops its shipment from finishing QC. */
+export const BLOCKING = ["PENDING", "IN_PROGRESS", "SUPERVISOR_HOLD"];
 
-/** Adds a line to the PO's activity history. */
-async function logPo(poId: string, type: string, detail: Record<string, unknown> = {}) {
-  const record = await getRecord(poId);
-  if (!record) return;
-  let log: unknown[] = [];
-  try {
-    log = JSON.parse(String(record.data.qc_event_log || "[]"));
-  } catch {}
-  await putRecord(poId, { qc_event_log: JSON.stringify([...log, { type, actor: "state-machine", detail, created_at: new Date().toISOString() }]) });
+export async function allOf(machine: string, entityType: string, fields: string[], filters?: Record<string, string>): Promise<TicketListItem[]> {
+  const items: TicketListItem[] = [];
+  for (let offset = 0; ; offset += 200) {
+    const page = await listTickets({ fields, filters, machine, entityType, limit: 200, offset });
+    items.push(...page.items);
+    if (page.items.length < 200) return items;
+  }
 }
 
-/** Brings the sample purchase orders into the State Machine: the PO, its pallets and its UPC lines, each in its own workflow. */
-export async function fetchPurchaseOrders(): Promise<{ created: string[]; existing: string[] }> {
+/** Plain records of a type whose `field` equals `value`. */
+export async function recordsWhere(typeName: string, field: string, value: string): Promise<SmRecord[]> {
+  return (await listRecords(typeName, { search: value, limit: 100 })).filter((r) => r.data[field] === value);
+}
+
+/** Brings the sample shipments into the State Machine: the shipment, its UPCs and their pallets. */
+export async function fetchShipments(): Promise<{ created: string[]; existing: string[] }> {
   const created: string[] = [];
   const existing: string[] = [];
-  const have = await listTickets({ fields: ["po_number"], machine: machines.po(), entityType: PO_TYPE, limit: 200 });
-  const known = new Set(have.items.map((i) => String(i.fields.po_number)));
+  const have = await allOf(machines.shipment(), SHIPMENT_TYPE, ["po_number"]);
+  const known = new Set(have.map((i) => String(i.fields.po_number)));
 
-  for (const po of SAMPLE_POS) {
-    if (known.has(po.number)) {
-      existing.push(po.number);
+  for (const s of SEED_SHIPMENTS) {
+    if (known.has(s.po_number)) {
+      existing.push(s.po_number);
       continue;
     }
-    const units = po.lines.reduce((sum, l) => sum + l.expectedQty, 0);
-    const record = await createRecord(PO_TYPE, {
-      identifier: po.number,
-      po_number: po.number,
-      supplier: po.supplier,
-      expected_date: po.expectedDate,
-      shipment_number: po.shipment.id,
-      carrier: po.shipment.carrier,
-      trailer: po.shipment.trailer,
-      arrived_at: po.shipment.arrivedAt,
-      pallet_count: po.pallets.length,
-      line_count: po.lines.length,
-      unit_count: units,
-      received_units: 0,
-      pending_count: po.lines.length,
-      verified_count: 0,
-      exception_count: 0,
-      open_exception_count: 0,
+    const units = s.upcs.reduce((sum, u) => sum + u.units, 0);
+    const shipment = await createRecord(SHIPMENT_TYPE, {
+      identifier: s.po_number,
+      legacy_po_id: s.po_number,
+      po_number: s.po_number,
+      shipment_number: s.shipment_number,
+      dc_id: s.dc_id,
+      vendor_code: s.vendor_code,
+      vendor_name: s.vendor_name,
+      dcqc_qc_ready: false,
+      dcqc_blocking_upc_count: s.upcs.length,
+      dcqc_evidence_revision: 0,
+      expected_units: units,
+      shipped_total_units: units,
+      expected_total_cases: s.upcs.reduce((sum, u) => sum + Math.ceil(u.units / CASE_SIZE), 0),
+      expected_pallets: s.upcs.reduce((sum, u) => sum + u.pallets, 0),
+      is_active: true,
     });
-    await putRecord(record.id, { record_id: record.id });
-    await enroll(record.id, machines.po());
+    await putRecord(shipment.id, { record_id: shipment.id });
+    await enroll(shipment.id, machines.shipment());
 
-    for (const pallet of po.pallets) {
-      const lines = po.lines.filter((l) => l.palletId === pallet.id).length;
-      const p = await createRecord(PALLET_TYPE, { identifier: pallet.id, pallet_position: pallet.position, pallet_po_id: record.id, pallet_po_number: po.number, pallet_line_count: lines, pallet_open_count: lines });
-      await putRecord(p.id, { record_id: p.id });
-      await enroll(p.id, machines.pallet());
-    }
-    for (const line of po.lines) {
-      const l = await createRecord(LINE_TYPE, {
-        identifier: `${po.number}/${line.upc}`,
-        line_po_id: record.id,
-        line_po_number: po.number,
-        upc: line.upc,
-        sku: line.sku,
-        product_name: line.name,
-        pallet_number: line.palletId,
-        expected_qty: line.expectedQty,
-        photo_count: 0,
+    await Promise.all(s.upcs.map(async (u) => {
+      const upc = await createRecord(UPC_TYPE, {
+        identifier: `${s.po_number}/${u.sku}`,
+        legacy_upc_id: `${s.po_number}-${u.sku}`,
+        upc_code: u.sku,
+        item_description: u.name,
+        style_number: `ST-${u.sku.slice(-4)}`,
+        color_code: "MLT",
+        color_name: "Multicolor",
+        size_label: "OS",
+        expected_units: u.units,
+        shipped_units: u.units,
+        shipped_cases: Math.ceil(u.units / CASE_SIZE),
+        mdl: CASE_SIZE,
+        units_per_bundle: 1,
+        is_prepack: false,
+        retail_price: "4.99",
+        suggested_retail: "4.99",
+        legacy_po_id: shipment.id,
+        po_number: s.po_number,
+        dc_id: s.dc_id,
+        dcqc_received_units: 0,
+        dcqc_labels_complete: false,
+        allocatable_location_confirmed: false,
+        dcqc_evidence_revision: 0,
       });
-      await putRecord(l.id, { record_id: l.id });
-      await enroll(l.id, machines.line());
-    }
-    created.push(po.number);
+      await putRecord(upc.id, { dcqc_record_id: upc.id });
+      await enroll(upc.id, machines.upc());
+
+      // The expected units are shared across the pallets, the first pallets taking the larger share.
+      const base = Math.floor(u.units / u.pallets / CASE_SIZE) * CASE_SIZE;
+      await Promise.all(Array.from({ length: u.pallets }, async (_, i) => {
+        const share = i === u.pallets - 1 ? u.units - base * (u.pallets - 1) : base;
+        const pallet = await createRecord(PALLET_TYPE, {
+          identifier: `PLT-${u.sku.slice(-4)}-${i + 1}`,
+          legacy_pallet_id: `${s.po_number}-${u.sku}-${i + 1}`,
+          pallet_label: `PLT-${u.sku.slice(-4)}-${i + 1}`,
+          position: i + 1,
+          dcqc_pallet_status: "PENDING",
+          mdl_expected: CASE_SIZE,
+          expected_units: share,
+          dcqc_partial_units: 0,
+          dcqc_total_units: 0,
+          upc_record_id: upc.id,
+          shipment_record_id: shipment.id,
+          po_number: s.po_number,
+        });
+        await putRecord(pallet.id, { record_id: pallet.id });
+      }));
+    }));
+    created.push(s.po_number);
   }
   return { created, existing };
 }
 
-/**
- * The count matcher: compares what was counted with what the PO asked for, saves the result and moves the UPC on.
- * It fires the follow-up transition itself, because the State Machine fires a connector's outcome trigger with a fixed key per UPC,
- * so a second count after a recount would be treated as a repeat and ignored.
- */
-export async function matchLineCount(lineId: string) {
-  const line = await getRecord(lineId);
-  if (!line) return { status: 404, body: { detail: "UPC line not found" } };
-  const expected = asNumber(line.data.expected_qty);
-  const received = asNumber(line.data.received_qty);
-  if (expected === null || received === null) return { status: 422, body: { detail: "The line needs an expected and a received quantity" } };
-  const result = matchCount(expected, received);
-  await putRecord(lineId, { count_result: result.kind.toLowerCase(), count_diff: result.diff });
-  const matched = result.kind === "MATCH";
-  // Another caller may have moved the UPC on already (the connector and the app both run this), which is fine.
-  if ((await ticketState(lineId)).state === "COUNT_CHECK") await fire(lineId, matched ? "count_matched" : "count_mismatched").catch(() => undefined);
-  return { status: 200, body: { ok: true, matched, result: result.kind, diff: result.diff } };
-}
-
-/** Re-adds up a PO from its UPC lines, keeps its pallets in step, and moves the PO along when its exceptions are all resolved. */
-export async function rollUpPo(lineId: string) {
-  const line = await getRecord(lineId);
-  const poId = String(line?.data.line_po_id ?? "");
-  if (!line || !poId) return { status: 404, body: { detail: "UPC line not found" } };
-
-  const { items } = await listTickets({ fields: ["received_qty", "pallet_number"], filters: { line_po_id: poId }, machine: machines.line(), entityType: LINE_TYPE, limit: 200 });
-  const count = (states: string[]) => items.filter((i) => states.includes(i.state)).length;
-  const totals = {
-    received_units: items.reduce((sum, i) => sum + (asNumber(i.fields.received_qty) ?? 0), 0),
-    pending_count: count(WAITING),
-    verified_count: count(["VERIFIED"]),
-    exception_count: count(["EXCEPTION", "EXCEPTION_RESOLVED"]),
-    open_exception_count: count(["EXCEPTION"]),
-  };
-  await putRecord(poId, totals);
-
-  const pallets = await listTickets({ fields: ["pallet_po_id"], filters: { pallet_po_id: poId }, machine: machines.pallet(), entityType: PALLET_TYPE, limit: 200 });
-  for (const pallet of pallets.items) {
-    const record = await getRecord(pallet.id);
-    const name = String(record?.data.identifier ?? "");
-    const mine = items.filter((i) => i.fields.pallet_number === name);
-    const open = mine.filter((i) => !SETTLED.includes(i.state)).length;
-    await putRecord(pallet.id, { pallet_open_count: open });
-    if (mine.length && open === 0 && pallet.state === "OPEN") await fire(pallet.id, "mark_checked");
+/** Keeps the shipment's QC-ready flag and blocking count in step with its UPCs. The State Machine checks both before QC can be submitted. */
+export async function rollUpShipment(upcId: string) {
+  const upc = await getRecord(upcId);
+  const shipmentId = String(upc?.data.legacy_po_id ?? "");
+  if (!upc || !shipmentId) return { status: 404, body: { detail: "UPC not found" } };
+  const count = async () => (await allOf(machines.upc(), UPC_TYPE, ["dcqc_received_units"], { legacy_po_id: shipmentId })).filter((u) => BLOCKING.includes(u.state)).length;
+  const save = (blocking: number) => putRecord(shipmentId, { dcqc_blocking_upc_count: blocking, dcqc_qc_ready: blocking === 0 });
+  let blocking = await count();
+  await save(blocking);
+  // The connector can run a moment before the UPC's new state is visible to a list, so look again once it has settled.
+  await new Promise((r) => setTimeout(r, 1500));
+  const settled = await count();
+  if (settled !== blocking) {
+    blocking = settled;
+    await save(blocking);
   }
-
-  const poState = (await ticketState(poId)).state;
-  if (poState === "EXCEPTIONS_OPEN" && totals.open_exception_count === 0) await fire(poId, "resolve_exceptions");
-  return { status: 200, body: { ok: true, ...totals } };
+  return { status: 200, body: { ok: true, blocking, qc_ready: blocking === 0 } };
 }
 
-/** Records what happened on a PO or pallet. This stands in for a push message to the supervisor. */
+const MESSAGES: Record<string, (d: Record<string, unknown>) => { to: string; text: string }> = {
+  QC_STARTED: (d) => ({ to: "supervisor", text: `QC started on ${d.po_number}` }),
+  QC_COMPLETE: (d) => ({ to: "supervisor", text: `QC is complete on ${d.po_number} and ready for receipt` }),
+  RECEIPT_CLOSED: (d) => ({ to: "associate", text: `Receipt closed on ${d.po_number} (${d.confirmation_number})` }),
+  UPC_FLAGGED: (d) => ({ to: "supervisor", text: `${d.item_description} (${d.upc_code}) on ${d.po_number} needs a supervisor` }),
+};
+
+/** Sends a message about a shipment or UPC and records it, standing in for a push message. Also stamps the start and completion times. */
 export async function notifyQc(recordId: string, event: string) {
   const record = await getRecord(recordId);
   if (!record) return { status: 404, body: { detail: "Record not found" } };
-  if (event === "PALLET_CHECKED") return { status: 200, body: { ok: true, event } };
   const now = new Date().toISOString();
   if (event === "QC_STARTED" && !record.data.started_at) await putRecord(recordId, { started_at: now });
   if (event === "QC_COMPLETE") await putRecord(recordId, { completed_at: now });
-  await logPo(recordId, event);
+  const message = MESSAGES[event]?.(record.data) ?? { to: "supervisor", text: event };
+  await createRecord(NOTIFICATION_TYPE, { identifier: `${event}-${recordId.slice(0, 8)}-${Date.now().toString(36)}`, event, recipient: message.to, message: message.text, po_number: record.data.po_number, record_id: recordId, created_at: now });
   return { status: 200, body: { ok: true, delivered: true, channel: "mock-push", event } };
 }
+
+/** The count matcher: adds up the UPC's pallets, checks the labels and saves the result on the UPC. */
+export async function matchUpcCount(upcId: string) {
+  const upc = await getRecord(upcId);
+  if (!upc || upc.data.upc_code === undefined) return { status: 404, body: { detail: "UPC not found" } };
+  const pallets = await recordsWhere(PALLET_TYPE, "upc_record_id", upcId);
+  const received = pallets.reduce((sum, p) => sum + Number(p.data.dcqc_total_units ?? 0), 0);
+  const labels = pallets.length > 0 && pallets.every((p) => p.data.label_pallet_confirmed === true && p.data.label_cases_confirmed === true);
+  await putRecord(upcId, { dcqc_received_units: received, dcqc_labels_complete: labels });
+  const expected = Number(upc.data.expected_units ?? 0);
+  return { status: 200, body: { ok: true, received, expected, result: received === expected ? "MATCH" : received < expected ? "SHORT" : "OVER", labels_complete: labels } };
+}
+
+export { fire };

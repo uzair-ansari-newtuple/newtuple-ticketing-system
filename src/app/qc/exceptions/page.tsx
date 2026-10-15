@@ -12,69 +12,99 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
-import { useQcExceptions, useQcMutations } from "@/lib/qc/queries";
-import { EXCEPTION_REASONS } from "@/lib/qc/types";
+import { FLAG_REASONS } from "@/lib/qc/dto";
+import { formatDateTime } from "@/lib/format";
+import { useFlagged, useNotifications, useQcMutations } from "@/lib/qc/queries";
 
 type Tab = "open" | "resolved";
+type Action = "approve" | "return" | "wont_qc";
+
+const ANSWERS: { key: Action; label: string }[] = [
+  { key: "approve", label: "Approve UPC" },
+  { key: "return", label: "Send back" },
+  { key: "wont_qc", label: "Won't QC" },
+];
 
 export default function ExceptionsPage() {
-  const { data, isLoading, isError, error, refetch } = useQcExceptions();
+  const { data, isLoading, isError, error, refetch } = useFlagged();
   const { resolve } = useQcMutations();
+  const messages = useNotifications().data?.items ?? [];
   const [tab, setTab] = useState<Tab>("open");
-  const [resolving, setResolving] = useState<string | null>(null);
+  const [answering, setAnswering] = useState<string | null>(null);
   const [note, setNote] = useState("");
 
   const all = data?.items ?? [];
-  const open = all.filter((l) => l.state === "EXCEPTION");
-  const resolved = all.filter((l) => l.state === "EXCEPTION_RESOLVED");
+  const open = all.filter((u) => u.state === "SUPERVISOR_HOLD");
+  const resolved = all.filter((u) => u.state !== "SUPERVISOR_HOLD");
   const shown = tab === "open" ? open : resolved;
 
-  function submit(id: string) {
+  function answer(id: string, action: Action) {
     resolve.mutate(
-      { id, note: note.trim() },
-      { onSuccess: () => { setResolving(null); setNote(""); toast.success("Exception resolved"); }, onError: (e) => toast.error(e.message) },
+      { id, action, note: note.trim() },
+      { onSuccess: () => { setAnswering(null); setNote(""); toast.success("Answer sent"); }, onError: (e) => toast.error(e.message) },
     );
   }
 
   return (
-    <AppShell title="Exceptions" subtitle="Counts or goods that did not match the PO" area="qc">
-      <PillTabs id="qc-exceptions" value={tab} onChange={setTab} tabs={[{ key: "open", label: "Open", count: open.length, highlight: true }, { key: "resolved", label: "Resolved", count: resolved.length }]} />
+    <AppShell title="Exceptions" subtitle="UPCs flagged for the supervisor" area="qc">
+      <PillTabs id="qc-exceptions" value={tab} onChange={setTab} tabs={[{ key: "open", label: "On hold", count: open.length, highlight: true }, { key: "resolved", label: "Answered", count: resolved.length }]} />
       {isLoading ? (
         <Skeleton className="mt-4 h-32 w-full rounded-2xl" />
       ) : isError ? (
         <QueryError error={error} onRetry={refetch} />
       ) : shown.length === 0 ? (
-        <p className="mt-12 text-center text-sm text-muted-foreground">{tab === "open" ? "No open exceptions." : "Nothing resolved yet."}</p>
+        <p className="mt-12 text-center text-sm text-muted-foreground">{tab === "open" ? "Nothing is on hold." : "No flags answered yet."}</p>
       ) : (
         <StaggerList className="mt-4 space-y-2.5">
-          {shown.map((l) => (
-            <StaggerListItem key={l.id} className="rounded-2xl border bg-card p-4 shadow-sm">
+          {shown.map((u) => (
+            <StaggerListItem key={u.id} className="rounded-2xl border bg-card p-4 shadow-sm">
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
-                  <p className="truncate font-semibold">{l.name}</p>
-                  <p className="text-xs text-muted-foreground"><Link href={`/qc/po/${l.po_id}`} className="text-primary underline-offset-2 hover:underline">{l.po_number}</Link> · <span className="font-mono">{l.upc}</span></p>
+                  <p className="truncate font-semibold">{u.description}</p>
+                  <p className="text-xs text-muted-foreground"><Link href={`/qc/po/${u.shipment_id}`} className="text-primary underline-offset-2 hover:underline">{u.po_number}</Link> · <span className="font-mono">{u.upc_code}</span></p>
                 </div>
-                {l.exception ? <Badge variant={l.exception.resolution ? "success" : "destructive"}>{EXCEPTION_REASONS[l.exception.reason]}</Badge> : null}
+                {u.flag ? <Badge variant={u.state === "SUPERVISOR_HOLD" ? "destructive" : "success"}>{FLAG_REASONS[u.flag.reason]}</Badge> : null}
               </div>
-              <p className="mt-2 text-sm">Received <strong>{l.received_qty ?? 0}</strong> of {l.expected_qty}</p>
-              {l.exception?.note ? <p className="mt-1 text-sm text-muted-foreground">{l.exception.note}</p> : null}
-              {l.exception?.resolution ? (
-                <p className="mt-2 rounded-lg bg-success/12 p-2 text-sm text-success">Resolved: {l.exception.resolution.note}</p>
-              ) : resolving === l.id ? (
+              <p className="mt-2 text-sm">Counted <strong>{u.received_units}</strong> of {u.expected_units}</p>
+              {u.flag?.note ? <p className="mt-1 text-sm text-muted-foreground">{u.flag.note}</p> : null}
+              {u.state !== "SUPERVISOR_HOLD" ? (
+                <p className="mt-2 rounded-lg bg-success/12 p-2 text-sm text-success">
+                  {u.state === "APPROVED" ? "Approved" : u.state === "WONT_QC" ? "Skipped (won't QC)" : "Sent back to the associate"}
+                  {u.flag?.resolution_note ? `: ${u.flag.resolution_note}` : ""}
+                </p>
+              ) : answering === u.id ? (
                 <div className="mt-3 space-y-2">
-                  <Textarea rows={2} placeholder="What was done?" value={note} onChange={(e) => setNote(e.target.value)} />
-                  <div className="grid grid-cols-2 gap-2">
-                    <Button variant="outline" onClick={() => setResolving(null)}>Cancel</Button>
-                    <Button disabled={!note.trim() || resolve.isPending} onClick={() => submit(l.id)}>{resolve.isPending ? <Loader2 className="animate-spin" /> : <Check />} Mark resolved</Button>
+                  <Textarea rows={2} placeholder="Add a note (optional)" value={note} onChange={(e) => setNote(e.target.value)} />
+                  <div className="grid grid-cols-3 gap-2">
+                    {ANSWERS.map((a) => (
+                      <Button key={a.key} size="sm" variant={a.key === "approve" ? "default" : "outline"} disabled={resolve.isPending} onClick={() => answer(u.id, a.key)}>
+                        {resolve.isPending ? <Loader2 className="animate-spin" /> : a.key === "approve" ? <Check /> : null} {a.label}
+                      </Button>
+                    ))}
                   </div>
+                  <Button variant="ghost" size="sm" className="w-full" onClick={() => setAnswering(null)}>Cancel</Button>
                 </div>
               ) : (
-                <Button variant="outline" size="sm" className="mt-3" onClick={() => { setResolving(l.id); setNote(""); }}>Resolve</Button>
+                <Button variant="outline" size="sm" className="mt-3" onClick={() => { setAnswering(u.id); setNote(""); }}>Answer</Button>
               )}
             </StaggerListItem>
           ))}
         </StaggerList>
       )}
+
+      {messages.length ? (
+        <section className="mt-8">
+          <h2 className="mb-2 text-sm font-semibold">Latest messages</h2>
+          <ul className="space-y-1.5">
+            {messages.slice(0, 6).map((m) => (
+              <li key={m.id} className="flex items-start justify-between gap-3 rounded-xl border bg-card px-3 py-2 text-sm">
+                <span>{m.message}</span>
+                <span className="shrink-0 text-xs text-muted-foreground">{formatDateTime(m.created_at)}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
     </AppShell>
   );
 }

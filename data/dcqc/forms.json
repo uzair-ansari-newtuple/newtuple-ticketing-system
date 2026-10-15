@@ -1,0 +1,513 @@
+[
+ {
+  "code": "FR-08",
+  "name": "Shipment Details",
+  "entity": "shipment",
+  "fields": [
+   {
+    "key": "legacy_po_id",
+    "name": "legacy_po_id",
+    "type": "text",
+    "required": true,
+    "enum": []
+   },
+   {
+    "key": "po_number",
+    "name": "po_number",
+    "type": "text",
+    "required": true,
+    "enum": []
+   },
+   {
+    "key": "shipment_number",
+    "name": "shipment_number",
+    "type": "text",
+    "required": false,
+    "enum": []
+   },
+   {
+    "key": "dc_id",
+    "name": "dc_id",
+    "type": "text",
+    "required": true,
+    "enum": []
+   },
+   {
+    "key": "vendor_code",
+    "name": "vendor_code",
+    "type": "text",
+    "required": false,
+    "enum": []
+   },
+   {
+    "key": "vendor_name",
+    "name": "vendor_name",
+    "type": "text",
+    "required": false,
+    "enum": []
+   },
+   {
+    "key": "assigned_to_user_id",
+    "name": "assigned_to_user_id",
+    "type": "text",
+    "required": false,
+    "enum": []
+   }
+  ]
+ },
+ {
+  "code": "FR-09",
+  "name": "QC Completion",
+  "entity": "shipment",
+  "fields": [
+   {
+    "key": "record_id",
+    "name": "record_id",
+    "type": "text",
+    "required": false,
+    "enum": []
+   },
+   {
+    "key": "dcqc_qc_ready",
+    "name": "dcqc_qc_ready",
+    "type": "boolean",
+    "required": true,
+    "enum": []
+   },
+   {
+    "key": "dcqc_blocking_upc_count",
+    "name": "dcqc_blocking_upc_count",
+    "type": "integer",
+    "required": true,
+    "enum": []
+   },
+   {
+    "key": "dcqc_evidence_revision",
+    "name": "dcqc_evidence_revision",
+    "type": "integer",
+    "required": true,
+    "enum": []
+   }
+  ]
+ },
+ {
+  "code": "FR-10",
+  "name": "Receipt Action",
+  "entity": "shipment",
+  "fields": [
+   {
+    "key": "user_id",
+    "name": "user_id",
+    "type": "text",
+    "required": false,
+    "enum": []
+   },
+   {
+    "key": "supervisor_user_id",
+    "name": "supervisor_user_id",
+    "type": "text",
+    "required": false,
+    "enum": []
+   },
+   {
+    "key": "confirmation_number",
+    "name": "confirmation_number",
+    "type": "text",
+    "required": false,
+    "enum": []
+   },
+   {
+    "key": "return_note",
+    "name": "return_note",
+    "type": "text",
+    "required": false,
+    "enum": []
+   }
+  ]
+ },
+ {
+  "code": "FR-11",
+  "name": "Product Details",
+  "entity": "upc",
+  "fields": [
+   {
+    "key": "legacy_upc_id",
+    "name": "legacy_upc_id",
+    "type": "text",
+    "required": true,
+    "enum": []
+   },
+   {
+    "key": "upc_code",
+    "name": "upc_code",
+    "type": "text",
+    "required": true,
+    "enum": []
+   },
+   {
+    "key": "item_description",
+    "name": "item_description",
+    "type": "text",
+    "required": false,
+    "enum": []
+   },
+   {
+    "key": "style_number",
+    "name": "style_number",
+    "type": "text",
+    "required": false,
+    "enum": []
+   },
+   {
+    "key": "color_code",
+    "name": "color_code",
+    "type": "text",
+    "required": false,
+    "enum": []
+   },
+   {
+    "key": "color_name",
+    "name": "color_name",
+    "type": "text",
+    "required": false,
+    "enum": []
+   },
+   {
+    "key": "size_label",
+    "name": "size_label",
+    "type": "text",
+    "required": false,
+    "enum": []
+   },
+   {
+    "key": "expected_units",
+    "name": "expected_units",
+    "type": "integer",
+    "required": false,
+    "enum": []
+   },
+   {
+    "key": "shipped_units",
+    "name": "shipped_units",
+    "type": "integer",
+    "required": false,
+    "enum": []
+   },
+   {
+    "key": "shipped_cases",
+    "name": "shipped_cases",
+    "type": "integer",
+    "required": false,
+    "enum": []
+   },
+   {
+    "key": "mdl",
+    "name": "mdl",
+    "type": "integer",
+    "required": false,
+    "enum": []
+   },
+   {
+    "key": "units_per_bundle",
+    "name": "units_per_bundle",
+    "type": "integer",
+    "required": false,
+    "enum": []
+   },
+   {
+    "key": "is_prepack",
+    "name": "is_prepack",
+    "type": "boolean",
+    "required": true,
+    "enum": []
+   },
+   {
+    "key": "retail_price",
+    "name": "retail_price",
+    "type": "text",
+    "required": false,
+    "enum": []
+   },
+   {
+    "key": "suggested_retail",
+    "name": "suggested_retail",
+    "type": "text",
+    "required": false,
+    "enum": []
+   }
+  ]
+ },
+ {
+  "code": "FR-12",
+  "name": "QC Summary",
+  "entity": "upc",
+  "fields": [
+   {
+    "key": "dcqc_record_id",
+    "name": "dcqc_record_id",
+    "type": "text",
+    "required": false,
+    "enum": []
+   },
+   {
+    "key": "dcqc_received_units",
+    "name": "dcqc_received_units",
+    "type": "integer",
+    "required": true,
+    "enum": []
+   },
+   {
+    "key": "dcqc_labels_complete",
+    "name": "dcqc_labels_complete",
+    "type": "boolean",
+    "required": true,
+    "enum": []
+   },
+   {
+    "key": "condition_code",
+    "name": "condition_code",
+    "type": "text",
+    "required": false,
+    "enum": []
+   },
+   {
+    "key": "photo_qa_status",
+    "name": "photo_qa_status",
+    "type": "text",
+    "required": false,
+    "enum": []
+   },
+   {
+    "key": "allocatable_location_confirmed",
+    "name": "allocatable_location_confirmed",
+    "type": "boolean",
+    "required": true,
+    "enum": []
+   },
+   {
+    "key": "dcqc_evidence_revision",
+    "name": "dcqc_evidence_revision",
+    "type": "integer",
+    "required": true,
+    "enum": []
+   }
+  ]
+ },
+ {
+  "code": "FR-13",
+  "name": "Exception Summary",
+  "entity": "upc",
+  "fields": [
+   {
+    "key": "dcqc_active_exception_id",
+    "name": "dcqc_active_exception_id",
+    "type": "text",
+    "required": false,
+    "enum": []
+   },
+   {
+    "key": "dcqc_exception_status",
+    "name": "dcqc_exception_status",
+    "type": "select",
+    "required": false,
+    "enum": [
+     "OPEN",
+     "UNDER_REVIEW",
+     "RESOLVED_RETURN_TO_QUEUE",
+     "RESOLVED",
+     "RESOLVED_PO_CLOSED",
+     "RESOLVED_WONT_QC"
+    ]
+   }
+  ]
+ },
+ {
+  "code": "FR-14",
+  "name": "QC Action",
+  "entity": "upc",
+  "fields": [
+   {
+    "key": "user_id",
+    "name": "user_id",
+    "type": "text",
+    "required": false,
+    "enum": []
+   },
+   {
+    "key": "flag_id",
+    "name": "flag_id",
+    "type": "text",
+    "required": false,
+    "enum": []
+   },
+   {
+    "key": "resolved_by_user_id",
+    "name": "resolved_by_user_id",
+    "type": "text",
+    "required": false,
+    "enum": []
+   },
+   {
+    "key": "supervisor_user_id",
+    "name": "supervisor_user_id",
+    "type": "text",
+    "required": false,
+    "enum": []
+   },
+   {
+    "key": "dcqc_rework_reason",
+    "name": "dcqc_rework_reason",
+    "type": "text",
+    "required": false,
+    "enum": []
+   }
+  ]
+ },
+ {
+  "code": "FR-15",
+  "name": "Pallet Details",
+  "entity": "pallet",
+  "fields": [
+   {
+    "key": "legacy_pallet_id",
+    "name": "legacy_pallet_id",
+    "type": "text",
+    "required": true,
+    "enum": []
+   },
+   {
+    "key": "record_id",
+    "name": "record_id",
+    "type": "text",
+    "required": true,
+    "enum": []
+   },
+   {
+    "key": "pallet_label",
+    "name": "pallet_label",
+    "type": "text",
+    "required": false,
+    "enum": []
+   },
+   {
+    "key": "position",
+    "name": "position",
+    "type": "integer",
+    "required": true,
+    "enum": []
+   },
+   {
+    "key": "dcqc_pallet_status",
+    "name": "dcqc_pallet_status",
+    "type": "text",
+    "required": true,
+    "enum": []
+   }
+  ]
+ },
+ {
+  "code": "FR-16",
+  "name": "Product and Labels",
+  "entity": "pallet",
+  "fields": [
+   {
+    "key": "inspect_case_opened",
+    "name": "inspect_case_opened",
+    "type": "boolean",
+    "required": true,
+    "enum": []
+   },
+   {
+    "key": "inspect_style_confirmed",
+    "name": "inspect_style_confirmed",
+    "type": "boolean",
+    "required": true,
+    "enum": []
+   },
+   {
+    "key": "inspect_color_confirmed",
+    "name": "inspect_color_confirmed",
+    "type": "boolean",
+    "required": true,
+    "enum": []
+   },
+   {
+    "key": "inspect_upc_confirmed",
+    "name": "inspect_upc_confirmed",
+    "type": "boolean",
+    "required": true,
+    "enum": []
+   },
+   {
+    "key": "inspect_price_confirmed",
+    "name": "inspect_price_confirmed",
+    "type": "boolean",
+    "required": true,
+    "enum": []
+   },
+   {
+    "key": "label_pallet_confirmed",
+    "name": "label_pallet_confirmed",
+    "type": "boolean",
+    "required": true,
+    "enum": []
+   },
+   {
+    "key": "label_cases_confirmed",
+    "name": "label_cases_confirmed",
+    "type": "boolean",
+    "required": true,
+    "enum": []
+   }
+  ]
+ },
+ {
+  "code": "FR-17",
+  "name": "Pallet Counts",
+  "entity": "pallet",
+  "fields": [
+   {
+    "key": "mdl_expected",
+    "name": "mdl_expected",
+    "type": "integer",
+    "required": false,
+    "enum": []
+   },
+   {
+    "key": "mdl_actual",
+    "name": "mdl_actual",
+    "type": "integer",
+    "required": false,
+    "enum": []
+   },
+   {
+    "key": "bundles_per_case",
+    "name": "bundles_per_case",
+    "type": "integer",
+    "required": false,
+    "enum": []
+   },
+   {
+    "key": "full_cases_count",
+    "name": "full_cases_count",
+    "type": "integer",
+    "required": false,
+    "enum": []
+   },
+   {
+    "key": "dcqc_partial_units",
+    "name": "dcqc_partial_units",
+    "type": "integer",
+    "required": true,
+    "enum": []
+   },
+   {
+    "key": "dcqc_total_units",
+    "name": "dcqc_total_units",
+    "type": "integer",
+    "required": true,
+    "enum": []
+   }
+  ]
+ }
+]
