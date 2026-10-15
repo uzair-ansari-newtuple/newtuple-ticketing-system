@@ -121,6 +121,36 @@ await sleep(4000);
 d = await detailOf(c.id);
 check("a store pick stays a store pick", d.state === "CONFIRMED" && !d.resolver?.decision, `${d.state}`);
 
+section("The resolver cannot resolve it, from the State Machine");
+const f = await capture(goodPhotos());
+const ef = await toNew(f.id, f.number);
+await escalate(f.id);
+await call(SM, `/entity-records/${ef}/assignee`, { method: "PUT", headers: smh, body: { assignee_id: resolverLogin.user.id } });
+await fire(ef, "to_inprogress");
+r = await fire(ef, "to_cantresolve");
+check("closing it as can't resolve without a reason is refused", r.s >= 400, `${r.s}`);
+await put(ef, { resolver_reason_codes: "no_match_found", resolver_comment: "Nothing like it in the catalog" });
+r = await fire(ef, "to_cantresolve");
+check("with a reason it moves to CANT_RESOLVE", r.s === 200 && r.b.to_state === "CANT_RESOLVE", JSON.stringify(r.b)?.slice(0, 160));
+await sleep(4000);
+d = await detailOf(f.id);
+check("the store app shows the answer and the resolver's comment", d.state === "RESOLVER_RESPONSE_RECEIVED" && d.resolver?.decision === "CANT_RESOLVE" && /catalog/.test(d.resolver?.comment ?? ""), `${d.state} ${d.resolver?.decision} ${d.resolver?.comment}`);
+
+section("Printing fails when it should");
+const g = await capture(goodPhotos());
+await toNew(g.id, g.number);
+const print = (body) => call(APP, "/mock/label-print", { headers: auth, body: { incident_id: g.id, printer: 1, copies: 1, ...body } });
+check("printing before the item is confirmed is refused", (await print({})).s === 409);
+const gk = (await detailOf(g.id)).candidates[0].key;
+await call(APP, `/mock/incidents/${g.id}/confirm`, { headers: auth, body: { acknowledged: true, candidate_key: gk } });
+check("an unknown printer is refused", (await print({ printer: 3 })).s === 422);
+check("zero copies are refused", (await print({ copies: 0 })).s === 422);
+check("more than 99 copies are refused", (await print({ copies: 100 })).s === 422);
+check("a good print is accepted", (await print({})).s === 200);
+check("printing the same label again straight away is refused", (await print({})).s === 409);
+const stranger = (await call(APP, "/mock/label-print", { headers: rauth, body: { incident_id: g.id, printer: 1, copies: 1 } })).s;
+check("a user who does not own the ticket cannot print it", stranger >= 400, `${stranger}`);
+
 section("Restore");
 setMode("step");
 console.log(`\nTOTAL ${total}  PASS ${total - failures}  FAIL ${failures}`);
