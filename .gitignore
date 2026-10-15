@@ -47,3 +47,6 @@ next-env.d.ts
 /.cache/
 *.traineddata
 /.next-api/
+
+# local login details
+/LOGINS.txt
