@@ -11,7 +11,6 @@ import { createHash, randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 import pg from "pg";
 import { productImageUrl, productMetadata, type Product } from "@/data/catalog";
-import { hashPassword } from "@/lib/mock/auth";
 import { buildCandidates, gate } from "@/lib/mock/flow";
 import { buildExtraction } from "@/lib/mock/extract";
 import { CLASSES, parseTagText } from "@/lib/taxonomy";
@@ -21,10 +20,6 @@ process.loadEnvFile(".env");
 
 const STORE_ID = "ST-112";
 const PRODUCTS: Product[] = JSON.parse(readFileSync("db/seed/products.json", "utf8"));
-const USERS = [
-  { id: "u-112", username: "store112", password: "store123", role: "store", store_id: STORE_ID, store_name: "Store #112 · Atlanta, GA" },
-  { id: "u-res1", username: "resolver1", password: "resolver123", role: "resolver", store_id: null, store_name: "Resolver desk" },
-];
 const MODEL = "Xenova/clip-vit-base-patch32";
 const ID_PREFIX = "00000000-0000-4000-8000-0000000090";
 const toVector = (v: number[]) => `[${v.join(",")}]`;
@@ -122,14 +117,6 @@ try {
 
   await client.query("BEGIN");
 
-  for (const u of USERS) {
-    await client.query(
-      `INSERT INTO users (id, username, password_hash, role, store_id, store_name) VALUES ($1,$2,$3,$4,$5,$6)
-       ON CONFLICT (id) DO UPDATE SET username = EXCLUDED.username, password_hash = EXCLUDED.password_hash, role = EXCLUDED.role, store_id = EXCLUDED.store_id, store_name = EXCLUDED.store_name`,
-      [u.id, u.username, hashPassword(u.password), u.role, u.store_id, u.store_name],
-    );
-  }
-  console.log(`Users: ${USERS.length}`);
 
   const refIds = new Map<string, string>();
   const needEmbedding: Product[] = [];
