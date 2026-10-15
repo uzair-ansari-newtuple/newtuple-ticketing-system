@@ -1,6 +1,8 @@
 // Attaches the ticketing connectors to the ResolverIQ workflow states.
 //   node scripts/sm-workflow.mjs --mode step            save and validate a draft where each state waits for a click
 //   node scripts/sm-workflow.mjs --mode auto --publish  publish a version where tickets move on by themselves
+import { readFileSync } from "node:fs";
+
 process.loadEnvFile(".env");
 
 const args = process.argv.slice(2);
@@ -75,7 +77,9 @@ if (numberField) {
 }
 
 // The forms show these as dropdowns, so the workflow must store them as the same kind of field.
+const catalog = JSON.parse(readFileSync("data/products.json", "utf8")).map((p) => [`${p.name} · ${p.sku}`, p.sku]);
 const DROPDOWNS = {
+  selected_candidate: catalog,
   resolver_reason_codes: [["NO_MATCH_FOUND", "no_match_found"], ["MANUAL_REVIEW", "manual_revie"], ["NOT_CITITRENDS_MERCHANDISE", "not_cititrends_merchandise"]],
   resolver_decision: [["Resolved", "resolved"], ["Unable", "unable"], ["Duplicate-Merged", "duplicate-merged"]],
 };

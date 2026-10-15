@@ -1,5 +1,12 @@
 // Creates the incident picklists, library fields and the Incident Resolver Form in the State Machine. Safe to run again.
 process.loadEnvFile(".env");
+import { readFileSync } from "node:fs";
+
+// Every catalog item as a dropdown choice, so a resolver picks the item instead of typing its code.
+export const CATALOG = select_(JSON.parse(readFileSync("data/products.json", "utf8")).map((p) => [`${p.name} · ${p.sku}`, p.sku]));
+function select_(pairs) {
+  return { enum_labels: pairs.map((p) => p[0]), enum_values: pairs.map((p) => p[1]) };
+}
 
 const BASE = process.env.SM_BASE_URL;
 const call = async (method, path, body, token) => {
@@ -54,7 +61,7 @@ const FIELDS = [
   ["Gating Tier", "gating_tier", "text", "Match rating: GREEN, YELLOW or RED."],
   ["Candidate Count", "candidate_count", "integer", "Number of candidate products found."],
   ["Candidates", "edw_candidates", "textarea", "Candidate products with scores."],
-  ["Selected Candidate", "selected_candidate", "text", "SKU the resolver or store chose."],
+  ["Selected Candidate", "selected_candidate", "select", "Item the resolver or store chose.", CATALOG],
   ["Resolver ID", "resolver_id", "text", "Resolver working on the incident."],
   ["Resolver Name", "resolver_name", "text", "Name of the resolver."],
   ["Resolver Decision", "resolver_decision", "select", "Resolver's decision.", DECISION],
@@ -94,10 +101,12 @@ const ids = [];
 for (const [name, field_key, field_type, description, settings = {}] of FIELDS) {
   let field = byKey.get(field_key);
   const currentType = field?.field_type ?? field?.identity?.field_type;
-  if (field && currentType !== field_type) {
+  const currentValues = JSON.stringify(field?.version?.settings?.enum_values ?? []);
+  const wantsValues = JSON.stringify(settings.enum_values ?? []);
+  if (field && (currentType !== field_type || (field_type === "select" && currentValues !== wantsValues))) {
     const id = field.library_field_id ?? field.identity?.library_field_id ?? field.id;
     await call("POST", `/field-library/fields/${id}/versions`, { field_type, description, settings }, token);
-    console.log(`field retyped     ${field_key}: ${currentType} -> ${field_type}`);
+    console.log(`field updated     ${field_key}: ${currentType} -> ${field_type}`);
   }
   if (!field) {
     field = await call("POST", "/field-library/fields", { name, field_key, field_type, description, settings }, token);

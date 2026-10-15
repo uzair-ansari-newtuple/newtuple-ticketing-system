@@ -8,6 +8,7 @@ const LIST_PAGE = 200;
 export interface SmRecord {
   id: string;
   data: Record<string, unknown>;
+  assignee_id: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -15,11 +16,12 @@ export interface SmRecord {
 interface RawRecord {
   entity_id: string;
   data: Record<string, unknown>;
+  assignee_id?: string | null;
   created_at: string;
   updated_at: string;
 }
 
-const toRecord = (r: RawRecord): SmRecord => ({ id: r.entity_id, data: r.data ?? {}, created_at: r.created_at, updated_at: r.updated_at });
+const toRecord = (r: RawRecord): SmRecord => ({ id: r.entity_id, data: r.data ?? {}, assignee_id: r.assignee_id ?? null, created_at: r.created_at, updated_at: r.updated_at });
 const typeIds = new Map<string, string>();
 const UUID = /^[0-9a-f-]{36}$/i;
 

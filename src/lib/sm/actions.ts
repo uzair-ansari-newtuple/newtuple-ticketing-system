@@ -1,5 +1,6 @@
 import { getRow, saveRow } from "@/lib/mock/incidents";
 import { getProductBySku, getProductByUpc } from "./catalog";
+import { smFetch } from "./client";
 import { getRecord, ticketState } from "./records";
 import type { ResolverDecision, ResolverState } from "@/lib/types";
 import { sendLabel } from "@/lib/mock/printing";
@@ -42,6 +43,17 @@ export async function notifyFor(incidentId: string, event: NotifyEvent, message?
   return { status: 200, body: { ok: true, delivered: true, channel: "mock-push", event } };
 }
 
+const userNames = new Map<string, string>();
+
+/** The display name of a State Machine user, read once from the user list. */
+async function userName(id: string): Promise<string> {
+  if (!userNames.has(id)) {
+    const users = await smFetch<{ id: string; full_name: string | null; email: string }[]>("GET", "/users?limit=200");
+    for (const u of users) userNames.set(u.id, u.full_name || u.email);
+  }
+  return userNames.get(id) ?? id;
+}
+
 const DECIDED: Record<string, ResolverDecision> = { RESOLVED: "RECOMMEND", NOT_CT_MERCH: "NOT_APPAREL", CANT_RESOLVE: "CANT_RESOLVE" };
 const SETTLED = ["RESOLVER_RESPONSE_RECEIVED", "CONFIRMED", "PRINTED", "COMPLETED", "CLOSED"];
 
@@ -53,14 +65,17 @@ export async function syncResolver(incidentId: string) {
   const row = await getRow(incidentId);
   if (!row) return { status: 404, body: { detail: "Ticket not found" } };
   const { state } = await ticketState(incidentId);
-  const data = (await getRecord(incidentId))?.data ?? {};
+  const record = await getRecord(incidentId);
+  const data = record?.data ?? {};
   const text = (key: string) => String(data[key] ?? "").trim();
-  const actor = text("resolver_name") || "state-machine";
+  const assignee = record?.assignee_id ? { id: record.assignee_id, name: await userName(record.assignee_id) } : null;
+  const actor = assignee?.name ?? (text("resolver_name") || "state-machine");
+  const who = assignee ? { resolver_id: assignee.id, resolver_name: assignee.name } : {};
   const base: ResolverState = row.resolver ?? { status: "NEW", claimed_by: null, decision: null, recommended: null, comment: null, responded_at: null };
 
   if (state === "INPROGRESS" && !SETTLED.includes(row.current_state) && row.current_state !== "RESOLUTION_IN_PROGRESS") {
-    const resolver = { ...base, status: "IN_PROGRESS" as const, claimed_by: text("resolver_id") || "state-machine" };
-    await saveRow(row, { resolver, current_state: "RESOLUTION_IN_PROGRESS" }, { board: { resolver_lane_state: "IN_PROGRESS" }, event: { type: "CLAIMED", actor } });
+    const resolver = { ...base, status: "IN_PROGRESS" as const, claimed_by: assignee?.id ?? (text("resolver_id") || "state-machine") };
+    await saveRow(row, { resolver, current_state: "RESOLUTION_IN_PROGRESS" }, { board: { ...who, resolver_lane_state: "IN_PROGRESS" }, event: { type: "CLAIMED", actor } });
     return { status: 200, body: { ok: true, synced: "claimed" } };
   }
 
@@ -76,7 +91,7 @@ export async function syncResolver(incidentId: string) {
     const comment = text("resolver_comment") || (decision === "RECOMMEND" ? "" : text("resolver_reason_codes").replaceAll("_", " "));
     const resolver: ResolverState = { ...base, status: "RESOLVED", decision, recommended: product ? productMetadata(product) : null, comment: comment || null, responded_at: new Date().toISOString() };
     await saveRow(row, { resolver, current_state: "RESOLVER_RESPONSE_RECEIVED", unread_for_store: true }, {
-      board: { resolver_lane_state: "RESOLVED" },
+      board: { ...who, resolver_lane_state: "RESOLVED" },
       event: { type: "RESOLVED", actor, detail: { decision, sku: sku || null, via: "state-machine" } },
     });
     await notifyFor(incidentId, "RESOLUTION_SENT");

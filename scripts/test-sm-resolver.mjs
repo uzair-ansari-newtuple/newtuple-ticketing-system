@@ -87,6 +87,7 @@ check("the resolver claims it in the State Machine", r.s === 200, JSON.stringify
 await sleep(3000);
 let d = await detailOf(a.id);
 check("the store app now shows it as being worked on", d.state === "RESOLUTION_IN_PROGRESS" && d.resolver?.status === "IN_PROGRESS", `${d.state}`);
+check("the claim names the real resolver, taken from the assignee", (await events(a.id, "CLAIMED")).length === 1 && (await detailOf(a.id)).events.find((e) => e.type === "CLAIMED")?.actor === resolverLogin.user.name, JSON.stringify((await detailOf(a.id)).events.find((e) => e.type === "CLAIMED")));
 r = await fire(ea, "to_resolved");
 check("answering without choosing an item is refused", r.s >= 400, `${r.s}`);
 await put(ea, { selected_candidate: P2.sku, resolver_comment: "This is the right item", resolver_decision: "resolved" });

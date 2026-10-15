@@ -21,7 +21,6 @@ Sign in as `store112` / `store123` (store associate) or `resolver1` / `resolver1
 1. Import the GitHub repo in Vercel.
 2. Add environment variables:
    - the `SM_*` values from `.env.example`.
-   - `AUTH_SECRET`: a long random string. It signs login tokens.
 3. Deploy. The camera and install-to-home-screen need HTTPS, which Vercel provides, so it works on a phone.
 
 Run `node scripts/sm-data.mjs` and `npm run catalog` once against the same State Machine (from your machine) before first use.
