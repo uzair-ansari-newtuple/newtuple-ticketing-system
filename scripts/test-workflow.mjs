@@ -17,9 +17,9 @@ const section = (t) => console.log(`\n== ${t} ==`);
 
 const db = new pg.Client({ connectionString: process.env.DATABASE_URL_UNPOOLED });
 await db.connect();
-const login = (await call(APP, "/mock/auth/login", { body: { username: process.env.SM_EMAIL, password: process.env.SM_PASSWORD } })).b;
+const login = (await call(APP, "/mock/auth/login", { body: { email: process.env.DEMO_STORE_EMAIL, password: process.env.DEMO_STORE_PASSWORD } })).b;
 const auth = { authorization: `Bearer ${login.access_token}` };
-const resolverLogin = (await call(APP, "/mock/auth/login", { body: { username: process.env.DEMO_RESOLVER_EMAIL, password: process.env.DEMO_RESOLVER_PASSWORD } })).b;
+const resolverLogin = (await call(APP, "/mock/auth/login", { body: { email: process.env.DEMO_RESOLVER_EMAIL, password: process.env.DEMO_RESOLVER_PASSWORD } })).b;
 const rauth = { authorization: `Bearer ${resolverLogin.access_token}` };
 const smTok = (await call(SM, "/auth/login", { body: { email: process.env.SM_EMAIL, password: process.env.SM_PASSWORD } })).b.access_token;
 const smh = { authorization: `Bearer ${smTok}` };
@@ -216,6 +216,8 @@ check("a resolver can claim it in the app", cl.s === 200, `${cl.s} ${JSON.string
 await sleep(6000);
 s = await ticket(e.number);
 check("the State Machine shows it INPROGRESS", s.state === "INPROGRESS", s.state);
+const rec = await call(SM, `/entity-records/${s.entity}`, { method: "GET", headers: smh });
+check("the State Machine assignee is the resolver who claimed it", rec.b?.assignee_id === resolverLogin.user.id, `${rec.b?.assignee_id} vs ${resolverLogin.user.id}`);
 const rs = await call(APP, `/mock/resolver/incidents/${e.id}/respond`, { headers: rauth, body: { decision: "RECOMMEND", sku: "SKU-1003", comment: "matches" } });
 check("the resolver can answer", rs.s === 200, `${rs.s}`);
 s = await waitFor(e.number, (t) => t.state === "RESOLVED", 30000);

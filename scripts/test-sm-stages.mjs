@@ -16,7 +16,7 @@ const check = (name, ok, detail = "") => {
   console.log(`${ok ? "PASS" : "FAIL"}  ${name}${ok ? "" : `  -> ${detail}`}`);
 };
 
-const login = await call("/mock/auth/login", { body: { username: process.env.SM_EMAIL, password: process.env.SM_PASSWORD } });
+const login = await call("/mock/auth/login", { body: { email: process.env.DEMO_STORE_EMAIL, password: process.env.DEMO_STORE_PASSWORD } });
 const auth = { authorization: `Bearer ${login.b.access_token}` };
 
 let n = 0;
