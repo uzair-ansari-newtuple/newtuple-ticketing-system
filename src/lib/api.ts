@@ -10,10 +10,9 @@ import type {
   ImagePayload,
   Incident,
   IncidentCreateBody,
-  MatchCandidate,
   NormalizedMetadata,
   LoginResponse,
-  MetadataExtraction,
+  PipelineStatus,
   QualityCheckResult,
 } from "@/lib/types";
 
@@ -73,9 +72,6 @@ export const api = {
     throw new ApiError(504, "Quality check timed out");
   },
 
-  searchLibrary: (token: string, embeddings: number[][]) =>
-    request<{ matches: MatchCandidate[]; brands: string[] }>("/library/search", { method: "POST", token, body: JSON.stringify({ embeddings }) }),
-
   addReference: (token: string, body: { metadata: NormalizedMetadata; thumb: string; embeddings: number[][] }) =>
     request<{ id: string }>("/library", { method: "POST", token, body: JSON.stringify(body) }),
 
@@ -122,18 +118,8 @@ export const api = {
       body: JSON.stringify({ capture_profile_id: "PHOTO_LANE", ...body }),
     }),
 
-  async waitForExtraction(
-    token: string,
-    incidentId: string,
-    onUpdate: (e: MetadataExtraction) => void,
-  ): Promise<MetadataExtraction> {
-    const deadline = Date.now() + POLL_TIMEOUT_MS;
-    while (Date.now() < deadline) {
-      const extraction = await request<MetadataExtraction>(`/incidents/${incidentId}/metadata-extraction`, { token });
-      onUpdate(extraction);
-      if (extraction.status === "completed" || extraction.status === "failed") return extraction;
-      await sleep(POLL_INTERVAL_MS);
-    }
-    throw new ApiError(504, "Metadata extraction timed out");
-  },
+  getPipeline: (token: string, id: string) => request<PipelineStatus>(`/incidents/${id}/pipeline`, { token }),
+
+  advancePipeline: (token: string, id: string, trigger: string) =>
+    request<{ state: string }>(`/incidents/${id}/advance`, { method: "POST", token, body: JSON.stringify({ trigger }) }),
 };
