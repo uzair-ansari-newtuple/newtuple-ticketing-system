@@ -29,7 +29,7 @@ const PROFILE = select([["PHOTO_LANE", "PHOTO_LANE"], ["FAST_LANE", "FAST_LANE"]
 
 // [label, key, type, description, settings]. Everything the incident workflow stores, plus the store-side fields from the CitiTrends form.
 const FIELDS = [
-  ["Incident Number", "incident_number", "integer", "Ticket number shown to the store."],
+  ["Incident Number", "incident_number", "auto_number", "Ticket number handed out by the State Machine.", { affix_mode: "prefix", affix: "TK" }],
   ["Identifier", "identifier", "text", "Ticket number as displayed, for example TK-001012."],
   ["Store ID", "store_id", "text", "Store that raised the incident."],
   ["Store Name", "store_name", "text", "Name of the store."],
@@ -70,6 +70,15 @@ const FIELDS = [
 
 const FORM = { name: "Incident Resolver Form", description: "ResolverIQ incident fields", entity_types: ["incident"] };
 
+// Smaller forms, one per stage of a ticket's life, so each workflow state shows only what it produced.
+export const STATE_FORMS = [
+  { name: "Incident: capture", description: "Who raised it, and the photos", keys: ["identifier", "incident_number", "store_id", "store_name", "created_by_user_id", "capture_profile_id", "created_at", "submitted_at", "missing_price_tag_count", "photos", "photo_urls", "ocr_text"] },
+  { name: "Incident: item details", description: "What the photos show", keys: ["brand", "department", "extracted_metadata"] },
+  { name: "Incident: matches", description: "Candidate products and how sure the match is", keys: ["gating_tier", "candidate_count", "edw_candidates"] },
+  { name: "Incident: store follow-up", description: "What the store chose and did", keys: ["selected_candidate", "item_age", "priority", "disposition", "new_tag_added", "closed_at"] },
+  { name: "Incident: resolver", description: "The resolver's work on the ticket", keys: ["resolver_id", "resolver_name", "resolver_lane_state", "selected_candidate", "resolver_decision", "resolver_reason_codes", "resolver_comment", "escalation_note"] },
+];
+
 const { access_token: token } = await call("POST", "/auth/login", { email: process.env.SM_EMAIL, password: process.env.SM_PASSWORD });
 
 const lists = rows(await call("GET", "/config/picklists", undefined, token));
@@ -84,6 +93,12 @@ const byKey = new Map(existing.map((f) => [f.field_key ?? f.identity?.field_key,
 const ids = [];
 for (const [name, field_key, field_type, description, settings = {}] of FIELDS) {
   let field = byKey.get(field_key);
+  const currentType = field?.field_type ?? field?.identity?.field_type;
+  if (field && currentType !== field_type) {
+    const id = field.library_field_id ?? field.identity?.library_field_id ?? field.id;
+    await call("POST", `/field-library/fields/${id}/versions`, { field_type, description, settings }, token);
+    console.log(`field retyped     ${field_key}: ${currentType} -> ${field_type}`);
+  }
   if (!field) {
     field = await call("POST", "/field-library/fields", { name, field_key, field_type, description, settings }, token);
     console.log(`field created     ${field_key}`);
@@ -92,10 +107,21 @@ for (const [name, field_key, field_type, description, settings = {}] of FIELDS) 
 }
 
 const methods = rows(await call("GET", "/method-library/methods?limit=200", undefined, token));
-const found = methods.find((m) => m.name === FORM.name);
-if (found) {
-  console.log(`form exists       ${FORM.name} (FR-${String(found.method_code).padStart(2, "0")}) - fields are not changed on a re-run`);
-} else {
-  const created = await call("POST", "/method-library/methods", { ...FORM, fields: ids.map((f, i) => ({ library_field_id: f.id, label: f.label, required: false, position: i + 1 })) }, token);
-  console.log(`form created      ${FORM.name} with ${ids.length} fields (method ${created.method_id ?? created.identity?.method_id ?? ""})`);
+const idOf = Object.fromEntries(ids.map((f) => [f.key, f]));
+for (const form of [{ ...FORM, keys: ids.map((f) => f.key) }, ...STATE_FORMS]) {
+  const found = methods.find((m) => m.name === form.name);
+  const fields = form.keys.map((key, i) => ({ library_field_id: idOf[key].id, label: idOf[key].label, required: false, position: i + 1, follows_latest: true }));
+  if (found) {
+    const current = (await call("GET", `/method-library/methods/${found.method_id}`, undefined, token)).fields.map((f) => f.field_key);
+    const currentFields = (await call("GET", `/method-library/methods/${found.method_id}`, undefined, token)).fields;
+    if (current.length === form.keys.length && current.every((k, i) => k === form.keys[i]) && currentFields.every((f) => f.follows_latest)) {
+      console.log(`form exists       ${form.name} (FR-${String(found.method_code).padStart(2, "0")})`);
+    } else {
+      await call("PUT", `/method-library/methods/${found.method_id}/fields`, { fields }, token);
+      console.log(`form updated      ${form.name} now has ${fields.length} fields`);
+    }
+    continue;
+  }
+  await call("POST", "/method-library/methods", { name: form.name, description: form.description, entity_types: ["incident"], fields }, token);
+  console.log(`form created      ${form.name} with ${fields.length} fields`);
 }

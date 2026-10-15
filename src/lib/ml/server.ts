@@ -3,7 +3,7 @@ import { CLASSES, COLORS, normalizeGtin, parseTagText } from "@/lib/taxonomy";
 import { searchLibrary } from "@/lib/mock/library";
 import { getPool } from "@/lib/db";
 import type { ClientAnalysis, PhotoSlot } from "@/lib/types";
-import { CLIP_MODEL_NAME, classifyEmbedding, embedImage, meanEmbedding } from "./clip";
+import { CLIP_MODEL_NAME, classifyEmbedding, embedImage, loadClip, meanEmbedding } from "./clip";
 
 export const MATCH_THRESHOLD = 0.88;
 const TEXT_SLOTS: PhotoSlot[] = ["tag", "label"];
@@ -98,4 +98,9 @@ export async function analyzeStoredPhotos(storeId: string, photos: StoredPhoto[]
     const message = err instanceof Error ? err.message : "Image analysis failed";
     return { embeddings: [], analysis: { ...base, error: `Image analysis failed: ${message}` } };
   }
+}
+
+/** Loads the image model and the OCR engine so the first real request does not pay for it. The State Machine gives a connector only 10 seconds. */
+export async function warmUp(): Promise<void> {
+  await Promise.all([loadClip(), getOcrWorker(), import("zxing-wasm/reader"), import("sharp")]);
 }

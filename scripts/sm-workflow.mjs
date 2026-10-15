@@ -42,10 +42,26 @@ const ACTIONS = {
   NEEDS_L2: notifyAction("Ticketing: notify L2 resolvers"),
 };
 
+// The form each state shows, so a person looking at a ticket in the State Machine sees what that stage produced.
+const methodList = await call("GET", "/method-library/methods?limit=200", undefined, token);
+const methodId = (name) => (Array.isArray(methodList) ? methodList : methodList.items).find((m) => m.name === name)?.method_id ?? (() => { throw new Error(`Form "${name}" not found. Run scripts/sm-forms.mjs first.`); })();
+const FORMS = {
+  CAPTURED: ["Incident: capture"],
+  IMAGE_MAPPED: ["Incident: item details"],
+  AI_IDENTIFICATION: ["Incident: matches"],
+  NEW: ["Incident: matches", "Incident: store follow-up"],
+  INPROGRESS: ["Incident: matches", "Incident: resolver"],
+  RESOLVED: ["Incident: store follow-up", "Incident: resolver"],
+  NOT_CT_MERCH: ["Incident: resolver", "Incident: store follow-up"],
+  CANT_RESOLVE: ["Incident: resolver", "Incident: store follow-up"],
+  NEEDS_L2: ["Incident: resolver"],
+};
+
 const active = await call("GET", `/workflow-state-machines/${MACHINE}/active`, undefined, token);
 const definition = structuredClone(active.definition);
 for (const state of definition.states) {
   if (ACTIONS[state.name]) state.on_state_actions = [structuredClone(ACTIONS[state.name])];
+  if (FORMS[state.name]) state.method_refs = FORMS[state.name].map((name) => ({ method_id: methodId(name), version_id: null }));
 }
 
 // The State Machine hands out the ticket number from its own atomic counter.
@@ -54,6 +70,25 @@ if (numberField) {
   numberField.type = "auto_number";
   numberField.auto_number_config = { affix_mode: "prefix", affix: "TK" };
   numberField.default = null;
+}
+
+// The forms show these as dropdowns, so the workflow must store them as the same kind of field.
+const DROPDOWNS = {
+  resolver_reason_codes: [["NO_MATCH_FOUND", "no_match_found"], ["MANUAL_REVIEW", "manual_revie"], ["NOT_CITITRENDS_MERCHANDISE", "not_cititrends_merchandise"]],
+  resolver_decision: [["Resolved", "resolved"], ["Unable", "unable"], ["Duplicate-Merged", "duplicate-merged"]],
+};
+for (const [field, options] of Object.entries(DROPDOWNS)) {
+  const f = definition.entity_schema.fields.find((x) => x.field === field);
+  if (f) Object.assign(f, { type: "enum", enum_labels: options.map((o) => o[0]), enum_values: options.map((o) => o[1]) });
+  for (const t of definition.transitions) for (const r of t.required_fields ?? []) if (r.field === field) r.type = "enum";
+}
+
+// Long-text fields in the forms are the workflow's "text" type, not "string".
+const LONG_TEXT = ["escalation_note", "resolver_comment", "photos", "photo_urls", "store_capture", "ocr_text", "extracted_metadata", "edw_candidates", "event_log"];
+for (const field of LONG_TEXT) {
+  const f = definition.entity_schema.fields.find((x) => x.field === field);
+  if (f) f.type = "text";
+  for (const t of definition.transitions) for (const r of t.required_fields ?? []) if (r.field === field) r.type = "text";
 }
 
 // A store that resolves its own ticket, with no resolver involved, ends the ticket too.
@@ -79,7 +114,7 @@ await call("PUT", `/workflow-state-machines/${rowId}/draft`, { definition }, tok
 console.log(`Draft saved (${mode} mode) on row ${rowId}`);
 
 const verdict = await call("POST", "/workflow-state-machines/validate", definition, token).catch((e) => ({ error: e.message }));
-console.log("Validation:", JSON.stringify(verdict).slice(0, 500));
+console.log("Validation:", JSON.stringify(verdict.validation_report?.issues ?? verdict).slice(0, 1500), "| can publish:", verdict.can_publish);
 
 if (publish) {
   const published = await call("POST", `/workflow-state-machines/${rowId}/publish`, { definition }, token);

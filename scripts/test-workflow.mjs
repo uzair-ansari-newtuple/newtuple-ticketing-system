@@ -39,7 +39,7 @@ async function capture(images) {
   return { id: c.incident_id, number: c.incident_number_display };
 }
 const goodPhotos = () => [photo(`public/catalog/${P1.sku}.jpg`, "front"), photo(`public/catalog/tags/${P1.sku}-tag.jpg`, "tag")];
-const FIELDS = "identifier,ocr_text,brand,department,gating_tier,candidate_count,edw_candidates,extracted_metadata,selected_candidate,resolver_reason_codes,escalation_note,new_tag_added,closed_at";
+const FIELDS = "identifier,ocr_text,brand,department,gating_tier,candidate_count,edw_candidates,extracted_metadata,selected_candidate,resolver_reason_codes,escalation_note,new_tag_added,closed_at,store_name,created_by_user_id,photos,photo_urls";
 async function ticket(number) {
   const r = await call(SM, `/workflow-enrollments?machine_name=${MACHINE}&search=${number}&limit=5&fields=${FIELDS}`, { method: "GET", headers: smh });
   const it = r.b?.items?.find((i) => i.summary_fields.identifier === number);
@@ -68,6 +68,9 @@ await sleep(2000);
 const t1 = await capture(goodPhotos());
 let s = await waitFor(t1.number, (t) => t.f.ocr_text);
 check("ticket appears in the State Machine at CAPTURED", s?.state === "CAPTURED", `${s?.state}`);
+check("capture saved who raised it: store name and the user", /Atlanta/.test(s?.f.store_name ?? "") && s?.f.created_by_user_id === login.user.id, `${s?.f.store_name} ${s?.f.created_by_user_id}`);
+const savedPhotos = JSON.parse(s?.f.photos || "[]");
+check("capture saved links to both photos on the ticket", savedPhotos.length === 2 && JSON.parse(s?.f.photo_urls || "[]").length === 2, JSON.stringify(s?.f.photos));
 check("CAPTURED connector ran: tag text was read", BRAND_TEXT.test(s?.f.ocr_text ?? ""), s?.f.ocr_text);
 check("nothing from later stages yet (brand, rating empty)", !s.f.brand && !s.f.gating_tier, JSON.stringify(s.f).slice(0, 160));
 await sleep(5000);

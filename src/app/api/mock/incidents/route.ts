@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { jsonError, userFromRequest } from "@/lib/mock/http";
 import { EMPTY_ANALYSIS, listRows, toSummary } from "@/lib/mock/incidents";
 import { consumeQuality, getQuality, releaseQuality } from "@/lib/mock/quality";
+import { smBaseUrl } from "@/lib/sm/client";
 import { createRecord, deleteRecord, enroll, putRecord, uploadPhoto } from "@/lib/sm/records";
 import type { Incident, ImagePayload } from "@/lib/types";
 
@@ -46,6 +47,8 @@ export async function POST(request: Request) {
       identifier: `pending-${crypto.randomUUID()}`,
       source: "ticketing_app",
       store_id: user.store_id,
+      store_name: user.store_name,
+      created_by_user_id: user.id,
       capture_profile_id: "PHOTO_LANE",
       image_count: images.length,
       created_at: now,
@@ -63,7 +66,7 @@ export async function POST(request: Request) {
     ticketId = created.id;
     const display = String(created.data.incident_number);
     await putRecord(ticketId, { identifier: display, incident_id: ticketId, bot_service_incident_id: ticketId });
-    await Promise.all(
+    const fileIds = await Promise.all(
       images.map((img, position) =>
         uploadPhoto(ticketId!, {
           bytes: Buffer.from(img.image_base64, "base64"),
@@ -73,6 +76,10 @@ export async function POST(request: Request) {
         }),
       ),
     );
+    await putRecord(ticketId, {
+      photos: JSON.stringify(fileIds.map((file_id, position) => ({ file_id, slot: images[position].slot, position }))),
+      photo_urls: JSON.stringify(fileIds.map((file_id) => `${smBaseUrl()}/filehandler/${file_id}/download`)),
+    });
     await enroll(ticketId);
 
     const incident: Incident = {
@@ -90,6 +97,7 @@ export async function POST(request: Request) {
     console.error(`[SM] creating a ticket failed: ${err instanceof Error ? err.message : err}`);
     if (ticketId) await deleteRecord(ticketId).catch(() => undefined);
     await releaseQuality(qc.quality_check_id).catch(() => undefined);
-    return jsonError(502, "The ticket could not be saved. Please try again.");
+    const cause = process.env.NODE_ENV === "production" || !(err instanceof Error) ? "" : ` (${err.message})`;
+    return jsonError(502, `The ticket could not be saved. Please try again.${cause}`);
   }
 }

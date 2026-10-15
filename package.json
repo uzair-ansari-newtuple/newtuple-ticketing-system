@@ -9,7 +9,7 @@
     "lint": "eslint",
     "db:migrate": "node scripts/migrate.mjs",
     "db:seed": "tsx scripts/seed.ts",
-    "dev:api": "NEXT_DIST_DIR=.next-api next dev -p 3001",
+    "dev:api": "WARM_UP_ANALYSIS=true NEXT_DIST_DIR=.next-api next dev -p 3001",
     "dev:web": "API_ORIGIN=http://localhost:3001 next dev -p 3000"
   },
   "dependencies": {
