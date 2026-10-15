@@ -71,6 +71,7 @@ check("identify is safe to repeat", stable(i2.b) === stable(i.b));
 console.log("\n== Out-of-order call: identify on a fresh ticket runs the earlier stages ==");
 const id2 = await createTicket([photo(`public/catalog/${P2.sku}.jpg`, "front")]);
 const direct = await stage("identify", id2);
+check("a photo that exactly matches one product is rated GREEN even when many products share the same attributes", direct.b.gating_tier === "GREEN", `${direct.b.gating_tier} ${direct.b.candidate_count} candidates`);
 check("identify alone works on an unanalyzed ticket", direct.s === 200 && direct.b.ok && direct.b.edw_candidates[0]?.sku === P2.sku, JSON.stringify(direct.b)?.slice(0, 200));
 
 console.log("\n== A photo that matches nothing ==");

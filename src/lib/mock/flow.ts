@@ -49,7 +49,8 @@ export function buildCandidates(analysis: ClientAnalysis, meta: NormalizedMetada
 
 export function gate(candidates: Candidate[], analysisFailed: boolean): { gating: Gating; reason: EscalationReason | null } {
   if (analysisFailed) return { gating: "RED", reason: "CATALOG_UNAVAILABLE" };
-  if (candidates.filter((c) => c.score >= STRONG_SCORE).length > TOO_MANY) return { gating: "RED", reason: "TOO_MANY_CANDIDATES" };
+  // Matching brand, class and colour alone says little when many products share them, so only photo and barcode evidence counts as a strong match.
+  if (candidates.filter((c) => c.evidence !== "attributes" && c.score >= STRONG_SCORE).length > TOO_MANY) return { gating: "RED", reason: "TOO_MANY_CANDIDATES" };
   if (candidates.length === 0) return { gating: "RED", reason: "LOW_EVIDENCE" };
   const [top, next] = candidates;
   if (top.score >= GREEN_SCORE && (!next || top.score - next.score >= GREEN_MARGIN)) return { gating: "GREEN", reason: null };
