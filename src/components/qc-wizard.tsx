@@ -55,15 +55,15 @@ function StepTabs({ step, unlocked, onGo, onBack }: { step: Step; unlocked: bool
   return (
     <div className="flex items-center gap-2">
       <Button variant="outline" size="icon" aria-label="Back" className="size-11 shrink-0 rounded-full" onClick={onBack}><ChevronLeft /></Button>
-      <div role="tablist" aria-label="QC steps" className="grid flex-1 grid-cols-4 gap-1.5">
+      <div role="tablist" aria-label="QC steps" className="flex min-w-0 flex-1 gap-1.5">
         {STEPS.map(({ n, label }) => {
           const done = n < step;
           const current = n === step;
           const locked = n > 1 && !unlocked;
           return (
-            <button key={n} role="tab" aria-selected={current} disabled={locked || (n > step)} onClick={() => onGo(n)} className={`flex h-11 items-center justify-center gap-1.5 rounded-xl border px-1 text-xs font-semibold outline-none transition-colors focus-visible:ring-3 focus-visible:ring-ring/50 sm:text-sm ${current ? "border-transparent bg-primary text-primary-foreground shadow-md shadow-primary/25" : done ? "border-success/30 bg-success/12 text-success" : "bg-card text-muted-foreground disabled:opacity-60"}`}>
+            <button key={n} role="tab" aria-selected={current} disabled={locked || (n > step)} onClick={() => onGo(n)} className={`flex h-11 min-w-0 items-center justify-center gap-1.5 rounded-xl border px-1.5 text-xs font-semibold outline-none transition-colors focus-visible:ring-3 focus-visible:ring-ring/50 sm:flex-1 sm:text-sm ${current ? "flex-[2.4]" : "flex-1"} ${current ? "border-transparent bg-primary text-primary-foreground shadow-md shadow-primary/25" : done ? "border-success/30 bg-success/12 text-success" : "bg-card text-muted-foreground disabled:opacity-60"}`}>
               <span className={`grid size-5 shrink-0 place-items-center rounded-full text-[11px] ${current ? "bg-white/25" : done ? "bg-success/20" : "bg-muted"}`}>{done ? <Check size={12} /> : n}</span>
-              <span className="truncate">{label}</span>
+              <span className={`truncate ${current ? "" : "hidden sm:inline"}`}>{label}</span>
             </button>
           );
         })}
@@ -74,10 +74,10 @@ function StepTabs({ step, unlocked, onGo, onBack }: { step: Step; unlocked: bool
 
 function UpcBar({ upc, index, total, pallet }: { upc: UpcDetail; index: number; total: number; pallet: Pallet | null }) {
   return (
-    <div className="grid grid-cols-[1.3fr_1fr_1.4fr] gap-3 rounded-2xl bg-primary p-3.5 text-primary-foreground shadow-lg shadow-primary/20">
+    <div className="grid grid-cols-2 gap-3 rounded-2xl bg-primary p-3.5 text-primary-foreground shadow-lg shadow-primary/20 sm:grid-cols-[1.3fr_1fr_1.4fr]">
       <div className="min-w-0"><p className="text-[10px] font-semibold uppercase tracking-wider opacity-70">Current UPC</p><p className="truncate font-mono text-sm font-bold">{upc.upc_code} <span className="font-sans text-[11px] font-normal opacity-70">{index} of {total}</span></p></div>
       <div className="min-w-0"><p className="text-[10px] font-semibold uppercase tracking-wider opacity-70">Pallet</p><p className="truncate text-sm font-bold">{pallet ? `Pallet ${pallet.position}` : "-"}</p></div>
-      <div className="min-w-0"><p className="text-[10px] font-semibold uppercase tracking-wider opacity-70">Style / Color</p><p className="truncate text-sm font-bold">{upc.style_number} · {upc.color_name}</p><p className="truncate text-[11px] opacity-70">{upc.description}</p></div>
+      <div className="col-span-2 min-w-0 sm:col-span-1"><p className="text-[10px] font-semibold uppercase tracking-wider opacity-70">Style / Color</p><p className="truncate text-sm font-bold">{upc.style_number} · {upc.color_name}</p><p className="truncate text-[11px] opacity-70">{upc.description}</p></div>
     </div>
   );
 }
@@ -94,7 +94,7 @@ function CountProgress({ expected, counted }: { expected: number; counted: numbe
         {exact ? <span className="normal-case tracking-normal text-success">Exact match reached.</span> : null}
       </div>
       <Progress value={pct} className="my-2 h-2" />
-      <div className="grid grid-cols-4 gap-2 text-center">
+      <div className="grid grid-cols-2 gap-3 text-center sm:grid-cols-4 sm:gap-2">
         {[
           { label: "Counted so far", value: fmt(counted), tone: "text-primary" },
           { label: "Expected", value: fmt(expected), tone: "" },
@@ -126,7 +126,7 @@ function StepUpcs({ shipment, onPick, onReview }: { shipment: ShipmentDetail; on
       <div className="mt-4 rounded-2xl border bg-muted/40 p-3.5">
         <div className="flex items-center justify-between text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"><span>Worksheet summary</span><span className="text-success">{pct}% complete</span></div>
         <Progress value={pct} className="my-2 h-2" />
-        <div className="grid grid-cols-3 gap-3 text-sm">
+        <div className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-3">
           {[
             ["UPCs approved", `${t.approved}/${t.upcs}`],
             ["UPCs flagged", String(t.on_hold)],
@@ -156,7 +156,7 @@ function StepUpcs({ shipment, onPick, onReview }: { shipment: ShipmentDetail; on
                   </div>
                   <UpcBadge state={u.state} />
                 </div>
-                <div className="mt-2 flex items-center justify-between text-xs">
+                <div className="mt-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-xs">
                   <span>Expected: <strong>{fmt(u.expected_units)}</strong> · Counted: <strong>{fmt(u.received_units)}</strong></span>
                   <span className="text-muted-foreground">{approved ? "Tap to reopen for rework" : hold ? "Waiting for the supervisor" : skipped ? "Skipped by the supervisor" : "Tap to check"} <ChevronRight size={12} className="inline" /></span>
                 </div>
@@ -286,12 +286,12 @@ function StepCount({ upc, pallet, bundled, draft, setDraft, editable }: { upc: U
 
   return (
     <section className="rounded-2xl border bg-card p-4 shadow-sm">
-      <div className="flex items-start justify-between gap-3">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h2 className="text-xl font-bold">3. Count</h2>
           <p className="mt-1 text-sm text-muted-foreground">{bundled ? "Open one case from the current pallet. Count the units in one bundle, then count the bundles in the case. The app works out the totals for you." : "Open one case from the current pallet and count the units in it. The app works out the totals for you."}</p>
         </div>
-        <div className="grid shrink-0 grid-cols-2 divide-x rounded-2xl border bg-primary/8 text-center">
+        <div className="grid shrink-0 grid-cols-2 divide-x self-start rounded-2xl border bg-primary/8 text-center">
           <div className="px-3 py-2"><p className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">Total units</p><p className="text-2xl font-bold text-primary">{fmt(total)}</p></div>
           <div className="px-3 py-2"><p className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">Remaining</p><p className={`text-2xl font-bold ${remaining ? "text-warning-foreground" : "text-success"}`}>{fmt(remaining)}</p></div>
         </div>
@@ -301,7 +301,7 @@ function StepCount({ upc, pallet, bundled, draft, setDraft, editable }: { upc: U
         <>
           <div className="mt-4 rounded-2xl border bg-muted/30 p-3.5">
             <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Part 1 — MDL (units per bundle) <InfoHint label="MDL" text={EXPLAIN.mdl} /></p>
-            <div className="mt-2 grid grid-cols-[1fr_auto_1fr] items-end gap-2">
+            <div className="mt-2 grid grid-cols-[1fr_auto_1fr] items-end gap-2 [&_span.uppercase]:leading-tight">
               <div><p className="text-xs text-muted-foreground">MDL from PO</p><p className="text-3xl font-bold text-primary">{pallet.mdl_expected}</p></div>
               <span className="pb-3 text-muted-foreground">→</span>
               <NumberField label="Actual MDL (edit only if different)" value={draft.mdl} onChange={set("mdl")} disabled={!editable} />
@@ -311,8 +311,8 @@ function StepCount({ upc, pallet, bundled, draft, setDraft, editable }: { upc: U
 
           <div className="mt-3 rounded-2xl border p-3.5">
             <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Part 2 — Bundle count in case <InfoHint label="bundles in a case" text={EXPLAIN.bundles} /></p>
-            <div className="mt-2 grid grid-cols-3 items-end gap-2 text-center">
-              <NumberField label="Bundles counted" value={draft.bundles} onChange={set("bundles")} disabled={!editable} hint={`PO says ${pallet.bundles_expected}`} />
+            <div className="mt-2 grid grid-cols-2 items-end gap-3 text-center sm:grid-cols-3 sm:gap-2">
+              <div className="col-span-2 sm:col-span-1"><NumberField label="Bundles counted" value={draft.bundles} onChange={set("bundles")} disabled={!editable} hint={`PO says ${pallet.bundles_expected}`} /></div>
               <div><p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Units / bundle</p><p className="mt-3 text-lg font-semibold">{mdl ?? "-"}</p><p className="text-[11px] text-muted-foreground">(from Part 1)</p></div>
               <div><p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Total units this case</p><p className="mt-3 text-2xl font-bold text-primary">{perCase}</p></div>
             </div>
@@ -371,7 +371,7 @@ function StepLabels({ upc, pallet, checks, setChecks, editable, onAnother, onDon
 
       <div className="mt-3 rounded-2xl border p-3.5">
         <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Pallet {pallet.position} summary — UPC {upc.upc_code}</p>
-        <div className="mt-2 grid grid-cols-4 gap-2 text-center">
+        <div className="mt-2 grid grid-cols-2 gap-3 text-center sm:grid-cols-4 sm:gap-2">
           {[
             ["Units this pallet", fmt(pallet.total_units), "text-primary"],
             ["Expected count", pallet.expected_units ? fmt(pallet.expected_units) : "-", ""],
@@ -386,7 +386,7 @@ function StepLabels({ upc, pallet, checks, setChecks, editable, onAnother, onDon
 
       <div className="mt-3 rounded-2xl border p-3.5">
         <p className="text-sm font-bold uppercase">Is there another pallet with this UPC?</p>
-        <div className="mt-3 grid grid-cols-2 gap-2">
+        <div className="mt-3 grid gap-2 sm:grid-cols-2">
           <Button size="lg" className="h-12" disabled={!editable || !labelsOk || busy} onClick={onAnother}>{busy ? <Loader2 className="animate-spin" /> : <RotateCcw />} Yes — start next pallet</Button>
           <Button size="lg" className="h-12 bg-success text-white hover:bg-success/90" disabled={!editable || !labelsOk || busy} onClick={onDone}>{busy ? <Loader2 className="animate-spin" /> : <Check />} No — done with this UPC</Button>
         </div>
@@ -489,10 +489,10 @@ function PalletFlow({ upc, pallet, step, setStep, onPallet, onToUpcs }: { upc: U
 
       <div className="sticky bottom-[calc(4.5rem+env(safe-area-inset-bottom))] z-30 -mx-1 rounded-2xl border bg-background/90 p-2 shadow-lg backdrop-blur-xl">
         <div className="grid grid-cols-[1fr_auto_1.4fr] gap-2">
-          <Button variant="outline" className="h-12" onClick={() => (step === 2 ? onToUpcs() : setStep((step - 1) as Step))}><ChevronLeft /> {step === 2 ? "Back to UPCs" : step === 3 ? "Back: product" : "Back: count"}</Button>
-          <Button variant="outline" className="h-12 border-destructive/40 text-destructive hover:bg-destructive/10" disabled={!editable} onClick={() => setFlagOpen(true)}><AlertTriangle /> Flag</Button>
-          {step === 2 ? <Button className="h-12" disabled={!editable || !productReady || busy} onClick={acceptProduct}>{busy ? <Loader2 className="animate-spin" /> : null} Accept &amp; next: Count <ChevronRight /></Button> : null}
-          {step === 3 ? <Button className="h-12" disabled={!editable || !countReady || busy} onClick={acceptCount}>{busy ? <Loader2 className="animate-spin" /> : null} Accept count → Labels <ChevronRight /></Button> : null}
+          <Button variant="outline" className="h-12 min-w-0 px-3" onClick={() => (step === 2 ? onToUpcs() : setStep((step - 1) as Step))}><ChevronLeft className="shrink-0" /> <span className="truncate"><span className="sm:hidden">Back</span><span className="hidden sm:inline">{step === 2 ? "Back to UPCs" : step === 3 ? "Back: product" : "Back: count"}</span></span></Button>
+          <Button variant="outline" className="h-12 border-destructive/40 text-destructive hover:bg-destructive/10" disabled={!editable} onClick={() => setFlagOpen(true)}><AlertTriangle className="shrink-0" /> <span className="hidden sm:inline">Flag</span></Button>
+          {step === 2 ? <Button className="h-12 min-w-0 px-3" disabled={!editable || !productReady || busy} onClick={acceptProduct}>{busy ? <Loader2 className="animate-spin" /> : null} <span className="truncate"><span className="sm:hidden">Next</span><span className="hidden sm:inline">Accept &amp; next: Count</span></span> <ChevronRight className="shrink-0" /></Button> : null}
+          {step === 3 ? <Button className="h-12 min-w-0 px-3" disabled={!editable || !countReady || busy} onClick={acceptCount}>{busy ? <Loader2 className="animate-spin" /> : null} <span className="truncate"><span className="sm:hidden">Next</span><span className="hidden sm:inline">Accept count → Labels</span></span> <ChevronRight className="shrink-0" /></Button> : null}
           {step === 4 ? <span className="self-center px-2 text-center text-xs text-muted-foreground">Choose yes or no above</span> : null}
         </div>
       </div>
@@ -528,14 +528,16 @@ export function QcWizard({ shipment }: { shipment: ShipmentDetail }) {
     <AppShell title="QC Check" subtitle="Work through each step at your own pace. You can flag an exception at any step." back="/qc" area="qc">
       <div className="space-y-3">
         <StepTabs step={step} unlocked={Boolean(upc)} onGo={(s) => (s === 1 ? toUpcs() : setStep(s))} onBack={back} />
-        <p className="truncate rounded-xl border bg-card px-3 py-2 text-xs"><span className="text-muted-foreground">Shipment #:</span> <strong>{shipment.shipment_number}</strong> <span className="ml-2 text-muted-foreground">PO:</span> <strong>{shipment.po_number}</strong> <span className="ml-2 text-muted-foreground">Vendor:</span> <strong>{shipment.vendor_name}</strong></p>
+        <p className="flex flex-wrap gap-x-4 gap-y-0.5 rounded-xl border bg-card px-3 py-2 text-xs"><span><span className="text-muted-foreground">Shipment #:</span> <strong>{shipment.shipment_number}</strong></span><span><span className="text-muted-foreground">PO:</span> <strong>{shipment.po_number}</strong></span><span className="min-w-0"><span className="text-muted-foreground">Vendor:</span> <strong>{shipment.vendor_name}</strong></span></p>
 
         {step === 1 ? <StepUpcs shipment={shipment} onPick={pick} onReview={() => router.push(`/qc/po/${shipment.id}/complete`)} /> : null}
         {step > 1 && upcId && !upc ? <p className="py-10 text-center text-sm text-muted-foreground"><Loader2 className="mr-2 inline animate-spin" size={16} /> Loading UPC…</p> : null}
         {step > 1 && upc && pallet ? (
           <>
-            <UpcBar upc={upc} index={index} total={shipment.upcs.length} pallet={pallet} />
-            <CountProgress expected={upc.expected_units} counted={upc.received_units} />
+            <div className="grid gap-3 lg:grid-cols-2">
+              <UpcBar upc={upc} index={index} total={shipment.upcs.length} pallet={pallet} />
+              <CountProgress expected={upc.expected_units} counted={upc.received_units} />
+            </div>
             <PalletFlow key={pallet.id} upc={upc} pallet={pallet} step={step} setStep={setStep} onPallet={setPalletId} onToUpcs={toUpcs} />
           </>
         ) : null}

@@ -30,6 +30,8 @@ interface AppShellProps {
 const HOME = { tickets: "/", qc: "/qc", hub: "/apps" } as const;
 
 export function AppShell({ title, subtitle, back, footer, nav = true, area = "tickets", children }: AppShellProps) {
+  // The QC and home screens use the extra room on tablets and desktops; ticketing stays a phone-width column.
+  const width = area === "tickets" ? "max-w-2xl" : "max-w-2xl md:max-w-4xl";
   const router = useRouter();
   const { setTheme } = useTheme();
   const token = useSession((s) => s.token);
@@ -52,7 +54,7 @@ export function AppShell({ title, subtitle, back, footer, nav = true, area = "ti
 
   if (!hydrated || !token || (user && user.role !== "store")) {
     return (
-      <div className="mx-auto w-full max-w-2xl space-y-4 px-4 pt-20">
+      <div className={`mx-auto w-full ${width} space-y-4 px-4 pt-20`}>
         <Skeleton className="h-8 w-48" />
         <Skeleton className="h-40 w-full rounded-3xl" />
         <Skeleton className="h-20 w-full" />
@@ -66,7 +68,7 @@ export function AppShell({ title, subtitle, back, footer, nav = true, area = "ti
   return (
     <div className={`flex min-h-dvh flex-1 flex-col ${showNav ? "pb-[calc(4rem+env(safe-area-inset-bottom))]" : ""}`}>
       <header className="sticky top-0 z-30 border-b bg-background/75 pt-[env(safe-area-inset-top)] backdrop-blur-xl">
-        <div className="mx-auto flex h-14 w-full max-w-2xl items-center gap-2 px-4">
+        <div className={`mx-auto flex h-14 w-full ${width} items-center gap-2 px-4`}>
           {back ? (
             <Button render={<Link href={back} />} nativeButton={false} variant="ghost" size="icon" aria-label="Back" className="-ml-2">
               <ArrowLeft />
@@ -114,7 +116,7 @@ export function AppShell({ title, subtitle, back, footer, nav = true, area = "ti
         <TopLoader />
       </header>
 
-      <main className={`mx-auto w-full max-w-2xl flex-1 px-4 pt-6 pb-8`}>
+      <main className={`mx-auto w-full min-w-0 ${width} flex-1 px-4 pt-6 pb-8`}>
         <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, ease: EASE }} className="mb-5">
           <h1 className="text-2xl font-bold tracking-tight">{title}</h1>
           {subtitle ? <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p> : null}
@@ -129,7 +131,7 @@ export function AppShell({ title, subtitle, back, footer, nav = true, area = "ti
           transition={{ duration: 0.4, ease: EASE, delay: 0.1 }}
           className={`sticky z-30 border-t bg-background/85 pt-3 backdrop-blur-xl ${showNav ? "bottom-[calc(4rem+env(safe-area-inset-bottom))] pb-3" : "bottom-0 pb-[max(0.75rem,env(safe-area-inset-bottom))]"}`}
         >
-          <div className="mx-auto w-full max-w-2xl px-4">{footer}</div>
+          <div className={`mx-auto w-full ${width} px-4`}>{footer}</div>
         </motion.div>
       ) : null}
       {showNav ? area === "qc" ? <QcNav /> : <BottomNav /> : null}

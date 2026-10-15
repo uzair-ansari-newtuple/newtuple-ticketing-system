@@ -97,7 +97,7 @@ export default function ExceptionsPage() {
           <h2 className="mb-2 text-sm font-semibold">Latest messages</h2>
           <ul className="space-y-1.5">
             {messages.slice(0, 6).map((m) => (
-              <li key={m.id} className="flex items-start justify-between gap-3 rounded-xl border bg-card px-3 py-2 text-sm">
+              <li key={m.id} className="flex flex-col gap-0.5 rounded-xl border bg-card px-3 py-2 text-sm sm:flex-row sm:items-start sm:justify-between sm:gap-3">
                 <span>{m.message}</span>
                 <span className="shrink-0 text-xs text-muted-foreground">{formatDateTime(m.created_at)}</span>
               </li>

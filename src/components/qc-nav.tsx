@@ -16,7 +16,7 @@ export function QcNav() {
 
   return (
     <nav aria-label="DC QC" className="fixed inset-x-0 bottom-0 z-40 border-t bg-background/90 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl">
-      <ul className="mx-auto grid h-16 max-w-2xl grid-cols-2 items-end px-2">
+      <ul className="mx-auto grid h-16 max-w-2xl grid-cols-2 items-end px-2 md:max-w-4xl">
         {items.map(({ href, label, icon: Icon, active, badge }) => (
           <li key={href} className="flex justify-center">
             <Link href={href} aria-current={active ? "page" : undefined} className="group relative flex w-full flex-col items-center justify-end gap-0.5 pb-2 text-[11px] font-medium outline-none">
