@@ -28,13 +28,15 @@ export async function POST(request: Request) {
     thumb?: string;
   } | null;
 
-  const images = body?.images;
+  if (!body) return jsonError(422, "Invalid request");
+  const images = body.images;
   if (!images?.length) return jsonError(422, "At least one image is required");
   if (images.length > MAX_IMAGES) return jsonError(422, `PHOTO_LANE accepts at most ${MAX_IMAGES} images`);
   if (new Set(images.map((i) => i.sha256)).size !== images.length) {
     return jsonError(422, "Duplicate image detected. Each photo must be unique.");
   }
-  if (!body?.client_analysis) return jsonError(422, "client_analysis is required");
+  // The State Machine connectors read the photos after the ticket exists, so the analysis starts empty.
+  const analysis: ClientAnalysis = body?.client_analysis ?? { model: "pending", match: null, top_matches: [], match_threshold: 0, classification: null, ocr: null, error: null };
 
   const qcRow = body.quality_check_id && /^[0-9a-f-]{36}$/i.test(body.quality_check_id)
     ? (await getPool().query<{ result: QualityCheckResult }>(`SELECT result FROM quality_checks WHERE id = $1 AND store_id = $2 AND NOT consumed`, [body.quality_check_id, user.store_id])).rows[0]
@@ -62,7 +64,7 @@ export async function POST(request: Request) {
     const inserted = await client.query(
       `INSERT INTO incidents (id, store_id, metadata_job_id, image_count, analysis, embeddings, thumb)
        VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING number, created_at`,
-      [incidentId, user.store_id, jobId, images.length, JSON.stringify(body.client_analysis), JSON.stringify(body.embeddings ?? []), body.thumb ?? null],
+      [incidentId, user.store_id, jobId, images.length, JSON.stringify(analysis), JSON.stringify(body?.embeddings ?? []), body.thumb ?? null],
     );
     row = inserted.rows[0];
     for (let i = 0; i < images.length; i++) {
