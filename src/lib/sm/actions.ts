@@ -35,6 +35,8 @@ export async function printLabelFor(incidentId: string, printer?: number, copies
 export async function notifyFor(incidentId: string, event: NotifyEvent, message?: string) {
   const row = await getRow(incidentId);
   if (!row) return { status: 404, body: { detail: "Ticket not found" } };
+  // A store that resolved its own ticket needs no message about it.
+  if (event === "RESOLUTION_SENT" && !row.resolver?.decision && ["CONFIRMED", "PRINTED", "COMPLETED"].includes(row.current_state)) return { status: 200, body: { ok: true, delivered: false, channel: "mock-push", event, reason: "resolved by the store" } };
   await saveRow(row, {}, { event: { type: "NOTIFIED", actor: "state-machine", detail: { event, message: message ?? null } } });
   return { status: 200, body: { ok: true, delivered: true, channel: "mock-push", event } };
 }

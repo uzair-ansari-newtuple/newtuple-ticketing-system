@@ -39,7 +39,7 @@ async function capture(images) {
   return { id: c.incident_id, number: c.incident_number_display };
 }
 const goodPhotos = () => [photo(`public/catalog/${P1.sku}.jpg`, "front"), photo(`public/catalog/tags/${P1.sku}-tag.jpg`, "tag")];
-const FIELDS = "identifier,ocr_text,brand,department,gating_tier,candidate_count,edw_candidates,extracted_metadata,selected_candidate,resolver_reason_codes,escalation_note";
+const FIELDS = "identifier,ocr_text,brand,department,gating_tier,candidate_count,edw_candidates,extracted_metadata,selected_candidate,resolver_reason_codes,escalation_note,new_tag_added,closed_at";
 async function ticket(number) {
   const r = await call(SM, `/workflow-enrollments?machine_name=${MACHINE}&search=${number}&limit=5&fields=${FIELDS}`, { method: "GET", headers: smh });
   const it = r.b?.items?.find((i) => i.summary_fields.identifier === number);
@@ -204,6 +204,28 @@ r = await fire(d.entity, "escalate_to_l2");
 check("escalating to L2 with a note works", r.s === 200 && r.b.to_state === "NEEDS_L2");
 r = await fire(d.entity, "to_new");
 check("a ticket in NEEDS_L2 cannot be released to NEW", r.s >= 400, `${r.s}`);
+
+// ---------------------------------------------------------------- STORE RESOLVES ITSELF
+section("A store that picks the right item itself finishes the ticket in the State Machine");
+const g = await capture(goodPhotos());
+s = await waitFor(g.number, (t) => t.state === "NEW" && t.f.gating_tier, 60000);
+check("the ticket waits in NEW with a rating", s?.state === "NEW", `${s?.state}`);
+const firstKey = (await detailOf(g.id)).candidates[0].key;
+const cf = await call(APP, `/mock/incidents/${g.id}/confirm`, { headers: auth, body: { acknowledged: true, candidate_key: firstKey } });
+check("the store confirms the match", cf.s === 200, `${cf.s} ${JSON.stringify(cf.b)}`);
+s = await waitFor(g.number, (t) => t.state === "RESOLVED", 20000);
+check("the State Machine moves the ticket to RESOLVED", s?.state === "RESOLVED", `${s?.state}`);
+check("the selected item is saved on the ticket", s?.f.selected_candidate === P1.sku, `${s?.f.selected_candidate}`);
+const pr = await call(APP, "/mock/label-print", { headers: auth, body: { incident_id: g.id, printer: 1, copies: 1 } });
+check("the label can still be printed after it is resolved", pr.s === 200, `${pr.s} ${JSON.stringify(pr.b)}`);
+const tg = await call(APP, `/mock/incidents/${g.id}/new-tag-added`, { headers: auth, body: {} });
+check("the new tag can still be confirmed", tg.s === 200, `${tg.s}`);
+s = await waitFor(g.number, (t) => String(t.f.new_tag_added) === "true", 20000);
+check("the ticket stays RESOLVED and records the new tag and closing time", s?.state === "RESOLVED" && !!s.f.closed_at, JSON.stringify(s?.f).slice(0, 160));
+check("the app shows it as COMPLETED", (await detailOf(g.id)).state === "COMPLETED");
+check("no resolver message was sent for a ticket the store resolved itself", (await events(g.id, "NOTIFIED")).length === 0);
+const late = await call(APP, `/mock/incidents/${g.id}/escalate`, { headers: auth, body: { reason: "USER_UNSURE", item_age: "NEW_FREIGHT", missing_price_tag_count: 1 } });
+check("a ticket that is already resolved cannot be escalated", late.s === 409, `${late.s}`);
 
 // ---------------------------------------------------------------- APP END TO END
 section("The app itself works on top of the auto workflow");

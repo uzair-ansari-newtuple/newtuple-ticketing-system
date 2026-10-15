@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { jsonError, userFromRequest } from "@/lib/mock/http";
 import { loadRow, saveRow } from "@/lib/mock/incidents";
+import { ticketState } from "@/lib/sm/records";
 import { parseItemCount } from "@/lib/mock/item-count";
 import type { EscalationReason, ItemAge } from "@/lib/types";
 
@@ -24,6 +25,7 @@ export async function POST(request: Request, ctx: RouteContext<"/api/mock/incide
   const row = await loadRow(id, user);
   if (!row) return jsonError(404, "Ticket not found");
   if (!ESCALATABLE.includes(row.current_state)) return jsonError(409, "This ticket cannot be escalated in its current state");
+  if ((await ticketState(id)).state === "RESOLVED") return jsonError(409, "This ticket was already resolved. Capture the item again if the label cannot be printed.");
 
   const escalation = { reason: body.reason, note, item_age: body.item_age, created_at: new Date().toISOString() };
   const resolver = { status: "NEW" as const, claimed_by: null, decision: null, recommended: null, comment: null, responded_at: null };

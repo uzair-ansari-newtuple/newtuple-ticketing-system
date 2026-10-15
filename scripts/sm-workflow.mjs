@@ -56,6 +56,23 @@ if (numberField) {
   numberField.default = null;
 }
 
+// A store that resolves its own ticket, with no resolver involved, ends the ticket too.
+if (!definition.transitions.some((t) => t.trigger === "store_to_resolved")) {
+  definition.transitions.push({
+    key: "new__to__resolved",
+    trigger: "store_to_resolved",
+    label: "Resolved by store",
+    from: "NEW",
+    to_state: "RESOLVED",
+    required_fields: [{ field: "selected_candidate", required: true, type: "string" }],
+    guards: [],
+    pre_transition_tasks: [],
+    post_transition_tasks: [],
+    auto_transition: null,
+    description: "The store picked the right item itself.",
+  });
+}
+
 const draft = await call("POST", `/workflow-state-machines/${MACHINE}/draft`, {}, token);
 const rowId = draft.id ?? draft.row_id;
 await call("PUT", `/workflow-state-machines/${rowId}/draft`, { definition }, token);

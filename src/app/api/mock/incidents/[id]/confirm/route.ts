@@ -3,6 +3,7 @@ import { jsonError, userFromRequest } from "@/lib/mock/http";
 import { MIN_PRINT_SCORE } from "@/lib/mock/flow";
 import { parseItemCount } from "@/lib/mock/item-count";
 import { loadRow, saveRow } from "@/lib/mock/incidents";
+import { ticketState } from "@/lib/sm/records";
 import type { Candidate } from "@/lib/types";
 
 export async function POST(request: Request, ctx: RouteContext<"/api/mock/incidents/[id]/confirm">) {
@@ -30,10 +31,14 @@ export async function POST(request: Request, ctx: RouteContext<"/api/mock/incide
     return jsonError(409, "This ticket cannot be confirmed in its current state");
   }
 
+  // A store that picks the item itself finishes the ticket in the workflow. An answer from a resolver already did.
+  const storeResolves = row.current_state === "CANDIDATES_READY";
+  if (storeResolves && (await ticketState(id)).state !== "NEW") return jsonError(409, "This ticket is not ready to confirm yet");
+
   await saveRow(
     row,
     { selected, current_state: "CONFIRMED", unread_for_store: false, ...(count ? { missing_price_tag_count: count } : {}) },
-    { event: { type: "CONFIRMED", actor: user.name, detail: { sku: selected.sku, score: selected.score } } },
+    { event: { type: "CONFIRMED", actor: user.name, detail: { sku: selected.sku, score: selected.score } }, ...(storeResolves ? { trigger: "store_to_resolved" } : {}) },
   );
   return NextResponse.json({ state: "CONFIRMED", selected });
 }
