@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertTriangle, Camera, Check, ChevronLeft, ChevronRight, ImagePlus, Info, Loader2, RotateCcw } from "lucide-react";
+import { AlertTriangle, Camera, Check, ChevronLeft, ChevronRight, ImagePlus, Info, Loader2, MessageSquare, RotateCcw } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useRef, useState, type Dispatch, type SetStateAction } from "react";
 import { toast } from "sonner";
@@ -10,6 +10,7 @@ import { UpcBadge } from "@/components/qc-badges";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Textarea } from "@/components/ui/textarea";
+import { formatDateTime } from "@/lib/format";
 import { makeThumb } from "@/lib/image";
 import { CHECKS, FLAG_REASONS, type CheckKey, type FlagReason, type Pallet, type ShipmentDetail, type Upc, type UpcDetail } from "@/lib/qc/dto";
 import { matchCount, palletTotal, suggestedReason } from "@/lib/qc/match";
@@ -79,6 +80,30 @@ function UpcBar({ upc, index, total, pallet }: { upc: UpcDetail; index: number; 
       <div className="min-w-0"><p className="text-[10px] font-semibold uppercase tracking-wider opacity-70">Pallet</p><p className="truncate text-sm font-bold">{pallet ? `Pallet ${pallet.position}` : "-"}</p></div>
       <div className="col-span-2 min-w-0 sm:col-span-1"><p className="text-[10px] font-semibold uppercase tracking-wider opacity-70">Style / Color</p><p className="truncate text-sm font-bold">{upc.style_number} · {upc.color_name}</p><p className="truncate text-[11px] opacity-70">{upc.description}</p></div>
     </div>
+  );
+}
+
+/** What people wrote about this UPC, here or in the State Machine. */
+function Notes({ comments }: { comments: UpcDetail["comments"] }) {
+  const [open, setOpen] = useState(false);
+  if (!comments.length) return null;
+  return (
+    <section className="rounded-2xl border bg-card shadow-sm">
+      <button onClick={() => setOpen((v) => !v)} aria-expanded={open} className="flex w-full items-center justify-between gap-2 p-3.5 text-left text-sm font-semibold outline-none focus-visible:ring-3 focus-visible:ring-ring/50">
+        <span className="flex items-center gap-2"><MessageSquare size={16} className="text-primary" /> Notes ({comments.length})</span>
+        <ChevronRight size={16} className={`transition-transform ${open ? "rotate-90" : ""}`} />
+      </button>
+      {open ? (
+        <ul className="space-y-2 border-t p-3.5">
+          {comments.map((c) => (
+            <li key={c.id} className="rounded-xl bg-muted/50 p-2.5 text-sm">
+              <p>{c.text}</p>
+              <p className="mt-1 text-[11px] text-muted-foreground">{c.author ? `${c.author} · ` : ""}{formatDateTime(c.created_at)}</p>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </section>
   );
 }
 
@@ -538,6 +563,7 @@ export function QcWizard({ shipment }: { shipment: ShipmentDetail }) {
               <UpcBar upc={upc} index={index} total={shipment.upcs.length} pallet={pallet} />
               <CountProgress expected={upc.expected_units} counted={upc.received_units} />
             </div>
+            <Notes comments={upc.comments} />
             <PalletFlow key={pallet.id} upc={upc} pallet={pallet} step={step} setStep={setStep} onPallet={setPalletId} onToUpcs={toUpcs} />
           </>
         ) : null}

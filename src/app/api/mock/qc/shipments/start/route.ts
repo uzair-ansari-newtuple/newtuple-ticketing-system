@@ -5,7 +5,7 @@ export async function POST(request: Request) {
   return qcHandler(request, async (body, user) => {
     const ids = Array.isArray(body.shipment_ids) ? body.shipment_ids.filter((x): x is string => typeof x === "string") : [];
     if (!ids.length) throw new QcError(422, "Choose at least one shipment");
-    await startShipments(ids, user.id);
+    await startShipments(ids, user);
     return { items: await listShipments() };
   });
 }

@@ -1,8 +1,14 @@
 import { smDownload, smFetch, smUpload } from "@/lib/sm/client";
-import { createRecord, fire, getRecord, listRecords, putRecord, ticketState, type TicketListItem } from "@/lib/sm/records";
+import { addComment, createRecord, fire, getRecord, listComments, listRecords, putRecord, ticketState, type TicketListItem } from "@/lib/sm/records";
 import { CHECKS, FLAG_REASONS, type CheckKey, type Flag, type FlagReason, type FlaggedUpc, type Pallet, type PalletStatus, type Shipment, type ShipmentDetail, type ShipmentState, type ShipmentTotals, type Upc, type UpcDetail, type UpcState } from "./dto";
 import { matchCount, palletTotal } from "./match";
 import { allOf, FLAG_TYPE, machines, matchUpcCount, NOTIFICATION_TYPE, PALLET_TYPE, QC_PHOTO_TYPE, recordsWhere, rollUpShipment, SHIPMENT_TYPE, UPC_TYPE } from "./sm";
+
+/** Who is doing a step, so the comment it leaves says so. */
+export interface Actor {
+  id: string;
+  name: string;
+}
 
 export class QcError extends Error {
   constructor(public status: number, message: string) {
@@ -141,13 +147,14 @@ async function photosOf(upcId: string): Promise<string[]> {
 
 export async function getUpc(id: string): Promise<UpcDetail> {
   const { upc, data } = await loadUpc(id);
-  const [pallets, photos, shipmentState] = await Promise.all([palletsOf(id), photosOf(id), loadShipmentState(upc.shipment_id)]);
+  const [pallets, photos, shipmentState, comments] = await Promise.all([palletsOf(id), photosOf(id), loadShipmentState(upc.shipment_id), listComments(id)]);
   const flagId = text(data.flag_id);
   const flagRecord = flagId ? await getRecord(flagId) : null;
   return {
     ...upc,
     flag: flagRecord ? flagFrom({ id: flagId, data: flagRecord.data }) : null,
     shipment_state: shipmentState,
+    comments,
     pallets,
     photos,
     count: pallets.length && pallets.every((p) => p.status !== "PENDING") ? matchCount(upc.expected_units, upc.received_units) : null,
@@ -156,15 +163,16 @@ export async function getUpc(id: string): Promise<UpcDetail> {
 
 // ------------------------------------------------------------------ shipments
 
-export async function startShipments(ids: string[], userId: string): Promise<void> {
+export async function startShipments(ids: string[], user: Actor): Promise<void> {
   for (const id of ids) {
     if ((await loadShipmentState(id)) !== "CREATED") continue;
-    await putRecord(id, { user_id: userId, record_id: id });
+    await putRecord(id, { user_id: user.id, record_id: id });
     await fire(id, "qc_start");
+    await addComment(id, `QC started by ${user.name}.`);
   }
 }
 
-export async function completeShipment(id: string): Promise<ShipmentDetail> {
+export async function completeShipment(id: string, user: Actor): Promise<ShipmentDetail> {
   const shipment = await getShipment(id);
   if (!shipment) throw new QcError(404, "Shipment not found");
   requireShipmentInProgress(shipment.state);
@@ -172,22 +180,28 @@ export async function completeShipment(id: string): Promise<ShipmentDetail> {
   // The State Machine checks the shipment's own counters, so bring them up to date first.
   await rollUpShipment(shipment.upcs[0].id);
   await fire(id, "qc_submit");
+  const t = shipment.totals;
+  await addComment(id, `QC submitted by ${user.name}: ${t.approved} UPC${t.approved === 1 ? "" : "s"} approved${t.wont_qc ? `, ${t.wont_qc} skipped (won't QC)` : ""}, ${t.received} of ${t.units} units counted.`);
   return (await getShipment(id)) as ShipmentDetail;
 }
 
-export async function receipt(id: string, action: unknown, input: { userId: string; confirmation_number?: unknown; note?: unknown }): Promise<ShipmentDetail> {
+export async function receipt(id: string, action: unknown, input: { user: Actor; confirmation_number?: unknown; note?: unknown }): Promise<ShipmentDetail> {
   const state = await loadShipmentState(id);
   if (action === "start" && state === "QC_COMPLETE") {
-    await putRecord(id, { supervisor_user_id: input.userId });
+    await putRecord(id, { supervisor_user_id: input.user.id });
     await fire(id, "receipt_start");
+    await addComment(id, `Receipt verification started by ${input.user.name}.`);
   } else if (action === "close" && state === "RECEIPT_IN_PROGRESS") {
     const confirmation = text(input.confirmation_number).trim().slice(0, 60);
     if (!confirmation) throw new QcError(422, "Enter the receipt confirmation number");
     await putRecord(id, { confirmation_number: confirmation });
     await fire(id, "receipt_close");
+    await addComment(id, `Receipt closed by ${input.user.name}. Confirmation number ${confirmation}.`);
   } else if (action === "return" && (state === "QC_COMPLETE" || state === "RECEIPT_IN_PROGRESS")) {
-    await putRecord(id, { supervisor_user_id: input.userId, return_note: text(input.note).trim().slice(0, 500) });
+    const returnNote = text(input.note).trim().slice(0, 500);
+    await putRecord(id, { supervisor_user_id: input.user.id, return_note: returnNote });
     await fire(id, "receipt_return_to_associate");
+    await addComment(id, `Returned to the associate by ${input.user.name}${returnNote ? `: ${returnNote}` : "."}`);
   } else {
     throw new QcError(409, "That receipt step is not available for this shipment now");
   }
@@ -284,7 +298,7 @@ export async function addPhoto(upcId: string, photo: unknown, userId: string): P
 }
 
 /** Approves a UPC once its pallets are checked and counted, the count matches the PO and there is a photo. */
-export async function approveUpc(upcId: string, userId: string): Promise<UpcDetail> {
+export async function approveUpc(upcId: string, user: Actor): Promise<UpcDetail> {
   const detail = await getUpc(upcId);
   requireShipmentInProgress(detail.shipment_state);
   if (detail.state !== "IN_PROGRESS") throw new QcError(409, detail.state === "PENDING" ? "Check at least one pallet first" : "This UPC cannot be approved now");
@@ -293,30 +307,33 @@ export async function approveUpc(upcId: string, userId: string): Promise<UpcDeta
   const result = matchCount(detail.expected_units, detail.received_units);
   if (result.result !== "MATCH") throw new QcError(409, `The count does not match the PO (${result.result === "SHORT" ? "short" : "over"} by ${result.diff}). Flag the UPC instead.`);
   if (detail.photo_count < 1) throw new QcError(409, "Take a photo of the goods first");
-  await putRecord(upcId, { user_id: userId });
+  await putRecord(upcId, { user_id: user.id });
   await fire(upcId, "upc_approve");
+  await addComment(upcId, `Approved by ${user.name}: ${detail.received_units} of ${detail.expected_units} units counted across ${detail.pallets.length} pallet${detail.pallets.length === 1 ? "" : "s"}.`);
   return getUpc(upcId);
 }
 
 /** Flags a UPC for the supervisor, which puts it on hold. */
-export async function flagUpc(upcId: string, input: { reason: unknown; note?: unknown }, userId: string): Promise<UpcDetail> {
+export async function flagUpc(upcId: string, input: { reason: unknown; note?: unknown }, user: Actor): Promise<UpcDetail> {
   if (typeof input.reason !== "string" || !(input.reason in FLAG_REASONS)) throw new QcError(422, "Choose a reason for the flag");
   const { upc } = await loadUpc(upcId);
   requireShipmentInProgress(await loadShipmentState(upc.shipment_id));
-  if (upc.state === "PENDING") await begin(upc, userId);
+  if (upc.state === "PENDING") await begin(upc, user.id);
   else if (upc.state !== "IN_PROGRESS") throw new QcError(409, "This UPC cannot be flagged now");
+  const flagNote = text(input.note).trim().slice(0, 500);
   const flag = await createRecord(FLAG_TYPE, {
     identifier: `FLAG-${upc.upc_code.slice(-4)}-${Date.now().toString(36)}`,
     upc_record_id: upcId,
     po_number: upc.po_number,
     flag_code: input.reason,
-    note: text(input.note).trim().slice(0, 500),
-    raised_by: userId,
+    note: flagNote,
+    raised_by: user.id,
     raised_at: new Date().toISOString(),
     status: "OPEN",
   });
   await putRecord(upcId, { flag_id: flag.id, dcqc_active_exception_id: flag.id, dcqc_exception_status: "OPEN" });
   await fire(upcId, "upc_flag");
+  await addComment(upcId, `Flagged for the supervisor by ${user.name}: ${FLAG_REASONS[input.reason as FlagReason]}${flagNote ? `. ${flagNote}` : "."}`);
   return getUpc(upcId);
 }
 
@@ -327,27 +344,31 @@ const OUTCOMES = {
 } as const;
 
 /** A supervisor's answer to a flag: approve the UPC, send it back to the associate, or skip it. */
-export async function resolveFlag(upcId: string, action: unknown, note: unknown, userId: string): Promise<UpcDetail> {
+export async function resolveFlag(upcId: string, action: unknown, note: unknown, user: Actor): Promise<UpcDetail> {
   if (typeof action !== "string" || !(action in OUTCOMES)) throw new QcError(422, "Choose what to do with the UPC");
   const outcome = OUTCOMES[action as keyof typeof OUTCOMES];
   const { upc, data } = await loadUpc(upcId);
   if (upc.state !== "SUPERVISOR_HOLD") throw new QcError(409, "This UPC is not on hold");
   const flagId = text(data.flag_id);
-  await putRecord(upcId, { resolved_by_user_id: userId, dcqc_exception_status: outcome.status });
+  const answer = text(note).trim().slice(0, 500);
+  await putRecord(upcId, { resolved_by_user_id: user.id, dcqc_exception_status: outcome.status });
   await fire(upcId, outcome.trigger);
-  if (flagId) await putRecord(flagId, { status: outcome.status, resolution_note: text(note).trim().slice(0, 500), resolved_at: new Date().toISOString(), resolved_by: userId });
+  if (flagId) await putRecord(flagId, { status: outcome.status, resolution_note: answer, resolved_at: new Date().toISOString(), resolved_by: user.id });
+  const verb = action === "approve" ? "approved the UPC" : action === "return" ? "sent the UPC back to the associate" : "skipped the UPC (won't QC)";
+  await addComment(upcId, `Supervisor ${user.name} ${verb}${answer ? `: ${answer}` : "."}`);
   return getUpc(upcId);
 }
 
 /** A supervisor sends an approved UPC back for rework. */
-export async function reopenUpc(upcId: string, reason: unknown, userId: string): Promise<UpcDetail> {
+export async function reopenUpc(upcId: string, reason: unknown, user: Actor): Promise<UpcDetail> {
   const why = text(reason).trim().slice(0, 500);
   if (!why) throw new QcError(422, "Say why the UPC needs rework");
   const { upc } = await loadUpc(upcId);
   requireShipmentInProgress(await loadShipmentState(upc.shipment_id));
   if (upc.state !== "APPROVED") throw new QcError(409, "Only an approved UPC can be reopened");
-  await putRecord(upcId, { supervisor_user_id: userId, dcqc_rework_reason: why });
+  await putRecord(upcId, { supervisor_user_id: user.id, dcqc_rework_reason: why });
   await fire(upcId, "dcqc_reopen");
+  await addComment(upcId, `Sent back for rework by ${user.name}: ${why}`);
   return getUpc(upcId);
 }
 

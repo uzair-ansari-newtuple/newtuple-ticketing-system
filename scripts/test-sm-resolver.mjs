@@ -80,6 +80,10 @@ section("The resolver recommends an item from the State Machine");
 const a = await capture(goodPhotos());
 const ea = await toNew(a.id, a.number);
 check("the store escalates the ticket", (await escalate(a.id)).s === 200);
+{
+  const c = (await call(SM, `/entities/${ea}/comments`, { method: "GET", headers: smh })).b?.comments?.map((x) => x.text) ?? [];
+  check("the escalation is a comment on the ticket in the State Machine", c.some((t) => /asked a resolver for help \(user unsure, new freight, 1 item\)/.test(t)), JSON.stringify(c));
+}
 check("the store sees it waiting for a resolver", (await detailOf(a.id)).state === "ESCALATED");
 let r = await call(SM, `/entity-records/${ea}/assignee`, { method: "PUT", headers: smh, body: { assignee_id: resolverLogin.user.id } });
 r = await fire(ea, "to_inprogress");

@@ -168,5 +168,27 @@ check("no connector call failed during the whole flow", !runs.some(([, status]) 
 for (const state of ["IN_PROGRESS", "SUPERVISOR_HOLD", "APPROVED", "WONT_QC", "QC_COMPLETE", "CLOSED"]) check(`the connectors on ${state} ran`, ranOn(state));
 check("the count matcher connector ran for the pallet saves", runs.filter(([st, status]) => st === "IN_PROGRESS" && status === "succeeded").length >= 8, `${runs.filter(([st]) => st === "IN_PROGRESS").length} runs`);
 
+section("Comments in the State Machine");
+const smToken = (await (await fetch(`${process.env.SM_BASE_URL}/auth/login`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email: process.env.SM_EMAIL, password: process.env.SM_PASSWORD }) })).json()).access_token;
+const commentsOf = async (id) => (await (await fetch(`${process.env.SM_BASE_URL}/entities/${id}/comments`, { headers: { authorization: `Bearer ${smToken}` } })).json()).comments.map((c) => c.text);
+const onShipment = await commentsOf(s1.id);
+check("the shipment says who started QC", onShipment.some((t) => /^QC started by /.test(t)), JSON.stringify(onShipment));
+check("the shipment says QC was submitted, with the totals", onShipment.some((t) => /^QC submitted by .*3 UPCs approved, 1 skipped/.test(t)), JSON.stringify(onShipment));
+check("the receipt steps are on the shipment", ["Receipt verification started", "Returned to the associate by", "Receipt closed by"].every((p) => onShipment.some((t) => t.startsWith(p))), JSON.stringify(onShipment));
+check("the closed receipt names its confirmation number", onShipment.some((t) => t.includes("RCPT-88231")));
+const onBubble = await commentsOf(bubble.id);
+check("a flag comment carries the reason and the associate's note", onBubble.some((t) => /Flagged for the supervisor by .*Short shipment\. Six units missing/.test(t)), JSON.stringify(onBubble));
+check("the supervisor's answer and note are on the UPC", onBubble.some((t) => /Supervisor .* approved the UPC: Supplier will ship the rest/.test(t)), JSON.stringify(onBubble));
+const onCargo = await commentsOf(cargo.id);
+check("skipping a UPC is recorded with its note", onCargo.some((t) => /skipped the UPC \(won't QC\): Damage claim filed/.test(t)), JSON.stringify(onCargo));
+const onFlower = await commentsOf(flower.id);
+check("an approval records what was counted", onFlower.some((t) => /^Approved by .*48 of 48 units counted across 1 pallet/.test(t)), JSON.stringify(onFlower));
+check("a rework request records its reason", onFlower.some((t) => /Sent back for rework by .*: Recount the second case/.test(t)), JSON.stringify(onFlower));
+
+await fetch(`${process.env.SM_BASE_URL}/entities/${flower.id}/comments`, { method: "POST", headers: { authorization: `Bearer ${smToken}`, "content-type": "application/json" }, body: JSON.stringify({ text: "Written in the State Machine: please recheck pallet 1" }) });
+const seen = (await call(`/qc/upcs/${flower.id}`)).b.comments.map((c) => c.text);
+check("a comment written in the State Machine shows in the app", seen.includes("Written in the State Machine: please recheck pallet 1"), JSON.stringify(seen));
+check("the app's own comments show there too, oldest first", seen.length >= 3 && seen[0].startsWith("Approved by"), JSON.stringify(seen));
+
 console.log(`\nTOTAL ${total}  PASS ${total - failures}  FAIL ${failures}`);
 process.exit(failures ? 1 : 0);

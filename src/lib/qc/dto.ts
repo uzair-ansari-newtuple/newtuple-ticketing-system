@@ -103,7 +103,15 @@ export interface ShipmentDetail extends Shipment {
   upcs: Upc[];
 }
 
+export interface UpcComment {
+  id: string;
+  text: string;
+  author: string;
+  created_at: string;
+}
+
 export interface UpcDetail extends Upc {
+  comments: UpcComment[];
   shipment_state: ShipmentState;
   pallets: Pallet[];
   photos: string[];

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { jsonError, userFromRequest } from "@/lib/mock/http";
 import { loadRow, saveRow } from "@/lib/mock/incidents";
-import { ticketState } from "@/lib/sm/records";
+import { addComment, ticketState } from "@/lib/sm/records";
 import { parseItemCount } from "@/lib/mock/item-count";
 import type { EscalationReason, ItemAge } from "@/lib/types";
 
@@ -37,5 +37,6 @@ export async function POST(request: Request, ctx: RouteContext<"/api/mock/incide
       event: { type: "ESCALATED", actor: user.name, detail: { reason: body.reason, note } },
     },
   );
+  await addComment(id, `${user.name} asked a resolver for help (${body.reason.replaceAll("_", " ").toLowerCase()}, ${body.item_age === "NEW_FREIGHT" ? "new freight" : "old merchandise"}, ${count} item${count === 1 ? "" : "s"})${note ? `: ${note}` : "."}`);
   return NextResponse.json({ state: "ESCALATED", escalation });
 }

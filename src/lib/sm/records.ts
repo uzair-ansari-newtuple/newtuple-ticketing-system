@@ -63,6 +63,32 @@ export async function putRecord(id: string, data: Record<string, unknown>): Prom
   return toRecord(await smFetch<RawRecord>("PUT", `/entity-records/${id}`, { data }));
 }
 
+/** Posts a comment on a record so it shows in the State Machine's Comments tab. A comment that fails never blocks the step it describes. */
+export async function addComment(entityId: string, text: string): Promise<void> {
+  try {
+    await smFetch("POST", `/entities/${entityId}/comments`, { text: text.trim().slice(0, 2000) });
+  } catch (err) {
+    console.error("Could not post a comment on the State Machine", err);
+  }
+}
+
+export interface RecordComment {
+  id: string;
+  text: string;
+  author: string;
+  created_at: string;
+}
+
+/** The comments on a record, oldest first. These include ones people wrote in the State Machine itself. */
+export async function listComments(entityId: string): Promise<RecordComment[]> {
+  try {
+    const res = await smFetch<{ comments: { id: string; text: string; author_name?: string; created_at: string }[] }>("GET", `/entities/${entityId}/comments`);
+    return res.comments.map((c) => ({ id: c.id, text: c.text, author: c.author_name ?? "", created_at: c.created_at })).sort((a, b) => a.created_at.localeCompare(b.created_at));
+  } catch {
+    return [];
+  }
+}
+
 export async function deleteRecord(id: string): Promise<void> {
   await smFetch("DELETE", `/entity-records/${id}`);
 }
