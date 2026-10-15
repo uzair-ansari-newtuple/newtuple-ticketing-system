@@ -1,5 +1,5 @@
 import type { Pool, PoolClient } from "pg";
-import type { DbUser } from "@/lib/mock/auth";
+import type { AppUser } from "@/lib/sm/identity";
 import type { Candidate, ClientAnalysis, Disposition, Escalation, Gating, IncidentDetail, IncidentEvent, IncidentState, IncidentSummary, ItemAge, MetadataExtraction, PrintJob, ResolverState } from "@/lib/types";
 
 export interface IncidentRow {
@@ -71,18 +71,18 @@ export function toSummary(row: IncidentRow): IncidentSummary {
 }
 
 /** Stores see their own tickets. Resolvers only see tickets that were escalated to them. */
-export function scopeClause(user: DbUser): { sql: string; params: unknown[] } {
+export function scopeClause(user: AppUser): { sql: string; params: unknown[] } {
   return user.role === "store" ? { sql: "store_id = $2", params: [user.store_id] } : { sql: "escalation IS NOT NULL AND $2::text IS NULL", params: [null] };
 }
 
-export async function loadRow(pool: Pool | PoolClient, id: string, user: DbUser): Promise<IncidentRow | null> {
+export async function loadRow(pool: Pool | PoolClient, id: string, user: AppUser): Promise<IncidentRow | null> {
   if (!/^[0-9a-f-]{36}$/i.test(id)) return null;
   const scope = scopeClause(user);
   const { rows } = await pool.query<IncidentRow>(`SELECT * FROM incidents WHERE id = $1 AND ${scope.sql}`, [id, ...scope.params]);
   return rows[0] ?? null;
 }
 
-export async function loadDetail(pool: Pool, id: string, user: DbUser): Promise<IncidentDetail | null> {
+export async function loadDetail(pool: Pool, id: string, user: AppUser): Promise<IncidentDetail | null> {
   const row = await loadRow(pool, id, user);
   if (!row) return null;
   const events = await pool.query<{ type: string; actor: string; detail: Record<string, unknown>; created_at: Date }>(
