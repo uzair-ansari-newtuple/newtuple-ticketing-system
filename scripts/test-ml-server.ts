@@ -23,7 +23,7 @@ async function main() {
   for (const f of tagFiles.slice(0, 5)) {
     const sku = f.replace(/\..*$/, "").replace(/-tag.*$/, "");
     const p = products.find((x) => x.sku === sku);
-    const { analysis } = await analyzeStoredPhotos("ST-112", [photo(`public/catalog/SKU-1001.jpg`, "front"), photo(`public/catalog/tags/${f}`, "tag")]);
+    const { analysis } = await analyzeStoredPhotos("ST-112", [photo(`public/catalog/${products[0].sku}.jpg`, "front"), photo(`public/catalog/tags/${f}`, "tag")]);
     const ocr = analysis.ocr;
     if (p) check(`tag ${f}: brand and barcode read`, !!ocr && ocr.brand?.toLowerCase() === p.brand.toLowerCase() && ocr.barcode === p.upc, JSON.stringify({ brand: ocr?.brand, barcode: ocr?.barcode, text: ocr?.text?.slice(0, 80) }));
     else console.log(`      (skipped ${f}: no matching product)`);

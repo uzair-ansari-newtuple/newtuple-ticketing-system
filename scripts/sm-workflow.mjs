@@ -48,6 +48,14 @@ for (const state of definition.states) {
   if (ACTIONS[state.name]) state.on_state_actions = [structuredClone(ACTIONS[state.name])];
 }
 
+// The State Machine hands out the ticket number from its own atomic counter.
+const numberField = definition.entity_schema.fields.find((f) => f.field === "incident_number");
+if (numberField) {
+  numberField.type = "auto_number";
+  numberField.auto_number_config = { affix_mode: "prefix", affix: "TK" };
+  numberField.default = null;
+}
+
 const draft = await call("POST", `/workflow-state-machines/${MACHINE}/draft`, {}, token);
 const rowId = draft.id ?? draft.row_id;
 await call("PUT", `/workflow-state-machines/${rowId}/draft`, { definition }, token);

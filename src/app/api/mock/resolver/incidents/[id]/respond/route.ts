@@ -2,13 +2,20 @@ import { NextResponse } from "next/server";
 import { productMetadata } from "@/data/catalog";
 import { getPool } from "@/lib/db";
 import { jsonError, userFromRequest } from "@/lib/mock/http";
-import { loadRow, logEvent } from "@/lib/mock/incidents";
+import { loadRow, saveRow } from "@/lib/mock/incidents";
 import { getProductBySku } from "@/lib/mock/products";
+import { ticketState } from "@/lib/sm/records";
 import type { ResolverDecision } from "@/lib/types";
-import { mirror } from "@/lib/sm/mirror";
 
 const DECISIONS: ResolverDecision[] = ["RECOMMEND", "CANT_RESOLVE", "NOT_APPAREL"];
 const MAX_COMMENT = 500;
+
+/** What the State Machine records for each decision: the trigger it fires and the fields that must be saved first. */
+const OUTCOME: Record<ResolverDecision, { trigger: string; decision: string; reason?: string }> = {
+  RECOMMEND: { trigger: "to_resolved", decision: "resolved" },
+  NOT_APPAREL: { trigger: "to_notctmerch", decision: "unable", reason: "not_cititrends_merchandise" },
+  CANT_RESOLVE: { trigger: "to_cantresolve", decision: "unable", reason: "no_match_found" },
+};
 
 export async function POST(request: Request, ctx: RouteContext<"/api/mock/resolver/incidents/[id]/respond">) {
   const user = await userFromRequest(request);
@@ -27,17 +34,22 @@ export async function POST(request: Request, ctx: RouteContext<"/api/mock/resolv
     return jsonError(422, "Add a short comment so the store knows why");
   }
 
-  const pool = getPool();
-  const row = await loadRow(pool, id, user);
+  const row = await loadRow(id, user);
   if (!row) return jsonError(404, "Ticket not found");
   if (row.current_state !== "RESOLUTION_IN_PROGRESS" || row.resolver?.claimed_by !== user.id) return jsonError(409, "Claim this ticket before responding");
+  const outcome = OUTCOME[body.decision];
+  if ((await ticketState(id)).state !== "INPROGRESS") return jsonError(409, "This ticket is not in a state that can take that answer");
 
-  const resolver = { ...row.resolver, status: "RESOLVED", decision: body.decision, recommended, comment: comment || null, responded_at: new Date().toISOString() };
-  await pool.query(`UPDATE incidents SET resolver = $2, current_state = 'RESOLVER_RESPONSE_RECEIVED', unread_for_store = true, updated_at = now() WHERE id = $1`, [id, JSON.stringify(resolver)]);
-  await logEvent(pool, id, "RESOLVED", user.name, { decision: body.decision, sku: body.sku ?? null });
-  const common = { resolver_comment: comment || undefined, resolver_lane_state: "RESOLVED" };
-  if (body.decision === "RECOMMEND") mirror(id, { ...common, resolver_decision: "resolved", selected_candidate: body.sku }, "to_resolved");
-  else if (body.decision === "NOT_APPAREL") mirror(id, { ...common, resolver_decision: "unable", resolver_reason_codes: "not_cititrends_merchandise" }, "to_notctmerch");
-  else mirror(id, { ...common, resolver_decision: "unable", resolver_reason_codes: "no_match_found" }, "to_cantresolve");
+  const resolver = { ...row.resolver, status: "RESOLVED" as const, decision: body.decision, recommended, comment: comment || null, responded_at: new Date().toISOString() };
+  await saveRow(row, { resolver, current_state: "RESOLVER_RESPONSE_RECEIVED", unread_for_store: true }, {
+    board: {
+      resolver_decision: outcome.decision,
+      resolver_comment: comment || undefined,
+      resolver_lane_state: "RESOLVED",
+      ...(outcome.reason ? { resolver_reason_codes: outcome.reason } : { selected_candidate: body.sku }),
+    },
+    event: { type: "RESOLVED", actor: user.name, detail: { decision: body.decision, sku: body.sku ?? null } },
+    trigger: outcome.trigger,
+  });
   return NextResponse.json({ state: "RESOLVER_RESPONSE_RECEIVED", resolver });
 }

@@ -30,6 +30,7 @@ export const CLASSES: ClassDef[] = [
   { code: "4001", name: "Jackets", departmentCode: "40", departmentName: "Outerwear", prompt: "a jacket" },
   { code: "4002", name: "Coats & Puffers", departmentCode: "40", departmentName: "Outerwear", prompt: "a winter coat" },
   { code: "5001", name: "Pajamas", departmentCode: "50", departmentName: "Sleepwear", prompt: "a pajama set" },
+  { code: "9001", name: "General Merchandise", departmentCode: "90", departmentName: "General Merchandise", prompt: "a toy, household item, accessory or packaged product" },
 ];
 
 export const COLORS: ColorDef[] = [
@@ -49,6 +50,7 @@ export const COLORS: ColorDef[] = [
   { code: "BRN", name: "Brown" },
   { code: "BGE", name: "Beige" },
   { code: "KHK", name: "Khaki" },
+  { code: "MLT", name: "Multicolor" },
 ];
 
 export const SIZES: { code: string; name: string }[] = [

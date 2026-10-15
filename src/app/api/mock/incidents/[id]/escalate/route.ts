@@ -1,10 +1,8 @@
 import { NextResponse } from "next/server";
-import { getPool } from "@/lib/db";
 import { jsonError, userFromRequest } from "@/lib/mock/http";
+import { loadRow, saveRow } from "@/lib/mock/incidents";
 import { parseItemCount } from "@/lib/mock/item-count";
-import { loadRow, logEvent } from "@/lib/mock/incidents";
 import type { EscalationReason, ItemAge } from "@/lib/types";
-import { mirror } from "@/lib/sm/mirror";
 
 const REASONS: EscalationReason[] = ["TOO_MANY_CANDIDATES", "LOW_EVIDENCE", "CATALOG_UNAVAILABLE", "USER_UNSURE", "PRINT_FAILURE", "OTHER"];
 const AGES: ItemAge[] = ["NEW_FREIGHT", "OLD_MERCHANDISE"];
@@ -23,18 +21,19 @@ export async function POST(request: Request, ctx: RouteContext<"/api/mock/incide
   const note = (body.note ?? "").trim().slice(0, MAX_NOTE);
   if (body.reason === "OTHER" && !note) return jsonError(422, "Add a short note explaining the problem");
 
-  const pool = getPool();
-  const row = await loadRow(pool, id, user);
+  const row = await loadRow(id, user);
   if (!row) return jsonError(404, "Ticket not found");
   if (!ESCALATABLE.includes(row.current_state)) return jsonError(409, "This ticket cannot be escalated in its current state");
 
   const escalation = { reason: body.reason, note, item_age: body.item_age, created_at: new Date().toISOString() };
-  const resolver = { status: "NEW", claimed_by: null, decision: null, recommended: null, comment: null, responded_at: null };
-  await pool.query(
-    `UPDATE incidents SET escalation = $2, resolver = $3, item_age = $4, missing_price_tag_count = $5, current_state = 'ESCALATED', updated_at = now() WHERE id = $1`,
-    [id, JSON.stringify(escalation), JSON.stringify(resolver), body.item_age, count],
+  const resolver = { status: "NEW" as const, claimed_by: null, decision: null, recommended: null, comment: null, responded_at: null };
+  await saveRow(
+    row,
+    { escalation, resolver, item_age: body.item_age, missing_price_tag_count: count, current_state: "ESCALATED" },
+    {
+      board: { escalated: "true", escalation_note: `${body.reason}${note ? `: ${note}` : ""}`, priority: body.item_age === "NEW_FREIGHT" ? "HIGH" : "LOW", resolver_lane_state: "NEW" },
+      event: { type: "ESCALATED", actor: user.name, detail: { reason: body.reason, note } },
+    },
   );
-  await logEvent(pool, id, "ESCALATED", user.name, { reason: body.reason, note });
-  mirror(id, { escalation_note: `${body.reason}${note ? `: ${note}` : ""}`, item_age: body.item_age, priority: body.item_age === "NEW_FREIGHT" ? "HIGH" : "LOW", resolver_lane_state: "NEW", missing_price_tag_count: count });
   return NextResponse.json({ state: "ESCALATED", escalation });
 }

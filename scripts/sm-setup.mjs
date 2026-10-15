@@ -13,22 +13,23 @@ const call = async (method, path, body, token) => {
   return json;
 };
 
+// The endpoints save their own results on the ticket. A response mapping would make the State Machine write back a copy of the ticket it read before the call, overwriting those results.
 const BODY = { incident_id: "$entity.bot_service_incident_id" };
 export const CONNECTORS = [
   {
     name: "Ticketing: analyze photos",
     path: "/api/sm/analyze",
-    response_mapping: { ocr_text: "ocr_text" },
+    response_mapping: {},
   },
   {
     name: "Ticketing: map attributes",
     path: "/api/sm/map-attributes",
-    response_mapping: { brand: "brand", department: "department", extracted_metadata: "extracted_metadata_json" },
+    response_mapping: {},
   },
   {
     name: "Ticketing: identify candidates",
     path: "/api/sm/identify",
-    response_mapping: { gating_tier: "gating_tier", candidate_count: "candidate_count", edw_candidates: "edw_candidates_json" },
+    response_mapping: {},
   },
   {
     name: "Ticketing: look up product by barcode",

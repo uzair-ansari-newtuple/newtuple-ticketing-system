@@ -1,155 +1,452 @@
 [
   {
-    "sku": "SKU-1001",
-    "upc": "812345000016",
-    "name": "Essential Crew Tee",
-    "brand": "Northline",
-    "classCode": "1001",
-    "colorCode": "BLK",
-    "price": "$9.99"
+    "sku": "400414405536",
+    "upc": "400414405536",
+    "name": "Flower Applique",
+    "brand": "CitiTrends",
+    "classCode": "9001",
+    "colorCode": "MLT",
+    "price": "$4.99"
   },
   {
-    "sku": "SKU-1002",
-    "upc": "812345000023",
-    "name": "Graphic Print Tee",
-    "brand": "Street Theory",
-    "classCode": "1001",
-    "colorCode": "WHT",
-    "price": "$12.99"
+    "sku": "400431701338",
+    "upc": "400431701338",
+    "name": "Red Mints",
+    "brand": "CitiTrends",
+    "classCode": "9001",
+    "colorCode": "MLT",
+    "price": "$4.99"
   },
   {
-    "sku": "SKU-1003",
-    "upc": "812345000030",
-    "name": "Oxford Button-Down Shirt",
-    "brand": "Harbor & Pine",
-    "classCode": "1002",
-    "colorCode": "BLU",
-    "price": "$22.99"
+    "sku": "400427758582",
+    "upc": "400427758582",
+    "name": "Bubble Charmed",
+    "brand": "CitiTrends",
+    "classCode": "9001",
+    "colorCode": "MLT",
+    "price": "$4.99"
   },
   {
-    "sku": "SKU-1004",
-    "upc": "812345000047",
-    "name": "Piqu\u00e9 Polo Shirt",
-    "brand": "Northline",
-    "classCode": "1003",
-    "colorCode": "NVY",
-    "price": "$16.99"
+    "sku": "400428390682",
+    "upc": "400428390682",
+    "name": "Varsity Patch",
+    "brand": "CitiTrends",
+    "classCode": "9001",
+    "colorCode": "MLT",
+    "price": "$4.99"
   },
   {
-    "sku": "SKU-1005",
-    "upc": "812345000054",
-    "name": "Fleece Pullover Hoodie",
-    "brand": "Northline",
-    "classCode": "1004",
-    "colorCode": "GRY",
-    "price": "$29.99"
+    "sku": "400430830886",
+    "upc": "400430830886",
+    "name": "Fragranzia",
+    "brand": "CitiTrends",
+    "classCode": "9001",
+    "colorCode": "MLT",
+    "price": "$4.99"
   },
   {
-    "sku": "SKU-1006",
-    "upc": "812345000061",
-    "name": "Cable Knit Sweater",
-    "brand": "Harbor & Pine",
-    "classCode": "1005",
-    "colorCode": "BGE",
-    "price": "$27.99"
-  },
-  {
-    "sku": "SKU-1007",
-    "upc": "812345000078",
-    "name": "Slim Fit Stretch Jeans",
-    "brand": "Denim Works",
-    "classCode": "2001",
-    "colorCode": "BLU",
-    "price": "$24.99"
-  },
-  {
-    "sku": "SKU-1008",
-    "upc": "812345000085",
-    "name": "Straight Leg Black Jeans",
-    "brand": "Denim Works",
-    "classCode": "2001",
-    "colorCode": "BLK",
-    "price": "$26.99"
-  },
-  {
-    "sku": "SKU-1009",
-    "upc": "812345000092",
-    "name": "Stretch Chino Pants",
-    "brand": "Harbor & Pine",
+    "sku": "400429151992",
+    "upc": "400429151992",
+    "name": "Frayed Cargo",
+    "brand": "CitiTrends",
     "classCode": "2002",
-    "colorCode": "KHK",
-    "price": "$23.99"
+    "colorCode": "MLT",
+    "price": "$4.99"
   },
   {
-    "sku": "SKU-1010",
-    "upc": "812345000108",
-    "name": "Cargo Shorts",
-    "brand": "Trailhead",
-    "classCode": "2003",
-    "colorCode": "OLV",
-    "price": "$17.99"
+    "sku": "400425657702",
+    "upc": "400425657702",
+    "name": "Butterflies",
+    "brand": "CitiTrends",
+    "classCode": "9001",
+    "colorCode": "MLT",
+    "price": "$4.99"
   },
   {
-    "sku": "SKU-1011",
-    "upc": "812345000115",
-    "name": "Tapered Joggers",
-    "brand": "Street Theory",
-    "classCode": "2004",
-    "colorCode": "GRY",
-    "price": "$19.99"
+    "sku": "400427725416",
+    "upc": "400427725416",
+    "name": "Bluetooth Party",
+    "brand": "CitiTrends",
+    "classCode": "9001",
+    "colorCode": "MLT",
+    "price": "$4.99"
   },
   {
-    "sku": "SKU-1012",
-    "upc": "812345000122",
-    "name": "High-Rise Leggings",
-    "brand": "Willow & Co",
-    "classCode": "2005",
-    "colorCode": "BLK",
-    "price": "$14.99"
+    "sku": "400430990016",
+    "upc": "400430990016",
+    "name": "Bling Hands",
+    "brand": "CitiTrends",
+    "classCode": "9001",
+    "colorCode": "MLT",
+    "price": "$4.99"
   },
   {
-    "sku": "SKU-1013",
-    "upc": "812345000139",
-    "name": "Wrap Midi Dress",
-    "brand": "Willow & Co",
-    "classCode": "3001",
-    "colorCode": "MRN",
-    "price": "$34.99"
+    "sku": "400399659429",
+    "upc": "400399659429",
+    "name": "Nation 56",
+    "brand": "CitiTrends",
+    "classCode": "9001",
+    "colorCode": "MLT",
+    "price": "$4.99"
   },
   {
-    "sku": "SKU-1014",
-    "upc": "812345000146",
-    "name": "Pleated Midi Skirt",
-    "brand": "Willow & Co",
-    "classCode": "3002",
-    "colorCode": "PNK",
-    "price": "$21.99"
+    "sku": "400427936874",
+    "upc": "400427936874",
+    "name": "Horseshoe",
+    "brand": "CitiTrends",
+    "classCode": "9001",
+    "colorCode": "MLT",
+    "price": "$4.99"
   },
   {
-    "sku": "SKU-1015",
-    "upc": "812345000153",
-    "name": "Denim Trucker Jacket",
-    "brand": "Denim Works",
+    "sku": "400425792922",
+    "upc": "400425792922",
+    "name": "Shacket",
+    "brand": "CitiTrends",
     "classCode": "4001",
-    "colorCode": "BLU",
-    "price": "$44.99"
+    "colorCode": "MLT",
+    "price": "$4.99"
   },
   {
-    "sku": "SKU-1016",
-    "upc": "812345000160",
-    "name": "Quilted Puffer Coat",
-    "brand": "Trailhead",
-    "classCode": "4002",
-    "colorCode": "NVY",
-    "price": "$59.99"
+    "sku": "400429495294",
+    "upc": "400429495294",
+    "name": "Rhinestones",
+    "brand": "CitiTrends",
+    "classCode": "9001",
+    "colorCode": "MLT",
+    "price": "$4.99"
   },
   {
-    "sku": "SKU-1017",
-    "upc": "812345000177",
-    "name": "Flannel Pajama Set",
-    "brand": "Hearth",
-    "classCode": "5001",
-    "colorCode": "RED",
-    "price": "$24.99"
+    "sku": "400424212551",
+    "upc": "400424212551",
+    "name": "White Set",
+    "brand": "CitiTrends",
+    "classCode": "9001",
+    "colorCode": "MLT",
+    "price": "$4.99"
+  },
+  {
+    "sku": "400427535091",
+    "upc": "400427535091",
+    "name": "Bath Set",
+    "brand": "CitiTrends",
+    "classCode": "9001",
+    "colorCode": "MLT",
+    "price": "$4.99"
+  },
+  {
+    "sku": "400426575692",
+    "upc": "400426575692",
+    "name": "Barbie Bus",
+    "brand": "CitiTrends",
+    "classCode": "9001",
+    "colorCode": "MLT",
+    "price": "$4.99"
+  },
+  {
+    "sku": "400431659769",
+    "upc": "400431659769",
+    "name": "Jar Scent",
+    "brand": "CitiTrends",
+    "classCode": "9001",
+    "colorCode": "MLT",
+    "price": "$4.99"
+  },
+  {
+    "sku": "400429762334",
+    "upc": "400429762334",
+    "name": "5 Packs",
+    "brand": "CitiTrends",
+    "classCode": "9001",
+    "colorCode": "MLT",
+    "price": "$4.99"
+  },
+  {
+    "sku": "400428867474",
+    "upc": "400428867474",
+    "name": "Candy Toy",
+    "brand": "CitiTrends",
+    "classCode": "9001",
+    "colorCode": "MLT",
+    "price": "$4.99"
+  },
+  {
+    "sku": "400408284024",
+    "upc": "400408284024",
+    "name": "Jumpman Bag",
+    "brand": "CitiTrends",
+    "classCode": "9001",
+    "colorCode": "MLT",
+    "price": "$4.99"
+  },
+  {
+    "sku": "400425969249",
+    "upc": "400425969249",
+    "name": "JDN Midtop",
+    "brand": "CitiTrends",
+    "classCode": "9001",
+    "colorCode": "MLT",
+    "price": "$4.99"
+  },
+  {
+    "sku": "400421417621",
+    "upc": "400421417621",
+    "name": "Multipack Neutral",
+    "brand": "CitiTrends",
+    "classCode": "9001",
+    "colorCode": "MLT",
+    "price": "$4.99"
+  },
+  {
+    "sku": "400424399689",
+    "upc": "400424399689",
+    "name": "Megapack",
+    "brand": "CitiTrends",
+    "classCode": "9001",
+    "colorCode": "MLT",
+    "price": "$4.99"
+  },
+  {
+    "sku": "400422737971",
+    "upc": "400422737971",
+    "name": "Patch Set",
+    "brand": "CitiTrends",
+    "classCode": "9001",
+    "colorCode": "MLT",
+    "price": "$4.99"
+  },
+  {
+    "sku": "400423667994",
+    "upc": "400423667994",
+    "name": "Razorback",
+    "brand": "CitiTrends",
+    "classCode": "9001",
+    "colorCode": "MLT",
+    "price": "$4.99"
+  },
+  {
+    "sku": "400426125071",
+    "upc": "400426125071",
+    "name": "Tee Hat",
+    "brand": "CitiTrends",
+    "classCode": "9001",
+    "colorCode": "MLT",
+    "price": "$4.99"
+  },
+  {
+    "sku": "400428757997",
+    "upc": "400428757997",
+    "name": "Cooling",
+    "brand": "CitiTrends",
+    "classCode": "9001",
+    "colorCode": "MLT",
+    "price": "$4.99"
+  },
+  {
+    "sku": "400407719824",
+    "upc": "400407719824",
+    "name": "Grey Book",
+    "brand": "CitiTrends",
+    "classCode": "9001",
+    "colorCode": "MLT",
+    "price": "$4.99"
+  },
+  {
+    "sku": "400426026316",
+    "upc": "400426026316",
+    "name": "Kids Rainbow",
+    "brand": "CitiTrends",
+    "classCode": "9001",
+    "colorCode": "MLT",
+    "price": "$4.99"
+  },
+  {
+    "sku": "400429177817",
+    "upc": "400429177817",
+    "name": "Vacuum",
+    "brand": "CitiTrends",
+    "classCode": "9001",
+    "colorCode": "MLT",
+    "price": "$4.99"
+  },
+  {
+    "sku": "400424670849",
+    "upc": "400424670849",
+    "name": "Gold Set",
+    "brand": "CitiTrends",
+    "classCode": "9001",
+    "colorCode": "MLT",
+    "price": "$4.99"
+  },
+  {
+    "sku": "400419794512",
+    "upc": "400419794512",
+    "name": "JC Set",
+    "brand": "CitiTrends",
+    "classCode": "9001",
+    "colorCode": "MLT",
+    "price": "$4.99"
+  },
+  {
+    "sku": "400430577859",
+    "upc": "400430577859",
+    "name": "Clear Heart",
+    "brand": "CitiTrends",
+    "classCode": "9001",
+    "colorCode": "MLT",
+    "price": "$4.99"
+  },
+  {
+    "sku": "400428740739",
+    "upc": "400428740739",
+    "name": "Blue Towel",
+    "brand": "CitiTrends",
+    "classCode": "9001",
+    "colorCode": "MLT",
+    "price": "$4.99"
+  },
+  {
+    "sku": "400430091584",
+    "upc": "400430091584",
+    "name": "Container",
+    "brand": "CitiTrends",
+    "classCode": "9001",
+    "colorCode": "MLT",
+    "price": "$4.99"
+  },
+  {
+    "sku": "400423520213",
+    "upc": "400423520213",
+    "name": "Button Knee",
+    "brand": "CitiTrends",
+    "classCode": "9001",
+    "colorCode": "MLT",
+    "price": "$4.99"
+  },
+  {
+    "sku": "400426217639",
+    "upc": "400426217639",
+    "name": "Gold Chevron",
+    "brand": "CitiTrends",
+    "classCode": "9001",
+    "colorCode": "MLT",
+    "price": "$4.99"
+  },
+  {
+    "sku": "400417431624",
+    "upc": "400417431624",
+    "name": "Yellow Set",
+    "brand": "CitiTrends",
+    "classCode": "9001",
+    "colorCode": "MLT",
+    "price": "$4.99"
+  },
+  {
+    "sku": "400411028318",
+    "upc": "400411028318",
+    "name": "Sparkle Flats",
+    "brand": "CitiTrends",
+    "classCode": "9001",
+    "colorCode": "MLT",
+    "price": "$4.99"
+  },
+  {
+    "sku": "400418455209",
+    "upc": "400418455209",
+    "name": "Disney Dress",
+    "brand": "CitiTrends",
+    "classCode": "3001",
+    "colorCode": "MLT",
+    "price": "$4.99"
+  },
+  {
+    "sku": "400411165914",
+    "upc": "400411165914",
+    "name": "Camo Rose",
+    "brand": "CitiTrends",
+    "classCode": "9001",
+    "colorCode": "MLT",
+    "price": "$4.99"
+  },
+  {
+    "sku": "400421610268",
+    "upc": "400421610268",
+    "name": "Mislabeled",
+    "brand": "CitiTrends",
+    "classCode": "9001",
+    "colorCode": "MLT",
+    "price": "$4.99"
+  },
+  {
+    "sku": "400422640288",
+    "upc": "400422640288",
+    "name": "Baby Wash",
+    "brand": "CitiTrends",
+    "classCode": "9001",
+    "colorCode": "MLT",
+    "price": "$4.99"
+  },
+  {
+    "sku": "400425284304",
+    "upc": "400425284304",
+    "name": "Sanitizer",
+    "brand": "CitiTrends",
+    "classCode": "9001",
+    "colorCode": "MLT",
+    "price": "$4.99"
+  },
+  {
+    "sku": "400424855406",
+    "upc": "400424855406",
+    "name": "Girls Flare",
+    "brand": "CitiTrends",
+    "classCode": "2001",
+    "colorCode": "MLT",
+    "price": "$4.99"
+  },
+  {
+    "sku": "400426739131",
+    "upc": "400426739131",
+    "name": "Assorted Print",
+    "brand": "CitiTrends",
+    "classCode": "9001",
+    "colorCode": "MLT",
+    "price": "$4.99"
+  },
+  {
+    "sku": "400428683319",
+    "upc": "400428683319",
+    "name": "Sour Cream",
+    "brand": "CitiTrends",
+    "classCode": "9001",
+    "colorCode": "MLT",
+    "price": "$4.99"
+  },
+  {
+    "sku": "400428625401",
+    "upc": "400428625401",
+    "name": "Lingerie",
+    "brand": "CitiTrends",
+    "classCode": "9001",
+    "colorCode": "MLT",
+    "price": "$4.99"
+  },
+  {
+    "sku": "400427770942",
+    "upc": "400427770942",
+    "name": "2 PK Clip",
+    "brand": "CitiTrends",
+    "classCode": "9001",
+    "colorCode": "MLT",
+    "price": "$4.99"
+  },
+  {
+    "sku": "400414848821",
+    "upc": "400414848821",
+    "name": "Crossbody",
+    "brand": "CitiTrends",
+    "classCode": "9001",
+    "colorCode": "MLT",
+    "price": "$4.99"
   }
 ]

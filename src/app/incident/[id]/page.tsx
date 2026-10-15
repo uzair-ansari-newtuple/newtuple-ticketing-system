@@ -243,12 +243,12 @@ export default function IncidentPage({ params }: { params: Promise<{ id: string 
   const failed = ex?.status === "failed" || (!meta && d.state !== "METADATA_PENDING");
   const photos = imageData?.images ?? [];
   const photo = photos[Math.min(active, Math.max(photos.length - 1, 0))];
-  const canAdd = Boolean(!failed && !match && !added && d.embeddings?.length && d.thumb && ex?.normalized_metadata);
+  const canAdd = Boolean(!failed && !match && !added && d.thumb && ex?.normalized_metadata);
 
   async function addToLibrary() {
-    if (!ex?.normalized_metadata || !d?.embeddings?.length || !d.thumb) return;
+    if (!ex?.normalized_metadata || !d?.thumb) return;
     try {
-      await api.addReference(token!, { metadata: ex.normalized_metadata, thumb: d.thumb, embeddings: d.embeddings });
+      await api.addReference(token!, d.id);
       setAdded(true);
       toast.success("Added to the reference library");
     } catch {

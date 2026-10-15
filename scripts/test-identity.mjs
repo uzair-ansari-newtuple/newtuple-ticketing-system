@@ -1,6 +1,4 @@
 // Tests sign-in and access rules. Users, roles and store assignments all live in the State Machine.
-import pg from "pg";
-
 process.loadEnvFile(".env");
 const APP = "http://localhost:3000/api/mock", SM = process.env.SM_BASE_URL;
 const call = async (base, path, o = {}) => {
@@ -11,9 +9,6 @@ let failures = 0, total = 0;
 const check = (name, ok, detail = "") => { total++; if (!ok) failures++; console.log(`${ok ? "PASS" : "FAIL"}  ${name}${ok ? "" : `  -> ${detail}`}`); };
 const login = (email, password) => call(APP, "/auth/login", { body: { email, password } });
 const bearer = (t) => ({ authorization: `Bearer ${t}` });
-const db = new pg.Client({ connectionString: process.env.DATABASE_URL_UNPOOLED });
-await db.connect();
-
 const E = process.env;
 console.log("== Sign-in ==");
 const store = await login(E.DEMO_STORE_EMAIL, E.DEMO_STORE_PASSWORD);
@@ -41,10 +36,11 @@ check("the resolver cannot create tickets", (await call(APP, "/incidents", { hea
 
 console.log("\n== A store only sees its own tickets ==");
 const mine = (await call(APP, "/incidents", { method: "GET", headers: sh })).b.items[0];
-await db.query("update incidents set store_id='ST-999' where id=$1", [mine.id]);
+const svc0 = (await call(SM, "/auth/login", { body: { email: E.SM_EMAIL, password: E.SM_PASSWORD } })).b.access_token;
+await call(SM, `/entity-records/${mine.id}`, { method: "PUT", headers: bearer(svc0), body: { data: { store_id: "ST-999" } } });
 check("a ticket from another store is hidden (404)", (await call(APP, `/incidents/${mine.id}`, { method: "GET", headers: sh })).s === 404);
 check("and does not appear in the list", !(await call(APP, "/incidents", { method: "GET", headers: sh })).b.items.some((i) => i.id === mine.id));
-await db.query("update incidents set store_id='ST-112' where id=$1", [mine.id]);
+await call(SM, `/entity-records/${mine.id}`, { method: "PUT", headers: bearer(svc0), body: { data: { store_id: "ST-112" } } });
 check("restored, the ticket is visible again", (await call(APP, `/incidents/${mine.id}`, { method: "GET", headers: sh })).s === 200);
 
 console.log("\n== Token refresh ==");
@@ -58,8 +54,10 @@ console.log("\n== A store user with no store assignment ==");
 const svc = (await call(SM, "/auth/login", { body: { email: E.SM_EMAIL, password: E.SM_PASSWORD } })).b.access_token;
 const smh = bearer(svc);
 const list = (await call(SM, `/entity-records?entity_type_name=store_assignment&search=${encodeURIComponent(E.DEMO_STORE_EMAIL)}&limit=5`, { method: "GET", headers: smh })).b.items;
-const record = list.find((r) => r.data.user_email === E.DEMO_STORE_EMAIL);
-const del = await call(SM, `/entity-records/${record.entity_id}`, { method: "DELETE", headers: smh });
+const matching = list.filter((r) => r.data.user_email === E.DEMO_STORE_EMAIL);
+const record = matching[0];
+const deletes = await Promise.all(matching.map((r) => call(SM, `/entity-records/${r.entity_id}`, { method: "DELETE", headers: smh })));
+const del = { s: deletes.every((d) => d.s === 200) ? 200 : 500 };
 await new Promise((r) => setTimeout(r, 200));
 const noStore = await login(E.DEMO_STORE_EMAIL, E.DEMO_STORE_PASSWORD);
 check("signing in is refused when no store is assigned", del.s === 200 && noStore.s === 403, `delete ${del.s}, login ${noStore.s}`);
@@ -77,6 +75,5 @@ check("a store change in the State Machine shows at the next sign-in", moved.b?.
 await call(SM, `/entity-records/${rec2.entity_id}`, { method: "PUT", headers: smh, body: { data: rec2.data } });
 check("and changing it back restores the original", (await login(E.DEMO_STORE_EMAIL, E.DEMO_STORE_PASSWORD)).b?.user?.store_id === "ST-112");
 
-await db.end();
 console.log(`\nTOTAL ${total}  PASS ${total - failures}  FAIL ${failures}`);
 process.exit(failures ? 1 : 0);

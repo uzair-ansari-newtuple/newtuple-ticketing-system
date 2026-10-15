@@ -237,7 +237,6 @@ export interface IncidentDetail extends IncidentSummary {
   resolver: ResolverState | null;
   extraction: MetadataExtraction | null;
   analysis: ClientAnalysis;
-  embeddings: number[][] | null;
   events: IncidentEvent[];
   prints: PrintJob[];
   image_count: number;

@@ -1,6 +1,4 @@
-import { randomUUID } from "node:crypto";
-import { getPool } from "@/lib/db";
-import { smEnabled, smFetch } from "@/lib/sm/client";
+import { getRecord, fire, ticketState } from "@/lib/sm/records";
 import type { PipelineStatus } from "@/lib/types";
 
 const STEP_TRIGGERS = [
@@ -13,38 +11,28 @@ const DONE_MARKER: Record<string, string> = { CAPTURED: "analyze", IMAGE_MAPPED:
 
 export const stepModeOn = () => process.env.SM_STEP_MODE === "true";
 
-interface Row {
-  number: number;
-  sm_entity_id: string | null;
-  pipeline: Record<string, string>;
-  current_state: string;
-}
-
-async function loadRow(id: string): Promise<Row | null> {
-  const { rows } = await getPool().query<Row>(`SELECT number, sm_entity_id, pipeline, current_state FROM incidents WHERE id = $1`, [id]);
-  return rows[0] ?? null;
-}
+const markers = (value: unknown): Record<string, string> => {
+  try {
+    return typeof value === "string" && value ? (JSON.parse(value) as Record<string, string>) : {};
+  } catch {
+    return {};
+  }
+};
 
 /** Where a ticket is in the State Machine's capture pipeline, and what each stage produced so far. */
 export async function readPipeline(id: string): Promise<PipelineStatus | null> {
-  const row = await loadRow(id);
-  if (!row) return null;
-  const empty = { state: "CAPTURED", step_mode: stepModeOn(), stage_done: false, next: null, ready: false, summary: { ocr_text: "", brand: "", department: "", gating_tier: "", candidate_count: 0 } };
-  if (!smEnabled() || !row.sm_entity_id) return empty;
-
-  const [{ current_state }, record] = await Promise.all([
-    smFetch<{ current_state: string }>("GET", `/entities/${row.sm_entity_id}/transitions/available`),
-    smFetch<{ data: Record<string, unknown> }>("GET", `/entity-records/${row.sm_entity_id}`),
-  ]);
+  const record = await getRecord(id);
+  if (!record) return null;
+  const { state } = await ticketState(id);
   const data = record.data;
-  const stageDone = Boolean(row.pipeline[DONE_MARKER[current_state]]);
-  const step = STEP_TRIGGERS.find((s) => s.from === current_state);
+  const stageDone = Boolean(markers(data.pipeline)[DONE_MARKER[state]]);
+  const step = STEP_TRIGGERS.find((s) => s.from === state);
   return {
-    state: current_state,
+    state,
     step_mode: stepModeOn(),
     stage_done: stageDone,
     next: stepModeOn() && stageDone && step ? { trigger: step.trigger, label: step.label } : null,
-    ready: current_state !== "CAPTURED" && current_state !== "IMAGE_MAPPED" && current_state !== "AI_IDENTIFICATION",
+    ready: !(state in DONE_MARKER),
     summary: {
       ocr_text: String(data.ocr_text ?? ""),
       brand: String(data.brand ?? ""),
@@ -60,11 +48,10 @@ export async function advancePipeline(id: string, trigger: string): Promise<{ st
   if (!stepModeOn()) return { status: 409, detail: "The pipeline runs by itself in this mode" };
   const step = STEP_TRIGGERS.find((s) => s.trigger === trigger);
   if (!step) return { status: 422, detail: "That is not a pipeline step" };
-  const row = await loadRow(id);
-  if (!row?.sm_entity_id) return { status: 409, detail: "The ticket is still being registered. Try again in a moment." };
-  const { current_state } = await smFetch<{ current_state: string }>("GET", `/entities/${row.sm_entity_id}/transitions/available`);
-  if (current_state !== step.from) return { status: 409, detail: `The ticket is in ${current_state}, not ${step.from}` };
-  if (!row.pipeline[DONE_MARKER[step.from]]) return { status: 409, detail: "This step is still running" };
-  const result = await smFetch<{ to_state: string }>("POST", `/entities/${row.sm_entity_id}/transitions`, { entity_id: row.sm_entity_id, trigger, idempotency_key: randomUUID(), inputs: {} });
-  return { status: 200, state: result.to_state };
+  const record = await getRecord(id);
+  if (!record) return { status: 404, detail: "Ticket not found" };
+  const { state } = await ticketState(id);
+  if (state !== step.from) return { status: 409, detail: `The ticket is in ${state}, not ${step.from}` };
+  if (!markers(record.data.pipeline)[DONE_MARKER[step.from]]) return { status: 409, detail: "This step is still running" };
+  return { status: 200, state: await fire(id, trigger) };
 }

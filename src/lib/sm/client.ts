@@ -1,4 +1,4 @@
-const TIMEOUT_MS = 8000;
+const TIMEOUT_MS = 15_000;
 const TOKEN_TTL_MS = 10 * 60 * 1000;
 
 let cached: { token: string; expires: number } | null = null;
@@ -7,12 +7,9 @@ export const smBaseUrl = () => process.env.SM_BASE_URL?.replace(/\/$/, "") ?? ""
 export const smMachine = () => process.env.SM_MACHINE_NAME ?? "workflow_dguyp0t8_9f7jus";
 export const smEntityType = () => process.env.SM_ENTITY_TYPE ?? "incident";
 
-export const smLoginEnabled = () => Boolean(smBaseUrl());
-
-export const smEnabled = () => Boolean(smBaseUrl() && (process.env.SM_ACCESS_TOKEN || (process.env.SM_EMAIL && process.env.SM_PASSWORD)));
+export const smEnabled = () => Boolean(smBaseUrl() && process.env.SM_EMAIL && process.env.SM_PASSWORD);
 
 async function login(): Promise<string> {
-  if (process.env.SM_ACCESS_TOKEN) return process.env.SM_ACCESS_TOKEN;
   const res = await fetch(`${smBaseUrl()}/auth/login`, {
     method: "POST",
     headers: { "content-type": "application/json" },
@@ -30,33 +27,52 @@ async function token(force: boolean): Promise<string> {
   return fresh;
 }
 
-/** Calls the State Machine API as the service user, signing in again once if the token was rejected. */
-export async function smFetch<T>(method: string, path: string, body?: unknown): Promise<T> {
+export class SmError extends Error {
+  constructor(
+    public status: number,
+    message: string,
+  ) {
+    super(message);
+  }
+}
+
+/** Calls the State Machine as the service user, signing in again once if the token was rejected. */
+async function request(method: string, path: string, init: { body?: BodyInit; json?: boolean }): Promise<Response> {
   for (const force of [false, true]) {
     const res = await fetch(`${smBaseUrl()}${path}`, {
       method,
-      headers: { authorization: `Bearer ${await token(force)}`, "content-type": "application/json" },
-      body: body === undefined ? undefined : JSON.stringify(body),
+      headers: { authorization: `Bearer ${await token(force)}`, ...(init.json ? { "content-type": "application/json" } : {}) },
+      body: init.body,
       signal: AbortSignal.timeout(TIMEOUT_MS),
     });
     if (res.status === 401 && !force) continue;
-    if (!res.ok) throw new Error(`State machine ${method} ${path} failed (${res.status}): ${(await res.text()).slice(0, 200)}`);
-    return (await res.json()) as T;
+    if (!res.ok) {
+      const text = (await res.text()).slice(0, 300);
+      let detail = text;
+      try {
+        const parsed = JSON.parse(text) as { detail?: unknown };
+        if (typeof parsed.detail === "string") detail = parsed.detail;
+      } catch {
+        // not JSON, keep the text
+      }
+      throw new SmError(res.status, detail);
+    }
+    return res;
   }
-  throw new Error("unreachable");
+  throw new SmError(401, "State machine rejected the service login");
 }
 
-export type SmLogin = { ok: true; email: string } | { ok: false; status: number; detail: string };
+export async function smFetch<T>(method: string, path: string, body?: unknown): Promise<T> {
+  const res = await request(method, path, { json: true, body: body === undefined ? undefined : JSON.stringify(body) });
+  return res.status === 204 ? (undefined as T) : ((await res.json()) as T);
+}
 
-/** Checks an email and password against the State Machine. The app keeps the role and store of each user in its own database. */
-export async function smSignIn(email: string, password: string): Promise<SmLogin> {
-  const res = await fetch(`${smBaseUrl()}/auth/login`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ email, password }),
-    signal: AbortSignal.timeout(TIMEOUT_MS),
-  });
-  const body = (await res.json().catch(() => null)) as { detail?: string; user?: { email?: string } } | null;
-  if (!res.ok) return { ok: false, status: res.status, detail: typeof body?.detail === "string" ? body.detail : "Sign in failed" };
-  return { ok: true, email: body?.user?.email ?? email };
+export async function smDownload(path: string): Promise<{ bytes: Buffer; contentType: string }> {
+  const res = await request("GET", path, {});
+  return { bytes: Buffer.from(await res.arrayBuffer()), contentType: res.headers.get("content-type") ?? "application/octet-stream" };
+}
+
+export async function smUpload<T>(path: string, form: FormData): Promise<T> {
+  const res = await request("POST", path, { body: form });
+  return (await res.json()) as T;
 }

@@ -2,6 +2,8 @@ import { readFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 
 process.loadEnvFile(".env");
+const [P1, P2] = JSON.parse(readFileSync("db/seed/products.json", "utf8"));
+const DEPARTMENT = "General Merchandise";
 const APP = "http://localhost:3000/api";
 const KEY = process.env.SM_CONNECTOR_KEY;
 const stable = (v) => JSON.stringify(v, (_, x) => (x && typeof x === "object" && !Array.isArray(x) ? Object.fromEntries(Object.entries(x).sort(([a], [b]) => a.localeCompare(b))) : x));
@@ -42,24 +44,24 @@ check("analyze with a wrong key is rejected", (await stage("analyze", "00000000-
 check("analyze with a bad id is rejected", (await call("/sm/analyze", { headers: { "x-api-key": KEY }, body: { incident_id: "not-an-id" } })).s === 422);
 check("analyze for an unknown ticket is 404", (await stage("analyze", "00000000-0000-4000-8000-000000000000")).s === 404);
 
-console.log("\n== Ticket with a front photo and a tag photo (SKU-1003) ==");
-const id = await createTicket([photo("public/catalog/SKU-1003.jpg", "front"), photo("public/catalog/tags/SKU-1003-tag.jpg", "tag")]);
+console.log(`\n== Ticket with a front photo and a tag photo (${P1.name}) ==`);
+const id = await createTicket([photo(`public/catalog/${P1.sku}.jpg`, "front"), photo(`public/catalog/tags/${P1.sku}-tag.jpg`, "tag")]);
 let t = Date.now();
 const a = await stage("analyze", id);
 console.log(`      analyze took ${Date.now() - t} ms`);
 check("analyze succeeds", a.s === 200 && a.b.ok && !a.b.analysis_failed, JSON.stringify(a.b)?.slice(0, 200));
-check("analyze reads brand and barcode from the tag", a.b.ocr?.brand === "Harbor & Pine" && a.b.ocr?.barcode === "812345000030", JSON.stringify(a.b.ocr));
-check("analyze finds SKU-1003 as the closest image", a.b.image_matches?.[0]?.sku === "SKU-1003", JSON.stringify(a.b.image_matches));
+check("analyze reads brand and barcode from the tag", a.b.ocr?.brand === P1.brand && a.b.ocr?.barcode === P1.upc, JSON.stringify(a.b.ocr));
+check("analyze finds the product as the closest image", a.b.image_matches?.[0]?.sku === P1.sku, JSON.stringify(a.b.image_matches));
 t = Date.now();
 const a2 = await stage("analyze", id);
 check("analyze is safe to repeat and returns the same result", a2.s === 200 && stable(a2.b) === stable(a.b) && Date.now() - t < 1500, `${Date.now() - t} ms; differs: ${Object.keys(a.b).filter((k) => JSON.stringify(a.b[k]) !== JSON.stringify(a2.b[k])).map((k) => `${k}: ${JSON.stringify(a.b[k])?.slice(0, 120)} vs ${JSON.stringify(a2.b[k])?.slice(0, 120)}`).join(" | ")}`);
 
 const m = await stage("map-attributes", id);
-check("map-attributes returns brand and department", m.s === 200 && m.b.brand === "Harbor & Pine" && m.b.department === "Tops", JSON.stringify(m.b)?.slice(0, 200));
-check("map-attributes returns normalized metadata with the barcode", m.b.extracted_metadata?.Barcode === "812345000030", JSON.stringify(m.b.extracted_metadata));
+check("map-attributes returns brand and department", m.s === 200 && m.b.brand === P1.brand && m.b.department === DEPARTMENT, JSON.stringify(m.b)?.slice(0, 200));
+check("map-attributes returns normalized metadata with the barcode", m.b.extracted_metadata?.Barcode === P1.upc, JSON.stringify(m.b.extracted_metadata));
 
 const i = await stage("identify", id);
-check("identify returns SKU-1003 as the top candidate", i.s === 200 && i.b.edw_candidates?.[0]?.sku === "SKU-1003" && i.b.edw_candidates[0].score >= 0.99, JSON.stringify(i.b)?.slice(0, 300));
+check("identify returns the product as the top candidate", i.s === 200 && i.b.edw_candidates?.[0]?.sku === P1.sku && i.b.edw_candidates[0].score >= 0.99, JSON.stringify(i.b)?.slice(0, 300));
 check("identify rates the match", ["GREEN", "YELLOW", "RED"].includes(i.b.gating_tier) && i.b.candidate_count === i.b.edw_candidates.length, JSON.stringify(i.b.gating_tier));
 const detail = await call(`/mock/incidents/${id}`, { method: "GET", headers: auth });
 check("the app sees the ticket as ready to review", detail.b.state === "CANDIDATES_READY" && detail.b.candidates.length === i.b.candidate_count, `${detail.b.state}`);
@@ -67,9 +69,9 @@ const i2 = await stage("identify", id);
 check("identify is safe to repeat", stable(i2.b) === stable(i.b));
 
 console.log("\n== Out-of-order call: identify on a fresh ticket runs the earlier stages ==");
-const id2 = await createTicket([photo("public/catalog/SKU-1007.jpg", "front")]);
+const id2 = await createTicket([photo(`public/catalog/${P2.sku}.jpg`, "front")]);
 const direct = await stage("identify", id2);
-check("identify alone works on an unanalyzed ticket", direct.s === 200 && direct.b.ok && direct.b.edw_candidates[0]?.sku === "SKU-1007", JSON.stringify(direct.b)?.slice(0, 200));
+check("identify alone works on an unanalyzed ticket", direct.s === 200 && direct.b.ok && direct.b.edw_candidates[0]?.sku === P2.sku, JSON.stringify(direct.b)?.slice(0, 200));
 
 console.log("\n== A photo that matches nothing ==");
 const id3 = await createTicket([photo("public/icon-512.png".replace("png", "png"), "front")].map((p) => p));

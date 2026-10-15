@@ -1,5 +1,5 @@
 import { getPool } from "@/lib/db";
-import { logEvent, type IncidentRow } from "@/lib/mock/incidents";
+import { getRow, saveRow } from "@/lib/mock/incidents";
 import { getProductByUpc } from "@/lib/mock/products";
 import { sendLabel } from "@/lib/mock/printing";
 import { productMetadata } from "@/data/catalog";
@@ -22,24 +22,19 @@ export async function lookupGtin(rawGtin: string) {
   };
 }
 
-async function loadIncident(id: string): Promise<IncidentRow | null> {
-  const { rows } = await getPool().query<IncidentRow>(`SELECT * FROM incidents WHERE id = $1`, [id]);
-  return rows[0] ?? null;
-}
-
 /** Prints the confirmed label for a ticket. The count of items on the ticket sets the default number of copies. */
 export async function printLabelFor(incidentId: string, printer?: number, copies?: number) {
-  const row = await loadIncident(incidentId);
+  const row = await getRow(incidentId);
   if (!row) return { status: 404, body: { detail: "Ticket not found" } };
-  const result = await sendLabel(getPool(), row, { printer: printer ?? 1, copies: copies ?? row.missing_price_tag_count, actor: "state-machine" });
+  const result = await sendLabel(row, { printer: printer ?? 1, copies: copies ?? row.missing_price_tag_count, actor: "state-machine" });
   if (!result.ok) return { status: result.status, body: { detail: result.detail } };
   return { status: 200, body: result };
 }
 
 /** Records a push notification for a ticket. This is a stand-in for the real push service. */
 export async function notifyFor(incidentId: string, event: NotifyEvent, message?: string) {
-  const row = await loadIncident(incidentId);
+  const row = await getRow(incidentId);
   if (!row) return { status: 404, body: { detail: "Ticket not found" } };
-  await logEvent(getPool(), incidentId, "NOTIFIED", "state-machine", { event, message: message ?? null });
+  await saveRow(row, {}, { event: { type: "NOTIFIED", actor: "state-machine", detail: { event, message: message ?? null } } });
   return { status: 200, body: { ok: true, delivered: true, channel: "mock-push", event } };
 }

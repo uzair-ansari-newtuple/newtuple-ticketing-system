@@ -2,9 +2,11 @@
 import { execSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { createHash, randomUUID } from "node:crypto";
-import pg from "pg";
 
 process.loadEnvFile(".env");
+const [P1, P2] = JSON.parse(readFileSync("db/seed/products.json", "utf8"));
+const DEPARTMENT = "General Merchandise";
+const BRAND_TEXT = new RegExp(P1.brand, "i");
 const APP = "http://localhost:3000/api", SM = process.env.SM_BASE_URL, MACHINE = process.env.SM_MACHINE_NAME ?? "workflow_dguyp0t8_9f7jus";
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const call = async (base, path, o = {}) => {
@@ -15,8 +17,6 @@ let failures = 0, total = 0;
 const check = (name, ok, detail = "") => { total++; if (!ok) failures++; console.log(`${ok ? "PASS" : "FAIL"}  ${name}${ok ? "" : `  -> ${detail}`}`); };
 const section = (t) => console.log(`\n== ${t} ==`);
 
-const db = new pg.Client({ connectionString: process.env.DATABASE_URL_UNPOOLED });
-await db.connect();
 const login = (await call(APP, "/mock/auth/login", { body: { email: process.env.DEMO_STORE_EMAIL, password: process.env.DEMO_STORE_PASSWORD } })).b;
 const auth = { authorization: `Bearer ${login.access_token}` };
 const resolverLogin = (await call(APP, "/mock/auth/login", { body: { email: process.env.DEMO_RESOLVER_EMAIL, password: process.env.DEMO_RESOLVER_PASSWORD } })).b;
@@ -38,7 +38,7 @@ async function capture(images) {
   const c = (await call(APP, "/mock/incidents", { headers: auth, body: { quality_check_id: q.b.job_id, images, client_analysis: analysis, embeddings: [] } })).b;
   return { id: c.incident_id, number: c.incident_number_display };
 }
-const goodPhotos = () => [photo("public/catalog/SKU-1003.jpg", "front"), photo("public/catalog/tags/SKU-1003-tag.jpg", "tag")];
+const goodPhotos = () => [photo(`public/catalog/${P1.sku}.jpg`, "front"), photo(`public/catalog/tags/${P1.sku}-tag.jpg`, "tag")];
 const FIELDS = "identifier,ocr_text,brand,department,gating_tier,candidate_count,edw_candidates,extracted_metadata,selected_candidate,resolver_reason_codes,escalation_note";
 async function ticket(number) {
   const r = await call(SM, `/workflow-enrollments?machine_name=${MACHINE}&search=${number}&limit=5&fields=${FIELDS}`, { method: "GET", headers: smh });
@@ -53,8 +53,9 @@ async function waitFor(number, pred, ms = 40000) {
 const fire = (entity, trigger) => call(SM, `/entities/${entity}/transitions`, { headers: smh, body: { entity_id: entity, trigger, idempotency_key: randomUUID(), inputs: {} } });
 const put = (entity, data) => call(SM, `/entity-records/${entity}`, { method: "PUT", headers: smh, body: { data } });
 const runs = (entity) => execSync(`docker exec state-machine-modular-modular-db-1 psql -U statemachine -d statemachine -At -c "select action_kind||':'||status from modular_backend.action_runs where entity_id='${entity}' order by created_at"`).toString().trim().split("\n").filter(Boolean);
-const neon = async (id) => (await db.query("select current_state, gating, jsonb_array_length(candidates) as n, pipeline from incidents where id=$1", [id])).rows[0];
-const events = async (id, type) => (await db.query("select detail from incident_events where incident_id=$1 and type=$2 order by id", [id, type])).rows.map((r) => r.detail);
+const detailOf = async (id) => (await call(APP, `/mock/incidents/${id}`, { method: "GET", headers: auth })).b;
+const neon = async (id) => { const d = await detailOf(id); return { current_state: d.state, gating: d.gating, n: d.candidates.length }; };
+const events = async (id, type) => (await detailOf(id)).events.filter((e) => e.type === type).map((e) => e.detail);
 const setMode = (mode) => execSync(`node scripts/sm-workflow.mjs --mode ${mode} --publish`, { stdio: "pipe" });
 const connectorId = async (name) => { const l = (await call(SM, "/connectors", { method: "GET", headers: smh })).b; return (Array.isArray(l) ? l : l.items).find((c) => c.name === name).id; };
 const patchConnector = (id, body) => call(SM, `/connectors/${id}`, { method: "PATCH", headers: smh, body });
@@ -67,7 +68,7 @@ await sleep(2000);
 const t1 = await capture(goodPhotos());
 let s = await waitFor(t1.number, (t) => t.f.ocr_text);
 check("ticket appears in the State Machine at CAPTURED", s?.state === "CAPTURED", `${s?.state}`);
-check("CAPTURED connector ran: tag text was read", /HARBOR/i.test(s?.f.ocr_text ?? ""), s?.f.ocr_text);
+check("CAPTURED connector ran: tag text was read", BRAND_TEXT.test(s?.f.ocr_text ?? ""), s?.f.ocr_text);
 check("nothing from later stages yet (brand, rating empty)", !s.f.brand && !s.f.gating_tier, JSON.stringify(s.f).slice(0, 160));
 await sleep(5000);
 s = await ticket(t1.number);
@@ -86,8 +87,8 @@ section("Step mode: click 1, then 2, then 3");
 r = await fire(e1, "to_image_mapped");
 check("click 1 moves to IMAGE_MAPPED", r.s === 200 && r.b.to_state === "IMAGE_MAPPED", JSON.stringify(r.b)?.slice(0, 120));
 s = await waitFor(t1.number, (t) => t.f.brand);
-check("IMAGE_MAPPED connector ran: brand and department set", s.f.brand === "Harbor & Pine" && s.f.department === "Tops", JSON.stringify(s.f).slice(0, 200));
-check("the extracted metadata is valid JSON with the barcode", JSON.parse(s.f.extracted_metadata).Barcode === "812345000030", s.f.extracted_metadata?.slice(0, 120));
+check("IMAGE_MAPPED connector ran: brand and department set", s.f.brand === P1.brand && s.f.department === DEPARTMENT, JSON.stringify(s.f).slice(0, 200));
+check("the extracted metadata is valid JSON with the barcode", JSON.parse(s.f.extracted_metadata).Barcode === P1.upc, s.f.extracted_metadata?.slice(0, 120));
 check("still no rating before the identify state", !s.f.gating_tier, s.f.gating_tier);
 r = await fire(e1, "to_image_mapped");
 check("clicking the same step again is refused", r.s >= 400, `${r.s}`);
@@ -96,7 +97,7 @@ check("click 2 moves to AI_IDENTIFICATION", r.s === 200 && r.b.to_state === "AI_
 s = await waitFor(t1.number, (t) => t.f.gating_tier);
 const cands = JSON.parse(s.f.edw_candidates);
 check("AI_IDENTIFICATION connector ran: rating and candidates set", ["GREEN", "YELLOW", "RED"].includes(s.f.gating_tier) && Number(s.f.candidate_count) === cands.length && cands.length > 0, JSON.stringify(s.f).slice(0, 200));
-check("SKU-1003 is the top candidate", cands[0].sku === "SKU-1003", JSON.stringify(cands[0]));
+check("the product is the top candidate", cands[0].sku === P1.sku, JSON.stringify(cands[0]));
 const n = await neon(t1.id);
 check("the app's own record agrees (ready to review, same count)", n.current_state === "CANDIDATES_READY" && n.n === cands.length, JSON.stringify(n));
 r = await fire(e1, "ai_identification_to_new");
@@ -123,7 +124,7 @@ check("backend unreachable: action failed and ticket waits in CAPTURED", runs(s.
 await patchConnector(analyzeId, { base_url: BASE_URL });
 const rr = await call(SM, `/entities/${s.entity}/actions/rerun`, { headers: smh, body: {} });
 s = await waitFor(t3.number, (t) => t.f.ocr_text, 60000);
-check("after the connector is repaired, re-running the action works", s?.f.ocr_text && /HARBOR/i.test(s.f.ocr_text), `rerun ${rr.s} ${JSON.stringify(s?.f).slice(0, 120)}`);
+check("after the connector is repaired, re-running the action works", s?.f.ocr_text && BRAND_TEXT.test(s.f.ocr_text), `rerun ${rr.s} ${JSON.stringify(s?.f).slice(0, 120)}`);
 
 // ---------------------------------------------------------------- AUTO MODE
 section("Auto mode: one capture, the ticket moves through every state alone");
@@ -134,7 +135,7 @@ const started = Date.now();
 s = await waitFor(t4.number, (t) => t.state === "NEW" && t.f.gating_tier, 60000);
 check("the ticket reaches NEW by itself", s?.state === "NEW", `${s?.state}`);
 console.log(`      time to reach NEW: ${Math.round((Date.now() - started) / 1000)} s`);
-check("all the data is filled in", s.f.brand === "Harbor & Pine" && /HARBOR/i.test(s.f.ocr_text) && Number(s.f.candidate_count) > 0, JSON.stringify(s.f).slice(0, 200));
+check("all the data is filled in", s.f.brand === P1.brand && BRAND_TEXT.test(s.f.ocr_text) && Number(s.f.candidate_count) > 0, JSON.stringify(s.f).slice(0, 200));
 const ar4 = runs(s.entity);
 check("three connector actions ran and all succeeded", ar4.filter((x) => x === "webhook.http:succeeded").length === 3 && !ar4.some((x) => x.endsWith(":failed")), ar4.join(","));
 check("the app sees it ready to review", (await neon(t4.id)).current_state === "CANDIDATES_READY");
@@ -144,7 +145,7 @@ await patchConnector(analyzeId, { secrets: { api_key: "wrong-key" } });
 const t5 = await capture(goodPhotos());
 s = await waitFor(t5.number, (t) => t.state === "NEW" && t.f.gating_tier, 60000);
 check("the ticket still reaches NEW", s?.state === "NEW", `${s?.state}`);
-check("later connectors recovered the data (brand, rating)", s?.f.brand === "Harbor & Pine" && !!s.f.gating_tier, JSON.stringify(s?.f).slice(0, 160));
+check("later connectors recovered the data (brand, rating)", s?.f.brand === P1.brand && !!s.f.gating_tier, JSON.stringify(s?.f).slice(0, 160));
 check("the failed first action is recorded", runs(s.entity).some((x) => x.endsWith(":failed")), runs(s.entity).join(","));
 await patchConnector(analyzeId, { secrets: { api_key: KEY } });
 
@@ -161,7 +162,7 @@ r = await fire(a.entity, "to_inprogress");
 check("claim moves NEW to INPROGRESS", r.s === 200 && r.b.to_state === "INPROGRESS", JSON.stringify(r.b)?.slice(0, 100));
 r = await fire(a.entity, "to_resolved");
 check("resolving without a selected item is refused", r.s >= 400, `${r.s} ${JSON.stringify(r.b)?.slice(0, 100)}`);
-await put(a.entity, { selected_candidate: "SKU-1003" });
+await put(a.entity, { selected_candidate: P1.sku });
 r = await fire(a.entity, "to_resolved");
 check("resolving with a selected item works", r.s === 200 && r.b.to_state === "RESOLVED", JSON.stringify(r.b)?.slice(0, 100));
 await sleep(8000);
@@ -218,7 +219,7 @@ s = await ticket(e.number);
 check("the State Machine shows it INPROGRESS", s.state === "INPROGRESS", s.state);
 const rec = await call(SM, `/entity-records/${s.entity}`, { method: "GET", headers: smh });
 check("the State Machine assignee is the resolver who claimed it", rec.b?.assignee_id === resolverLogin.user.id, `${rec.b?.assignee_id} vs ${resolverLogin.user.id}`);
-const rs = await call(APP, `/mock/resolver/incidents/${e.id}/respond`, { headers: rauth, body: { decision: "RECOMMEND", sku: "SKU-1003", comment: "matches" } });
+const rs = await call(APP, `/mock/resolver/incidents/${e.id}/respond`, { headers: rauth, body: { decision: "RECOMMEND", sku: P2.sku, comment: "matches" } });
 check("the resolver can answer", rs.s === 200, `${rs.s}`);
 s = await waitFor(e.number, (t) => t.state === "RESOLVED", 30000);
 check("the State Machine shows it RESOLVED", s?.state === "RESOLVED", s?.state);
@@ -228,6 +229,5 @@ section("Restore step mode");
 setMode("step");
 check("step mode is published again", true);
 
-await db.end();
 console.log(`\nTOTAL ${total}  PASS ${total - failures}  FAIL ${failures}`);
 process.exit(failures ? 1 : 0);

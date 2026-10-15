@@ -1,8 +1,7 @@
-import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
-import { getPool } from "@/lib/db";
 import { jsonError, storeIdFromRequest } from "@/lib/mock/http";
-import type { ImagePayload, QualityCheckResult, QualityImageResult } from "@/lib/types";
+import { saveQuality } from "@/lib/mock/quality";
+import type { ImagePayload, QualityImageResult } from "@/lib/types";
 
 const MAX_IMAGES = 5;
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
@@ -36,15 +35,12 @@ export async function POST(request: Request) {
   const results = images.map(judge);
   const failed = results.filter((r) => !r.passed);
   const now = Date.now();
-  const qualityCheckId = randomUUID();
-  const result: QualityCheckResult = {
-    quality_check_id: qualityCheckId,
+  const saved = await saveQuality(storeId, {
     can_create_incident: failed.length === 0,
     failed_description: failed[0]?.failed_description ?? null,
     images: results,
     checked_at: new Date(now).toISOString(),
     expires_at: new Date(now + QUALITY_TTL_MS).toISOString(),
-  };
-  await getPool().query(`INSERT INTO quality_checks (id, store_id, result) VALUES ($1, $2, $3)`, [qualityCheckId, storeId, JSON.stringify(result)]);
-  return NextResponse.json({ job_id: qualityCheckId, job_type: "quality_check", status: "pending" }, { status: 202 });
+  });
+  return NextResponse.json({ job_id: saved.quality_check_id, job_type: "quality_check", status: "pending" }, { status: 202 });
 }

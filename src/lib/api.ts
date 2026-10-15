@@ -92,8 +92,7 @@ export const api = {
     throw new ApiError(504, "Quality check timed out");
   },
 
-  addReference: (token: string, body: { metadata: NormalizedMetadata; thumb: string; embeddings: number[][] }) =>
-    request<{ id: string }>("/library", { method: "POST", token, body: JSON.stringify(body) }),
+  addReference: (token: string, incidentId: string) => request<{ id: string }>("/library", { method: "POST", token, body: JSON.stringify({ incident_id: incidentId }) }),
 
   listIncidents: (token: string) => request<{ items: IncidentSummary[] }>("/incidents", { token }),
 
