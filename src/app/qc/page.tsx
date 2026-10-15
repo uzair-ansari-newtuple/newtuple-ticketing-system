@@ -3,6 +3,7 @@
 import { ChevronRight, Loader2, PackageSearch, RefreshCw, Truck } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useEffect, useRef } from "react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/app-shell";
 import { Reveal, StaggerList, StaggerListItem } from "@/components/motion";
@@ -14,6 +15,7 @@ import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { percentDone } from "@/lib/qc/progress";
 import { useQcMutations, useShipments } from "@/lib/qc/queries";
+import { useSession } from "@/store/session";
 import { useQcSelection } from "@/store/qc";
 
 export default function QcHomePage() {
@@ -21,16 +23,26 @@ export default function QcHomePage() {
   const { data, isLoading, isError, error, refetch } = useShipments();
   const { fetch: fetchMutation, start } = useQcMutations();
   const { selected, toggle, clear } = useQcSelection();
+  const token = useSession((s) => s.token);
   const shipments = data?.items ?? [];
+  const autoFetched = useRef(false);
 
-  async function fetchFromSource() {
+  async function fetchFromSource(quiet = false) {
     try {
       const res = await fetchMutation.mutateAsync();
-      toast.success(res.created.length ? `${res.created.length} shipments fetched` : "Already up to date");
+      if (!quiet || res.created.length) toast.success(res.created.length ? `${res.created.length} shipments fetched` : "Already up to date");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Could not fetch shipments");
     }
   }
+
+  // Fetch the POs that arrived at the DC as soon as the screen opens. Fetching only adds new ones, so it is safe each time.
+  useEffect(() => {
+    if (!token || autoFetched.current) return;
+    autoFetched.current = true;
+    void fetchFromSource(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token]);
 
   async function begin() {
     const ids = [...selected];
@@ -51,8 +63,9 @@ export default function QcHomePage() {
 
   return (
     <AppShell title="Shipments" subtitle="Choose the POs to check" area="qc" footer={footer}>
-      {isLoading ? (
-        <div className="space-y-2.5">{[0, 1, 2].map((i) => <Skeleton key={i} className="h-28 w-full rounded-2xl" />)}</div>
+      {isLoading || (shipments.length === 0 && fetchMutation.isPending) ? (
+        <div className="space-y-2.5" aria-busy="true">
+          {fetchMutation.isPending ? <p className="flex items-center gap-2 pb-1 text-sm text-muted-foreground"><Loader2 size={16} className="animate-spin" /> Fetching shipments from the DC…</p> : null}{[0, 1, 2].map((i) => <Skeleton key={i} className="h-28 w-full rounded-2xl" />)}</div>
       ) : isError ? (
         <QueryError error={error} onRetry={refetch} />
       ) : shipments.length === 0 ? (
@@ -60,9 +73,9 @@ export default function QcHomePage() {
           <span className="grid size-16 place-items-center rounded-2xl bg-primary/10 text-primary"><PackageSearch size={30} /></span>
           <div>
             <p className="font-semibold">No shipments yet</p>
-            <p className="mt-1 text-sm text-muted-foreground">Fetch the POs that arrived at the DC to begin.</p>
+            <p className="mt-1 text-sm text-muted-foreground">Nothing has arrived at the DC yet. Fetch again to check.</p>
           </div>
-          <Button size="lg" onClick={fetchFromSource} disabled={fetchMutation.isPending}>
+          <Button size="lg" onClick={() => fetchFromSource()} disabled={fetchMutation.isPending}>
             {fetchMutation.isPending ? <Loader2 className="animate-spin" /> : <RefreshCw />} Fetch POs
           </Button>
         </Reveal>
@@ -70,7 +83,7 @@ export default function QcHomePage() {
         <>
           <div className="mb-3 flex items-center justify-between">
             <p className="text-sm text-muted-foreground">{shipments.length} shipments</p>
-            <Button variant="outline" size="sm" onClick={fetchFromSource} disabled={fetchMutation.isPending}>
+            <Button variant="outline" size="sm" onClick={() => fetchFromSource()} disabled={fetchMutation.isPending}>
               {fetchMutation.isPending ? <Loader2 className="animate-spin" /> : <RefreshCw />} Fetch POs
             </Button>
           </div>

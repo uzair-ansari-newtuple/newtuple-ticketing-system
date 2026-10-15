@@ -1,4 +1,4 @@
-import { CASE_SIZE, SEED_SHIPMENTS } from "@/data/qc";
+import { BUNDLES_PER_CASE, CASE_SIZE, MDL, SEED_SHIPMENTS } from "@/data/qc";
 import { createRecord, enroll, fire, getRecord, listRecords, listTickets, putRecord, type SmRecord, type TicketListItem } from "@/lib/sm/records";
 
 export const SHIPMENT_TYPE = "shipment";
@@ -76,9 +76,9 @@ export async function fetchShipments(): Promise<{ created: string[]; existing: s
         expected_units: u.units,
         shipped_units: u.units,
         shipped_cases: Math.ceil(u.units / CASE_SIZE),
-        mdl: CASE_SIZE,
-        units_per_bundle: 1,
-        is_prepack: false,
+        mdl: MDL,
+        units_per_bundle: MDL,
+        is_prepack: true,
         retail_price: "4.99",
         suggested_retail: "4.99",
         legacy_po_id: shipment.id,
@@ -102,7 +102,8 @@ export async function fetchShipments(): Promise<{ created: string[]; existing: s
           pallet_label: `PLT-${u.sku.slice(-4)}-${i + 1}`,
           position: i + 1,
           dcqc_pallet_status: "PENDING",
-          mdl_expected: CASE_SIZE,
+          mdl_expected: MDL,
+          bundles_expected: BUNDLES_PER_CASE,
           expected_units: share,
           dcqc_partial_units: 0,
           dcqc_total_units: 0,

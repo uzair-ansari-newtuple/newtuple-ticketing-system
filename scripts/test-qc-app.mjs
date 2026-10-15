@@ -23,8 +23,8 @@ execSync("node scripts/sm-clean-qc.mjs --yes", { stdio: "pipe" });
 const startedAt = new Date(Date.now() - 2000).toISOString();
 token = (await call("/auth/login", { auth: false, body: { email: process.env.DEMO_STORE_EMAIL, password: process.env.DEMO_STORE_PASSWORD } })).b.access_token;
 
-/** Counts a pallet exactly as the PO expects: full cases of 12 plus the loose units. */
-const countPallet = (upcId, p, units = p.expected_units) => call(`/qc/upcs/${upcId}/pallets/${p.id}`, { body: { checks: ALL_CHECKS, mdl_actual: 12, full_cases_count: Math.floor(units / 12), partial_units: units % 12 } });
+/** Counts a pallet exactly as the PO expects: full cases of 4 bundles of 6, plus the loose units. */
+const countPallet = (upcId, p, units = p.expected_units) => call(`/qc/upcs/${upcId}/pallets/${p.id}`, { body: { checks: ALL_CHECKS, mdl_actual: 6, bundles_per_case: 4, full_cases_count: Math.floor(units / 24), partial_units: units % 24 } });
 
 section("Signing in and fetching shipments");
 check("the QC list needs a signed-in user", (await call("/qc/shipments", { auth: false })).s === 401);
@@ -55,8 +55,8 @@ r = await call(`/qc/upcs/${flower.id}/pallets/${u.pallets[0].id}`, { body: { mdl
 check("a bad count is refused", r.s === 422, `${r.s}`);
 r = await call(`/qc/upcs/${flower.id}/approve`, { body: {} });
 check("approving before any check is refused", r.s === 409, `${r.s} ${JSON.stringify(r.b)}`);
-r = await call(`/qc/upcs/${flower.id}/pallets/${u.pallets[0].id}`, { body: { checks: { inspect_case_opened: true }, mdl_actual: 12, full_cases_count: 3 } });
-check("a first partial check moves the UPC to IN_PROGRESS", r.s === 200 && r.b.state === "IN_PROGRESS" && r.b.pallets[0].status === "IN_PROGRESS" && r.b.pallets[0].total_units === 36, JSON.stringify(r.b)?.slice(0, 200));
+r = await call(`/qc/upcs/${flower.id}/pallets/${u.pallets[0].id}`, { body: { checks: { inspect_case_opened: true }, mdl_actual: 6, bundles_per_case: 4, full_cases_count: 1 } });
+check("a first partial check moves the UPC to IN_PROGRESS", r.s === 200 && r.b.state === "IN_PROGRESS" && r.b.pallets[0].status === "IN_PROGRESS" && r.b.pallets[0].total_units === 24, JSON.stringify(r.b)?.slice(0, 200));
 r = await countPallet(flower.id, u.pallets[0]);
 check("a full check and count completes the pallet", r.s === 200 && r.b.pallets[0].status === "COMPLETE" && r.b.received_units === 48 && r.b.labels_complete, JSON.stringify(r.b.pallets));
 check("the count matcher says it matches", r.b.count.result === "MATCH");

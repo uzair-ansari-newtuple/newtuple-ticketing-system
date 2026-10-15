@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRight, Eye, EyeOff, Loader2, ScanSearch, ShieldCheck, Ticket } from "lucide-react";
+import { ArrowRight, ClipboardCheck, Eye, EyeOff, Loader2, ScanSearch } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -12,10 +12,9 @@ import { Label } from "@/components/ui/label";
 import { api } from "@/lib/api";
 import { useSession } from "@/store/session";
 
-const FEATURES = [
-  { icon: ShieldCheck, text: "Instant image quality checks" },
-  { icon: ScanSearch, text: "Item details read from the photo" },
-  { icon: Ticket, text: "Tickets created in seconds" },
+const APPS = [
+  { icon: ClipboardCheck, title: "DC QC", text: "Check each shipment against its PO, UPC by UPC. Count pallets, photograph the goods and flag exceptions." },
+  { icon: ScanSearch, title: "Ticketing", text: "Photograph an item with a missing tag, match it to the catalog and print a new tag in seconds." },
 ];
 
 export default function LoginPage() {
@@ -59,32 +58,36 @@ export default function LoginPage() {
         <div className="relative mt-10 lg:mt-0">
           <Reveal delay={0.1}>
             <h1 className="text-3xl font-bold leading-tight tracking-tight lg:text-5xl">
-              Missing ticket?
+              Receive it right.
               <br />
-              Snap it. Sort it.
+              Tag it right.
             </h1>
+            <p className="mt-3 max-w-md text-sm text-white/75 lg:text-base">One place for the distribution center floor and the store.</p>
           </Reveal>
-          <Stagger className="mt-6">
-            <ul className="space-y-3 text-sm text-white/85">
-              {FEATURES.map(({ icon: Icon, text }) => (
-                <StaggerListItem key={text} className="flex items-center gap-3">
-                  <span className="grid size-8 place-items-center rounded-lg bg-white/15">
-                    <Icon size={16} />
+          <Stagger className="mt-8">
+            <ul className="space-y-4 text-sm text-white/85">
+              {APPS.map(({ icon: Icon, title, text }) => (
+                <StaggerListItem key={title} className="flex max-w-md items-start gap-3">
+                  <span className="mt-0.5 grid size-10 shrink-0 place-items-center rounded-xl bg-white/15">
+                    <Icon size={20} />
                   </span>
-                  {text}
+                  <span>
+                    <span className="block text-base font-semibold text-white">{title}</span>
+                    <span className="mt-0.5 block leading-relaxed text-white/75">{text}</span>
+                  </span>
                 </StaggerListItem>
               ))}
             </ul>
           </Stagger>
         </div>
-        <p className="relative mt-10 hidden text-xs text-white/50 lg:block">Demo build · all data is mocked</p>
+        <p className="relative mt-10 hidden text-xs text-white/50 lg:block">Newtuple · powered by the State Machine</p>
       </section>
 
       <section className="flex flex-1 items-center justify-center px-6 py-10">
         <Reveal delay={0.15} className="w-full max-w-sm">
           <form onSubmit={submit}>
             <h2 className="text-2xl font-bold tracking-tight">Sign in</h2>
-            <p className="mt-1 text-sm text-muted-foreground">Use the account you were given.</p>
+            <p className="mt-1 text-sm text-muted-foreground">Sign in to DC QC and Ticketing with the account you were given.</p>
 
             <div className="mt-6 space-y-2">
               <Label htmlFor="email">Email <span className="text-destructive" aria-hidden>*</span></Label>

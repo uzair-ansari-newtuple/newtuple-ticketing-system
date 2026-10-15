@@ -120,6 +120,7 @@ function palletFrom(r: { id: string; data: Record<string, unknown> }): Pallet {
     expected_units: num(d.expected_units) ?? 0,
     checks,
     mdl_expected: num(d.mdl_expected) ?? 0,
+    bundles_expected: num(d.bundles_expected) ?? 1,
     mdl_actual: num(d.mdl_actual),
     bundles_per_case: num(d.bundles_per_case),
     full_cases_count: num(d.full_cases_count),
@@ -208,7 +209,7 @@ async function begin(upc: Upc, userId: string) {
 }
 
 /** Saves one pallet's checks and counts, then updates the UPC's received units and label status from all its pallets. */
-export async function savePallet(upcId: string, palletId: string, input: { checks?: Partial<Record<CheckKey, unknown>>; mdl_actual?: unknown; bundles_per_case?: unknown; full_cases_count?: unknown; partial_units?: unknown }, userId: string): Promise<UpcDetail> {
+export async function savePallet(upcId: string, palletId: string, input: { checks?: Partial<Record<CheckKey, unknown>>; is_prepack?: unknown; mdl_actual?: unknown; bundles_per_case?: unknown; full_cases_count?: unknown; partial_units?: unknown }, userId: string): Promise<UpcDetail> {
   const { upc } = await loadUpc(upcId);
   await begin(upc, userId);
   const record = await getRecord(palletId);
@@ -222,11 +223,12 @@ export async function savePallet(upcId: string, palletId: string, input: { check
     patch[field] = value;
   }
   const merged = { ...record.data, ...patch };
-  patch.dcqc_total_units = palletTotal({ mdl_actual: num(merged.mdl_actual), full_cases_count: num(merged.full_cases_count), partial_units: num(merged.dcqc_partial_units), bundles_per_case: num(merged.bundles_per_case), units_per_bundle: upc.units_per_bundle, is_prepack: upc.is_prepack });
+  patch.dcqc_total_units = palletTotal({ mdl_actual: num(merged.mdl_actual), bundles_per_case: num(merged.bundles_per_case), full_cases_count: num(merged.full_cases_count), partial_units: num(merged.dcqc_partial_units) });
   const checked = CHECKS.every(([key]) => bool(merged[key]));
-  const counted = num(merged.mdl_actual) !== null && num(merged.full_cases_count) !== null;
+  const counted = num(merged.mdl_actual) !== null && num(merged.bundles_per_case) !== null && num(merged.full_cases_count) !== null;
   patch.dcqc_pallet_status = checked && counted ? "COMPLETE" : "IN_PROGRESS";
   await putRecord(palletId, patch);
+  if (typeof input.is_prepack === "boolean") await putRecord(upcId, { is_prepack: input.is_prepack });
 
   // The State Machine's count matcher connector adds up the pallets when the UPC is re-checked. If it is slow or down, the app runs the same check.
   const expectedTotal = (await palletsOf(upcId)).reduce((sum, p) => sum + p.total_units, 0);
@@ -236,6 +238,32 @@ export async function savePallet(upcId: string, palletId: string, input: { check
     await new Promise((r) => setTimeout(r, 500));
   }
   await matchUpcCount(upcId);
+  return getUpc(upcId);
+}
+
+/** Adds another pallet to a UPC, for goods that arrived on more pallets than the PO listed. */
+export async function addPallet(upcId: string, userId: string): Promise<UpcDetail> {
+  const { upc } = await loadUpc(upcId);
+  await begin(upc, userId);
+  const existing = await palletsOf(upcId);
+  const position = existing.reduce((max, p) => Math.max(max, p.position), 0) + 1;
+  const label = `PLT-${upc.upc_code.slice(-4)}-${position}`;
+  const pallet = await createRecord(PALLET_TYPE, {
+    identifier: label,
+    legacy_pallet_id: `${upc.po_number}-${upc.upc_code}-${position}`,
+    pallet_label: label,
+    position,
+    dcqc_pallet_status: "PENDING",
+    mdl_expected: upc.mdl,
+    bundles_expected: existing[0]?.bundles_expected ?? 1,
+    expected_units: 0,
+    dcqc_partial_units: 0,
+    dcqc_total_units: 0,
+    upc_record_id: upcId,
+    shipment_record_id: upc.shipment_id,
+    po_number: upc.po_number,
+  });
+  await putRecord(pallet.id, { record_id: pallet.id });
   return getUpc(upcId);
 }
 

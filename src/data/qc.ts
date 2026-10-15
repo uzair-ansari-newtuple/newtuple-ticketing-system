@@ -15,8 +15,10 @@ export interface SeedShipment {
 }
 
 const DC = "DC-ATL-01";
-const MDL = 12;
-export const CASE_SIZE = MDL;
+/** Units in one bundle (MDL) and bundles in a full case, as the PO says. */
+export const MDL = 6;
+export const BUNDLES_PER_CASE = 4;
+export const CASE_SIZE = MDL * BUNDLES_PER_CASE;
 
 /** Sample shipments for the demo, built from catalog products so their photos show. */
 export const SEED_SHIPMENTS: SeedShipment[] = [

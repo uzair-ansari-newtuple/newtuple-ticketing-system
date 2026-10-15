@@ -77,8 +77,9 @@ export const api = {
   qcReceipt: (token: string, id: string, body: { action: "start" | "close" | "return"; confirmation_number?: string; note?: string }) =>
     request<ShipmentDetail>(`/qc/shipments/${id}/receipt`, { method: "POST", token, body: JSON.stringify(body) }),
   qcUpc: (token: string, id: string) => request<UpcDetail>(`/qc/upcs/${id}`, { token }),
-  qcPallet: (token: string, upcId: string, palletId: string, body: { checks?: Partial<Record<CheckKey, boolean>>; mdl_actual?: number; full_cases_count?: number; partial_units?: number }) =>
+  qcPallet: (token: string, upcId: string, palletId: string, body: { checks?: Partial<Record<CheckKey, boolean>>; is_prepack?: boolean; mdl_actual?: number; bundles_per_case?: number; full_cases_count?: number; partial_units?: number }) =>
     request<UpcDetail>(`/qc/upcs/${upcId}/pallets/${palletId}`, { method: "POST", token, body: JSON.stringify(body) }),
+  qcAddPallet: (token: string, id: string) => request<UpcDetail>(`/qc/upcs/${id}/pallets`, { method: "POST", token, body: "{}" }),
   qcPhoto: (token: string, id: string, photo: string) => request<UpcDetail>(`/qc/upcs/${id}/photo`, { method: "POST", token, body: JSON.stringify({ photo }) }),
   qcApprove: (token: string, id: string) => request<UpcDetail>(`/qc/upcs/${id}/approve`, { method: "POST", token, body: "{}" }),
   qcFlag: (token: string, id: string, body: { reason: FlagReason; note: string }) => request<UpcDetail>(`/qc/upcs/${id}/flag`, { method: "POST", token, body: JSON.stringify(body) }),

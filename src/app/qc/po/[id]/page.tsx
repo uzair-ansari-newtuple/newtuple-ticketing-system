@@ -1,13 +1,13 @@
 "use client";
 
-import { CheckCircle2, ChevronRight, Loader2 } from "lucide-react";
-import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
+import { CheckCircle2, Loader2 } from "lucide-react";
+import { useParams } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/app-shell";
 import { Reveal, StaggerList, StaggerListItem } from "@/components/motion";
 import { ShipmentBadge, UpcBadge } from "@/components/qc-badges";
+import { QcWizard } from "@/components/qc-wizard";
 import { QueryError } from "@/components/query-error";
 import { SafeImg } from "@/components/safe-img";
 import { Button } from "@/components/ui/button";
@@ -20,7 +20,6 @@ import { useQcMutations, useShipment } from "@/lib/qc/queries";
 
 export default function ShipmentPage() {
   const { id } = useParams<{ id: string }>();
-  const router = useRouter();
   const { data: shipment, isLoading, isError, error, refetch } = useShipment(id);
   const { start, receipt } = useQcMutations();
   const [confirmation, setConfirmation] = useState("");
@@ -29,19 +28,15 @@ export default function ShipmentPage() {
   if (isLoading) return <AppShell title="Shipment" back="/qc" area="qc"><Skeleton className="h-40 w-full rounded-2xl" /></AppShell>;
   if (isError || !shipment) return <AppShell title="Shipment" back="/qc" area="qc"><QueryError error={error ?? new Error("Shipment not found")} onRetry={refetch} /></AppShell>;
 
+  if (shipment.state === "IN_PROGRESS") return <QcWizard shipment={shipment} />;
+
   const t = shipment.totals;
-  const inProgress = shipment.state === "IN_PROGRESS";
-  const canComplete = inProgress && t.blocking === 0;
   const fail = (e: Error) => toast.error(e.message);
 
   const footer =
     shipment.state === "CREATED" ? (
       <Button size="lg" className="h-12 w-full text-base" disabled={start.isPending} onClick={() => start.mutate([shipment.id], { onError: fail })}>
         {start.isPending ? <Loader2 className="animate-spin" /> : null} Start QC
-      </Button>
-    ) : inProgress ? (
-      <Button size="lg" className="h-12 w-full text-base" disabled={!canComplete} onClick={() => router.push(`/qc/po/${shipment.id}/complete`)}>
-        {canComplete ? "Complete QC" : `${t.blocking} UPC${t.blocking === 1 ? "" : "s"} still to approve`}
       </Button>
     ) : undefined;
 
@@ -99,12 +94,11 @@ export default function ShipmentPage() {
                     <span className="text-xs text-muted-foreground">{u.received_units ? `${u.received_units} of ${u.expected_units}` : `Expected ${u.expected_units}`}</span>
                   </div>
                 </div>
-                <ChevronRight size={18} className="shrink-0 text-muted-foreground" />
-              </div>
+                </div>
             );
             return (
               <StaggerListItem key={u.id}>
-                {shipment.state === "CREATED" ? row : <Link href={`/qc/po/${shipment.id}/upc/${u.id}`} className="block rounded-xl outline-none focus-visible:ring-3 focus-visible:ring-ring/50">{row}</Link>}
+                {row}
               </StaggerListItem>
             );
           })}

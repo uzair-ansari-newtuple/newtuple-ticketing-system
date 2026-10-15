@@ -91,6 +91,7 @@ export interface Pallet {
   expected_units: number;
   checks: Record<CheckKey, boolean>;
   mdl_expected: number;
+  bundles_expected: number;
   mdl_actual: number | null;
   bundles_per_case: number | null;
   full_cases_count: number | null;

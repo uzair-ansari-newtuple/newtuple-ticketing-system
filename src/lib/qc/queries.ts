@@ -17,9 +17,9 @@ export function useShipment(id: string) {
   return useQuery({ queryKey: ["qc-shipment", id], queryFn: () => api.qcShipment(token!, id), enabled: Boolean(token), refetchInterval: POLL_MS });
 }
 
-export function useUpc(id: string) {
+export function useUpc(id: string | null) {
   const token = useToken();
-  return useQuery({ queryKey: ["qc-upc", id], queryFn: () => api.qcUpc(token!, id), enabled: Boolean(token) });
+  return useQuery({ queryKey: ["qc-upc", id], queryFn: () => api.qcUpc(token!, id!), enabled: Boolean(token && id) });
 }
 
 export function useNotifications() {
@@ -48,6 +48,7 @@ export function useQcMutations() {
     complete: useMutation({ mutationFn: (id: string) => api.qcComplete(token, id), ...done }),
     receipt: useMutation({ mutationFn: (v: { id: string } & Parameters<typeof api.qcReceipt>[2]) => api.qcReceipt(token, v.id, v), ...done }),
     pallet: useMutation({ mutationFn: (v: { upcId: string; palletId: string } & Parameters<typeof api.qcPallet>[3]) => api.qcPallet(token, v.upcId, v.palletId, v), ...done }),
+    addPallet: useMutation({ mutationFn: (id: string) => api.qcAddPallet(token, id), ...done }),
     photo: useMutation({ mutationFn: (v: { id: string; photo: string }) => api.qcPhoto(token, v.id, v.photo), ...done }),
     approve: useMutation({ mutationFn: (id: string) => api.qcApprove(token, id), ...done }),
     flag: useMutation({ mutationFn: (v: { id: string } & Parameters<typeof api.qcFlag>[2]) => api.qcFlag(token, v.id, v), ...done }),
