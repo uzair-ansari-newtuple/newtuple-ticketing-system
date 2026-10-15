@@ -27,8 +27,3 @@ export function useIncidentImages(id: string) {
   const token = useSession((s) => s.token);
   return useQuery({ queryKey: ["incident-images", id], queryFn: () => api.getIncidentImages(token!, id), enabled: Boolean(token), staleTime: Infinity });
 }
-
-export function useResolverQueue() {
-  const token = useSession((s) => s.token);
-  return useQuery({ queryKey: ["resolver-queue"], queryFn: () => api.resolverQueue(token!), enabled: Boolean(token), refetchInterval: POLL_MS });
-}

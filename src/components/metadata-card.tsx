@@ -20,17 +20,17 @@ function Item({ icon: Icon, label, value, mono }: { icon: React.ElementType; lab
 }
 
 export function MetadataCard({ m, showLocation = true }: { m: CaptureMetadata; showLocation?: boolean }) {
-  const location = m.gps ? (showLocation ? `${m.gps.lat.toFixed(5)}, ${m.gps.lng.toFixed(5)}` : "Hidden") : "Not recorded";
+  const location = m.gps?.lat !== undefined ? (showLocation ? `${m.gps.lat.toFixed(5)}, ${m.gps.lng.toFixed(5)}` : "Hidden") : "Not recorded";
   return (
-    <Stagger key={m.sha256} className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+    <Stagger key={m.sha256 ?? "capture"} className="grid grid-cols-1 gap-2 sm:grid-cols-2">
       <Item icon={Camera} label="Source" value={m.source === "captured" ? "Live camera" : "Uploaded file"} />
       <Item icon={Clock} label="Captured" value={formatDateTime(m.capturedAt)} />
       <Item icon={Cpu} label="Device" value={m.device ?? "Not in EXIF"} />
-      <Item icon={Ruler} label="Dimensions" value={`${m.width} × ${m.height} px`} />
+      <Item icon={Ruler} label="Dimensions" value={m.width && m.height ? `${m.width} × ${m.height} px` : "Not recorded"} />
       <Item icon={HardDrive} label="File size" value={`${formatBytes(m.originalBytes)} → ${formatBytes(m.compressedBytes)}`} />
       <Item icon={MapPin} label="Location" value={location} />
-      <Item icon={Sun} label="Sharpness · Brightness" value={`${m.blurScore.toFixed(0)} · ${m.brightness}/255`} />
-      <Item icon={Fingerprint} label="SHA-256" value={`${m.sha256.slice(0, 20)}…`} mono />
+      <Item icon={Sun} label="Sharpness · Brightness" value={typeof m.blurScore === "number" && typeof m.brightness === "number" ? `${m.blurScore.toFixed(0)} · ${m.brightness}/255` : "Not recorded"} />
+      <Item icon={Fingerprint} label="SHA-256" value={m.sha256 ? `${m.sha256.slice(0, 20)}…` : "Not recorded"} mono />
     </Stagger>
   );
 }

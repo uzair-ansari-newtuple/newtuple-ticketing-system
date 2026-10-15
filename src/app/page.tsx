@@ -3,8 +3,6 @@
 import { Camera } from "lucide-react";
 import { motion } from "motion/react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useEffect } from "react";
 import { AppShell } from "@/components/app-shell";
 import { Reveal, StaggerList, StaggerListItem } from "@/components/motion";
 import { ListSkeleton } from "@/components/skeletons";
@@ -43,14 +41,9 @@ function TicketList({ items }: { items: IncidentSummary[] }) {
 }
 
 export default function HomePage() {
-  const router = useRouter();
   const { data, isLoading, isError, error, refetch } = useIncidents();
   const resetCapture = useCapture((s) => s.reset);
   const user = useSession((s) => s.user);
-
-  useEffect(() => {
-    if (user?.role === "resolver") router.replace("/resolver");
-  }, [user, router]);
 
   const items = data?.items ?? [];
   const attention = items.filter((t) => NEEDS_ACTION.has(t.state) && !(t.state === "RESOLVER_RESPONSE_RECEIVED" && t.resolver_decision === null)).slice(0, ATTENTION_LIMIT);

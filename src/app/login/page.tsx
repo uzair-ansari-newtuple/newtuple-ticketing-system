@@ -27,20 +27,22 @@ export default function LoginPage() {
   const [busy, setBusy] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
-  const role = useSession((s) => s.user?.role);
-
   useEffect(() => {
-    if (token) router.replace(role === "resolver" ? "/resolver" : "/");
-  }, [token, role, router]);
+    if (token) router.replace("/");
+  }, [token, router]);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setBusy(true);
     try {
       const res = await api.login(email, password);
+      if (res.user.role !== "store") {
+        toast.error("Resolvers work tickets in the State Machine, not in this app");
+        return;
+      }
       signIn(res);
       toast.success("Signed in");
-      router.replace(res.user.role === "resolver" ? "/resolver" : "/");
+      router.replace("/");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Login failed");
     } finally {

@@ -21,12 +21,11 @@ interface AppShellProps {
   subtitle?: string;
   back?: string;
   footer?: React.ReactNode;
-  role?: "store" | "resolver";
   nav?: boolean;
   children: React.ReactNode;
 }
 
-export function AppShell({ title, subtitle, back, footer, role = "store", nav = true, children }: AppShellProps) {
+export function AppShell({ title, subtitle, back, footer, nav = true, children }: AppShellProps) {
   const router = useRouter();
   const { setTheme } = useTheme();
   const token = useSession((s) => s.token);
@@ -41,10 +40,13 @@ export function AppShell({ title, subtitle, back, footer, role = "store", nav = 
   useEffect(() => {
     if (!hydrated) return;
     if (!token) router.replace("/login");
-    else if (user && user.role !== role) router.replace(user.role === "resolver" ? "/resolver" : "/");
-  }, [hydrated, token, user, role, router]);
+    else if (user && user.role !== "store") {
+      signOut();
+      router.replace("/login");
+    }
+  }, [hydrated, token, user, signOut, router]);
 
-  if (!hydrated || !token || (user && user.role !== role)) {
+  if (!hydrated || !token || (user && user.role !== "store")) {
     return (
       <div className="mx-auto w-full max-w-2xl space-y-4 px-4 pt-20">
         <Skeleton className="h-8 w-48" />
@@ -54,7 +56,7 @@ export function AppShell({ title, subtitle, back, footer, role = "store", nav = 
     );
   }
 
-  const showNav = nav && role === "store";
+  const showNav = nav;
   const initials = (user?.name ?? "?").split(/\s+/).map((w) => w[0]).join("").slice(0, 2).toUpperCase();
 
   return (
@@ -66,7 +68,7 @@ export function AppShell({ title, subtitle, back, footer, role = "store", nav = 
               <ArrowLeft />
             </Button>
           ) : null}
-          <Link href={role === "resolver" ? "/resolver" : "/"} aria-label="Home" className="flex items-center">
+          <Link href="/" aria-label="Home" className="flex items-center">
             <Logo className="h-4" />
           </Link>
           <div className="flex-1" />

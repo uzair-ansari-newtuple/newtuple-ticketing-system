@@ -36,9 +36,11 @@ const ACTIONS = {
   CAPTURED: pipelineAction("Ticketing: analyze photos", "to_image_mapped"),
   IMAGE_MAPPED: pipelineAction("Ticketing: map attributes", "to_ai_identification"),
   AI_IDENTIFICATION: pipelineAction("Ticketing: identify candidates", "ai_identification_to_new"),
-  RESOLVED: notifyAction("Ticketing: notify store"),
-  NOT_CT_MERCH: notifyAction("Ticketing: notify store"),
-  CANT_RESOLVE: notifyAction("Ticketing: notify store"),
+  NEW: notifyAction("Ticketing: sync resolver action"),
+  INPROGRESS: notifyAction("Ticketing: sync resolver action"),
+  RESOLVED: notifyAction("Ticketing: sync resolver action"),
+  NOT_CT_MERCH: notifyAction("Ticketing: sync resolver action"),
+  CANT_RESOLVE: notifyAction("Ticketing: sync resolver action"),
   NEEDS_L2: notifyAction("Ticketing: notify L2 resolvers"),
 };
 

@@ -3,7 +3,6 @@ import type {
   IncidentDetail,
   IncidentSummary,
   ItemAge,
-  ResolverDecision,
   Disposition,
   StoredImage,
   Job,
@@ -118,12 +117,6 @@ export const api = {
   printLabel: (token: string, body: { incident_id: string; printer: number; copies: number }) =>
     request<{ request_id: string; message: string }>("/label-print", { method: "POST", token, body: JSON.stringify(body) }),
 
-  resolverQueue: (token: string) => request<{ items: IncidentSummary[] }>("/resolver/queue", { token }),
-
-  resolverClaim: (token: string, id: string) => request<{ state: string }>(`/resolver/incidents/${id}/claim`, { method: "POST", token }),
-
-  resolverRespond: (token: string, id: string, body: { decision: ResolverDecision; sku?: string; comment: string }) =>
-    request<{ state: string }>(`/resolver/incidents/${id}/respond`, { method: "POST", token, body: JSON.stringify(body) }),
 
   searchProducts: (token: string, q: string) => request<{ items: NormalizedMetadata[] }>(`/products?q=${encodeURIComponent(q)}`, { token }),
 

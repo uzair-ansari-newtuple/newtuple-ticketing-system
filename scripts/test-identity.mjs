@@ -30,8 +30,6 @@ check("no token is refused", (await call(APP, "/incidents", { method: "GET" })).
 check("a made-up token is refused", (await call(APP, "/incidents", { method: "GET", headers: bearer("not.a.token") })).s === 401);
 check("the old app-signed token format is refused", (await call(APP, "/incidents", { method: "GET", headers: bearer("t1.u-112.9999999999999.abc") })).s === 401);
 check("the store user can list its tickets", (await call(APP, "/incidents", { method: "GET", headers: sh })).s === 200);
-check("the store user cannot open the resolver queue", (await call(APP, "/resolver/queue", { method: "GET", headers: sh })).s === 401);
-check("the resolver can open the resolver queue", (await call(APP, "/resolver/queue", { method: "GET", headers: rh })).s === 200);
 check("the resolver cannot create tickets", (await call(APP, "/incidents", { headers: rh, body: {} })).s === 401);
 
 console.log("\n== A store only sees its own tickets ==");
