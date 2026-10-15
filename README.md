@@ -11,6 +11,7 @@ npm install
 cp .env.example .env        # then fill in the SM_* values
 node scripts/sm-data.mjs    # file types, entity types and the catalog workflow in the State Machine
 npm run catalog             # products, photos and image vectors
+node scripts/sm-qc.mjs      # DC QC: entity types, forms, connectors and the PO, UPC line and pallet workflows
 npm run dev
 ```
 
