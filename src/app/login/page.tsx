@@ -28,7 +28,7 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
-    if (token) router.replace("/");
+    if (token) router.replace("/apps");
   }, [token, router]);
 
   async function submit(e: React.FormEvent) {
@@ -42,7 +42,7 @@ export default function LoginPage() {
       }
       signIn(res);
       toast.success("Signed in");
-      router.replace("/");
+      router.replace("/apps");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Login failed");
     } finally {

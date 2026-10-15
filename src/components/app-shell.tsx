@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, LogOut, Monitor, Moon, Sun } from "lucide-react";
+import { ArrowLeft, LayoutGrid, LogOut, Monitor, Moon, Sun } from "lucide-react";
 import { motion } from "motion/react";
 import { useTheme } from "next-themes";
 import Link from "next/link";
@@ -9,6 +9,7 @@ import { useEffect, useSyncExternalStore } from "react";
 import { EASE } from "@/components/motion";
 import { BottomNav } from "@/components/bottom-nav";
 import { Logo } from "@/components/logo";
+import { QcNav } from "@/components/qc-nav";
 import { TopLoader } from "@/components/top-loader";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -22,10 +23,13 @@ interface AppShellProps {
   back?: string;
   footer?: React.ReactNode;
   nav?: boolean;
+  area?: "tickets" | "qc" | "hub";
   children: React.ReactNode;
 }
 
-export function AppShell({ title, subtitle, back, footer, nav = true, children }: AppShellProps) {
+const HOME = { tickets: "/", qc: "/qc", hub: "/apps" } as const;
+
+export function AppShell({ title, subtitle, back, footer, nav = true, area = "tickets", children }: AppShellProps) {
   const router = useRouter();
   const { setTheme } = useTheme();
   const token = useSession((s) => s.token);
@@ -56,7 +60,7 @@ export function AppShell({ title, subtitle, back, footer, nav = true, children }
     );
   }
 
-  const showNav = nav;
+  const showNav = nav && area !== "hub";
   const initials = (user?.name ?? "?").split(/\s+/).map((w) => w[0]).join("").slice(0, 2).toUpperCase();
 
   return (
@@ -68,7 +72,7 @@ export function AppShell({ title, subtitle, back, footer, nav = true, children }
               <ArrowLeft />
             </Button>
           ) : null}
-          <Link href="/" aria-label="Home" className="flex items-center">
+          <Link href={HOME[area]} aria-label="Home" className="flex items-center">
             <Logo className="h-4" />
           </Link>
           <div className="flex-1" />
@@ -87,6 +91,7 @@ export function AppShell({ title, subtitle, back, footer, nav = true, children }
               </DropdownMenuGroup>
               <DropdownMenuSeparator />
               <DropdownMenuGroup>
+                <DropdownMenuItem onClick={() => router.push("/apps")}><LayoutGrid /> Switch workspace</DropdownMenuItem>
                 <DropdownMenuItem onClick={() => setTheme("light")}><Sun /> Light</DropdownMenuItem>
                 <DropdownMenuItem onClick={() => setTheme("dark")}><Moon /> Dark</DropdownMenuItem>
                 <DropdownMenuItem onClick={() => setTheme("system")}><Monitor /> System</DropdownMenuItem>
@@ -127,7 +132,7 @@ export function AppShell({ title, subtitle, back, footer, nav = true, children }
           <div className="mx-auto w-full max-w-2xl px-4">{footer}</div>
         </motion.div>
       ) : null}
-      {showNav ? <BottomNav /> : null}
+      {showNav ? area === "qc" ? <QcNav /> : <BottomNav /> : null}
     </div>
   );
 }
