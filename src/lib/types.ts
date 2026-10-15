@@ -4,10 +4,20 @@ export type PhotoSlot = "front" | "back" | "tag" | "label" | "other";
 
 export type UserRole = "store" | "resolver";
 
+export interface SessionUser {
+  id: string;
+  name: string;
+  email: string;
+  role: UserRole;
+  store_id: string | null;
+  store_name: string;
+}
+
 export interface LoginResponse {
   access_token: string;
+  refresh_token: string;
   token_type: "bearer";
-  user: { id: string; username: string; role: UserRole; store_id: string | null; store_name: string };
+  user: SessionUser;
 }
 
 export interface QualityHint {
