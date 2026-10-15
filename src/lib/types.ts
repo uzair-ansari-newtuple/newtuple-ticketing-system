@@ -30,8 +30,6 @@ export interface ImagePayload {
 export interface IncidentCreateBody {
   quality_check_id: string;
   images: ImagePayload[];
-  client_analysis: ClientAnalysis;
-  embeddings: number[][];
   thumb: string;
 }
 
@@ -268,4 +266,13 @@ export interface CaptureMetadata {
   userAgent: string;
   blurScore: number;
   brightness: number;
+}
+
+export interface PipelineStatus {
+  state: string;
+  step_mode: boolean;
+  stage_done: boolean;
+  next: { trigger: string; label: string } | null;
+  ready: boolean;
+  summary: { ocr_text: string; brand: string; department: string; gating_tier: string; candidate_count: number };
 }
