@@ -2,19 +2,17 @@
 
 A mobile-first PWA for missing price tags in retail apparel. An associate photographs or scans an item, the app finds the product, and prints a replacement barcode tag. Hard cases go to a resolver. Built with Next.js 16, shadcn/ui and Neon Postgres (pgvector).
 
-Everything is stored in the database: accounts, products and their photos, vector embeddings, tickets, print jobs and activity history. There is no mock state on the server.
+Everything is stored in the State Machine: accounts and roles, tickets and their photos, quality checks, and the product catalog with its photos and image vectors. The app has no database of its own.
 
 ## Run it
 
 ```bash
 npm install
-cp .env.example .env        # then fill in DATABASE_URL (pooled Neon URL) and DATABASE_URL_UNPOOLED
-npm run db:migrate          # tables + pgvector
-npm run db:seed             # accounts, 17 sample products with photos, 15 demo tickets
+cp .env.example .env        # then fill in the SM_* values
+node scripts/sm-data.mjs    # file types, entity types and the catalog workflow in the State Machine
+npm run catalog             # products, photos and image vectors
 npm run dev
 ```
-
-With the Neon CLI you can pull the variables instead: `neon env pull`.
 
 Sign in as `store112` / `store123` (store associate) or `resolver1` / `resolver123` (resolver desk).
 
@@ -22,11 +20,11 @@ Sign in as `store112` / `store123` (store associate) or `resolver1` / `resolver1
 
 1. Import the GitHub repo in Vercel.
 2. Add environment variables:
-   - `DATABASE_URL`: the **pooled** Neon connection string.
+   - the `SM_*` values from `.env.example`.
    - `AUTH_SECRET`: a long random string. It signs login tokens.
 3. Deploy. The camera and install-to-home-screen need HTTPS, which Vercel provides, so it works on a phone.
 
-Run `npm run db:migrate` and `npm run db:seed` once against the same database (from your machine) before first use.
+Run `node scripts/sm-data.mjs` and `npm run catalog` once against the same State Machine (from your machine) before first use.
 
 ## What the app does
 
@@ -49,9 +47,7 @@ The first run downloads the models (about 90 MB, cached after), so it needs inte
 
 | Command | What it does |
 | --- | --- |
-| `npm run db:migrate` | Applies `db/migrations/*.sql` in order |
-| `npm run db:seed` | Loads accounts, products from `db/seed/products.json`, their photos from `public/catalog/<SKU>.jpg`, embeddings and demo tickets |
-| `npm run db:seed -- --clear` | Removes the demo tickets only |
+| `npm run catalog` | Loads products from `data/products.json`, their photos from `public/catalog/<SKU>.jpg` and image vectors into the State Machine |
 | `python3 scripts/generate-seed-images.py` | Regenerates the sample product illustrations and price-tag images (macOS) |
 
 `public/catalog/tags/` holds sample price-tag images you can upload to try OCR and barcode reading without real tags. The product pictures are generated illustrations. To use real photos, drop `<SKU>.jpg` files into `public/catalog/` and run `npm run db:seed -- --embeddings`, and edit `db/seed/products.json` for your own products.
@@ -61,7 +57,7 @@ The first run downloads the models (about 90 MB, cached after), so it needs inte
 - `src/app` pages and API routes (`/api/mock/*`)
 - `src/components` UI (`ui/` is shadcn), bottom navigation, print panel, barcode
 - `src/lib` API client, image processing, EXIF, ML (`ml/`), business rules (`mock/flow.ts`), taxonomy
-- `db/migrations` schema, `db/seed` seed data, `scripts` seed and image generation
+- `data` product list, `scripts` State Machine setup, catalog loading and tests
 
 ## Notes
 

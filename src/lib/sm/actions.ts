@@ -1,6 +1,5 @@
-import { getPool } from "@/lib/db";
 import { getRow, saveRow } from "@/lib/mock/incidents";
-import { getProductByUpc } from "@/lib/mock/products";
+import { getProductByUpc } from "./catalog";
 import { sendLabel } from "@/lib/mock/printing";
 import { productMetadata } from "@/data/catalog";
 import { isValidGtin, normalizeGtin } from "@/lib/taxonomy";
@@ -15,7 +14,7 @@ export async function lookupGtin(rawGtin: string) {
   const gtin = normalizeGtin(rawGtin.replace(/[\s-]/g, ""));
   if (!GTIN_LENGTHS.includes(gtin.length) || !/^\d+$/.test(gtin)) return { status: 422, body: { detail: "GTIN must be 8, 12, 13 or 14 digits" } };
   if (!isValidGtin(gtin)) return { status: 422, body: { detail: "That barcode has an invalid check digit" } };
-  const product = await getProductByUpc(getPool(), gtin);
+  const product = await getProductByUpc(gtin);
   return {
     status: 200,
     body: { ok: true, found: Boolean(product), gtin, sku: product?.sku ?? "", product: product ? productMetadata(product) : null, product_json: product ? JSON.stringify(productMetadata(product)) : "" },

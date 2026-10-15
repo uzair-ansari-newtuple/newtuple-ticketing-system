@@ -2,7 +2,7 @@
 
 Run from the project root:  python3 scripts/import-products.py "/path/to/Product Images"
 The folder holds the photos and one .xlsx whose first sheet has two columns: image name and SKU/GTIN.
-Writes db/seed/products.json, public/catalog/<SKU>.jpg and a price-tag image public/catalog/tags/<SKU>-tag.jpg per product.
+Writes data/products.json, public/catalog/<SKU>.jpg and a price-tag image public/catalog/tags/<SKU>-tag.jpg per product.
 Uses macOS qlmanage and sips to convert and rasterize, so it only runs on a Mac.
 
 The spreadsheet gives only the barcode, so the rest is filled in here: the name comes from the file name,
@@ -156,10 +156,10 @@ def main(folder):
             subprocess.run(["sips", "-s", "format", "jpeg", "-s", "formatOptions", "90", src, "--out", target], check=True, capture_output=True)
         rasterize(tag_svg(p), f"public/catalog/tags/{p['sku']}-tag.jpg", 1200)
         print("imported", p["sku"], p["name"])
-    with open("db/seed/products.json", "w") as f:
+    with open("data/products.json", "w") as f:
         json.dump(products, f, indent=2)
         f.write("\n")
-    print(f"\n{len(products)} products written to db/seed/products.json")
+    print(f"\n{len(products)} products written to data/products.json")
     for s in skipped:
         print("skipped", s)
     mapped = {find_image(folder, n, by_stem) for n, _ in rows}

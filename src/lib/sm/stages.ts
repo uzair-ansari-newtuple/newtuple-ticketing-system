@@ -1,10 +1,9 @@
 import { timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
-import { getPool } from "@/lib/db";
 import { buildExtraction } from "@/lib/mock/extract";
 import { buildCandidates, gate } from "@/lib/mock/flow";
 import { getRow, saveRow, type IncidentRow } from "@/lib/mock/incidents";
-import { listProducts } from "@/lib/mock/products";
+import { listProducts } from "./catalog";
 import { analyzeStoredPhotos, type StoredPhoto } from "@/lib/ml/server";
 import { downloadPhoto, listPhotos } from "@/lib/sm/records";
 import type { Candidate, EscalationReason, Gating, MetadataExtraction, NormalizedMetadata, PhotoSlot } from "@/lib/types";
@@ -94,7 +93,7 @@ export async function runIdentify(id: string) {
   }
   if (!row.pipeline.identify) {
     const succeeded = row.extraction?.status === "completed";
-    const candidates: Candidate[] = succeeded ? buildCandidates(row.analysis, (row.extraction?.normalized_metadata ?? null) as NormalizedMetadata | null, await listProducts(getPool())) : [];
+    const candidates: Candidate[] = succeeded ? buildCandidates(row.analysis, (row.extraction?.normalized_metadata ?? null) as NormalizedMetadata | null, await listProducts()) : [];
     const { gating, reason } = gate(candidates, !succeeded);
     await saveRow(
       row,

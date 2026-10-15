@@ -1,9 +1,8 @@
 import { NextResponse } from "next/server";
 import { productMetadata } from "@/data/catalog";
-import { getPool } from "@/lib/db";
 import { jsonError, userFromRequest } from "@/lib/mock/http";
 import { loadRow, saveRow } from "@/lib/mock/incidents";
-import { getProductBySku } from "@/lib/mock/products";
+import { getProductBySku } from "@/lib/sm/catalog";
 import { ticketState } from "@/lib/sm/records";
 import type { ResolverDecision } from "@/lib/types";
 
@@ -27,7 +26,7 @@ export async function POST(request: Request, ctx: RouteContext<"/api/mock/resolv
 
   let recommended = null;
   if (body.decision === "RECOMMEND") {
-    const product = body.sku ? await getProductBySku(getPool(), body.sku) : null;
+    const product = body.sku ? await getProductBySku(body.sku) : null;
     if (!product) return jsonError(422, "Choose a product to recommend");
     recommended = productMetadata(product);
   } else if (!comment) {

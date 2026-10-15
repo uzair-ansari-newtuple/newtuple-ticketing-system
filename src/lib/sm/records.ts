@@ -57,8 +57,8 @@ export async function deleteRecord(id: string): Promise<void> {
   await smFetch("DELETE", `/entity-records/${id}`);
 }
 
-export async function enroll(id: string): Promise<void> {
-  await smFetch("POST", `/workflow-state-machines/${smMachine()}/enrollments`, { entity_id: id });
+export async function enroll(id: string, machine = smMachine()): Promise<void> {
+  await smFetch("POST", `/workflow-state-machines/${machine}/enrollments`, { entity_id: id });
 }
 
 export async function ticketState(id: string): Promise<{ state: string; triggers: string[] }> {
@@ -85,10 +85,11 @@ export interface TicketListItem {
 }
 
 /** Lists tickets with only the fields asked for. Equality filters on ticket fields are applied by the State Machine. */
-export async function listTickets(opts: { fields: string[]; filters?: Record<string, string>; limit?: number }): Promise<{ items: TicketListItem[]; total: number }> {
+export async function listTickets(opts: { fields: string[]; filters?: Record<string, string>; limit?: number; offset?: number; machine?: string; entityType?: string }): Promise<{ items: TicketListItem[]; total: number }> {
   const query = new URLSearchParams({
-    machine_name: smMachine(),
-    entity_type_name: smEntityType(),
+    machine_name: opts.machine ?? smMachine(),
+    entity_type_name: opts.entityType ?? smEntityType(),
+    offset: String(opts.offset ?? 0),
     fields: opts.fields.join(","),
     sort_by: "created",
     sort_dir: "desc",

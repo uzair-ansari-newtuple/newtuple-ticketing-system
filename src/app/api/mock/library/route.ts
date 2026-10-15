@@ -1,9 +1,8 @@
-import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
-import { getPool, toVector } from "@/lib/db";
 import { jsonError, userFromRequest } from "@/lib/mock/http";
 import { loadRow } from "@/lib/mock/incidents";
 import { embedImage } from "@/lib/ml/clip";
+import { addUserItem } from "@/lib/sm/catalog";
 import { downloadPhoto, listPhotos } from "@/lib/sm/records";
 
 const TEXT_SLOTS = ["tag", "label"];
@@ -23,18 +22,6 @@ export async function POST(request: Request) {
   const embeddings: number[][] = [];
   for (const f of files) embeddings.push(await embedImage(new Blob([new Uint8Array(await downloadPhoto(f.file_id))], { type: f.content_type })));
 
-  const id = randomUUID();
-  const client = await getPool().connect();
-  try {
-    await client.query("BEGIN");
-    await client.query(`INSERT INTO reference_items (id, kind, store_id, metadata, thumb) VALUES ($1, 'user', $2, $3, $4)`, [id, user.store_id, JSON.stringify(metadata), row.thumb]);
-    for (const e of embeddings) await client.query(`INSERT INTO reference_embeddings (item_id, embedding) VALUES ($1, $2::vector)`, [id, toVector(e)]);
-    await client.query("COMMIT");
-  } catch (err) {
-    await client.query("ROLLBACK");
-    throw err;
-  } finally {
-    client.release();
-  }
+  const id = await addUserItem(user.store_id, metadata, row.thumb, embeddings);
   return NextResponse.json({ id }, { status: 201 });
 }

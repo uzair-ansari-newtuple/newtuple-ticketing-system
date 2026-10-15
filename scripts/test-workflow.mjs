@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import { createHash, randomUUID } from "node:crypto";
 
 process.loadEnvFile(".env");
-const [P1, P2] = JSON.parse(readFileSync("db/seed/products.json", "utf8"));
+const [P1, P2] = JSON.parse(readFileSync("data/products.json", "utf8"));
 const DEPARTMENT = "General Merchandise";
 const BRAND_TEXT = new RegExp(P1.brand, "i");
 const APP = "http://localhost:3000/api", SM = process.env.SM_BASE_URL, MACHINE = process.env.SM_MACHINE_NAME ?? "workflow_dguyp0t8_9f7jus";

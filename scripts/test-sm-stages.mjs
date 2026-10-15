@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 
 process.loadEnvFile(".env");
-const [P1, P2] = JSON.parse(readFileSync("db/seed/products.json", "utf8"));
+const [P1, P2] = JSON.parse(readFileSync("data/products.json", "utf8"));
 const DEPARTMENT = "General Merchandise";
 const APP = "http://localhost:3000/api";
 const KEY = process.env.SM_CONNECTOR_KEY;

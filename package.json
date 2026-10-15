@@ -7,8 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "db:migrate": "node scripts/migrate.mjs",
-    "db:seed": "tsx scripts/seed.ts",
+    "catalog": "tsx scripts/sm-catalog.ts",
     "dev:api": "WARM_UP_ANALYSIS=true NEXT_DIST_DIR=.next-api next dev -p 3001",
     "dev:web": "API_ORIGIN=http://localhost:3001 next dev -p 3000"
   },
@@ -26,7 +25,6 @@
     "motion": "^14.2.0",
     "next": "16.4.0",
     "next-themes": "^0.4.6",
-    "pg": "^8.23.1",
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "shadcn": "^4.21.4",
@@ -40,7 +38,6 @@
   "devDependencies": {
     "@tailwindcss/turbopack": "^4",
     "@types/node": "^20",
-    "@types/pg": "^8.23.1",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",

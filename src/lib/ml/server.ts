@@ -1,7 +1,6 @@
 import sharp from "sharp";
 import { CLASSES, COLORS, normalizeGtin, parseTagText } from "@/lib/taxonomy";
-import { searchLibrary } from "@/lib/mock/library";
-import { getPool } from "@/lib/db";
+import { searchLibrary } from "@/lib/sm/catalog";
 import type { ClientAnalysis, PhotoSlot } from "@/lib/types";
 import { CLIP_MODEL_NAME, classifyEmbedding, embedImage, loadClip, meanEmbedding } from "./clip";
 
@@ -55,7 +54,7 @@ export async function analyzeStoredPhotos(storeId: string, photos: StoredPhoto[]
     const embeddings: number[][] = [];
     for (const photo of subjects) embeddings.push(await embedImage(toBlob(photo)));
 
-    const { matches: top, brands } = await searchLibrary(getPool(), storeId, embeddings);
+    const { matches: top, brands } = await searchLibrary(storeId, embeddings);
     const best = top[0];
     const match = best && best.similarity >= MATCH_THRESHOLD ? best : null;
 

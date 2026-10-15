@@ -3,7 +3,7 @@ process.loadEnvFile(".env");
 
 async function main() {
   const { analyzeStoredPhotos } = await import("../src/lib/ml/server");
-  const products: { sku: string; upc: string; brand: string }[] = JSON.parse(readFileSync("db/seed/products.json", "utf8"));
+  const products: { sku: string; upc: string; brand: string }[] = JSON.parse(readFileSync("data/products.json", "utf8"));
   const photo = (path: string, slot: "front" | "tag") => ({ slot, mime_type: "image/jpeg", data: readFileSync(path).toString("base64") });
   let failures = 0;
   const check = (name: string, ok: boolean, detail = "") => {
