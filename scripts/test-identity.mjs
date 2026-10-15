@@ -33,8 +33,16 @@ check("the store user can list its tickets", (await call(APP, "/incidents", { me
 check("the resolver cannot create tickets", (await call(APP, "/incidents", { headers: rh, body: {} })).s === 401);
 
 console.log("\n== A store only sees its own tickets ==");
-const mine = (await call(APP, "/incidents", { method: "GET", headers: sh })).b.items[0];
 const svc0 = (await call(SM, "/auth/login", { body: { email: E.SM_EMAIL, password: E.SM_PASSWORD } })).b.access_token;
+let mine = (await call(APP, "/incidents", { method: "GET", headers: sh })).b.items[0];
+let made = null;
+if (!mine) {
+  // The store has no tickets (they were cleared), so make one for the test to hide and show.
+  const type = (await call(SM, "/entity-types/incident", { method: "GET", headers: bearer(svc0) })).b;
+  made = (await call(SM, "/entity-records", { headers: bearer(svc0), body: { entity_type_id: type.entity_type_id, data: { identifier: `identity-test-${Date.now()}`, store_id: store.b.user.store_id, app_state: "CANDIDATES_READY" } } })).b;
+  await call(SM, `/workflow-state-machines/${E.SM_MACHINE_NAME ?? "workflow_dguyp0t8_9f7jus"}/enrollments`, { headers: bearer(svc0), body: { entity_id: made.entity_id } });
+  mine = { id: made.entity_id };
+}
 await call(SM, `/entity-records/${mine.id}`, { method: "PUT", headers: bearer(svc0), body: { data: { store_id: "ST-999" } } });
 check("a ticket from another store is hidden (404)", (await call(APP, `/incidents/${mine.id}`, { method: "GET", headers: sh })).s === 404);
 check("and does not appear in the list", !(await call(APP, "/incidents", { method: "GET", headers: sh })).b.items.some((i) => i.id === mine.id));
@@ -72,6 +80,8 @@ const moved = await login(E.DEMO_STORE_EMAIL, E.DEMO_STORE_PASSWORD);
 check("a store change in the State Machine shows at the next sign-in", moved.b?.user?.store_id === "ST-205", JSON.stringify(moved.b?.user));
 await call(SM, `/entity-records/${rec2.entity_id}`, { method: "PUT", headers: smh, body: { data: rec2.data } });
 check("and changing it back restores the original", (await login(E.DEMO_STORE_EMAIL, E.DEMO_STORE_PASSWORD)).b?.user?.store_id === "ST-112");
+
+if (made) await call(SM, `/entity-records/${made.entity_id}`, { method: "DELETE", headers: bearer(svc0) });
 
 console.log(`\nTOTAL ${total}  PASS ${total - failures}  FAIL ${failures}`);
 process.exit(failures ? 1 : 0);
