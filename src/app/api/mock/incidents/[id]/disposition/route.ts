@@ -21,7 +21,7 @@ export async function POST(request: Request, ctx: RouteContext<"/api/mock/incide
   if (row.current_state !== "RESOLVER_RESPONSE_RECEIVED" || row.resolver?.decision === "RECOMMEND") return jsonError(409, "This ticket does not need a disposition");
 
   await pool.query(`UPDATE incidents SET current_state = 'CLOSED', disposition = $2, unread_for_store = false, updated_at = now() WHERE id = $1`, [id, body.disposition]);
-  await logEvent(pool, id, "DISPOSITION", user.username, { disposition: body.disposition });
+  await logEvent(pool, id, "DISPOSITION", user.name, { disposition: body.disposition });
   mirror(id, { disposition: body.disposition === "DISCARD" ? "DISCARD_TRASH" : body.disposition, closed_at: new Date().toISOString() });
   return NextResponse.json({ state: "CLOSED", disposition: body.disposition });
 }

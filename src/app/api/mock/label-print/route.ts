@@ -12,7 +12,7 @@ export async function POST(request: Request) {
   const pool = getPool();
   const row = body?.incident_id ? await loadRow(pool, body.incident_id, user) : null;
   if (!row) return jsonError(404, "Ticket not found");
-  const result = await sendLabel(pool, row, { printer: Number(body?.printer), copies: Number(body?.copies), actor: user.username });
+  const result = await sendLabel(pool, row, { printer: Number(body?.printer), copies: Number(body?.copies), actor: user.name });
   if (!result.ok) return jsonError(result.status, result.detail);
   const { ok: _ok, ...response } = result;
   void _ok;

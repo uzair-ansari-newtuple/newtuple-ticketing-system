@@ -34,7 +34,7 @@ export async function POST(request: Request, ctx: RouteContext<"/api/mock/incide
     `UPDATE incidents SET escalation = $2, resolver = $3, item_age = $4, missing_price_tag_count = $5, current_state = 'ESCALATED', updated_at = now() WHERE id = $1`,
     [id, JSON.stringify(escalation), JSON.stringify(resolver), body.item_age, count],
   );
-  await logEvent(pool, id, "ESCALATED", user.username, { reason: body.reason, note });
+  await logEvent(pool, id, "ESCALATED", user.name, { reason: body.reason, note });
   mirror(id, { escalation_note: `${body.reason}${note ? `: ${note}` : ""}`, item_age: body.item_age, priority: body.item_age === "NEW_FREIGHT" ? "HIGH" : "LOW", resolver_lane_state: "NEW", missing_price_tag_count: count });
   return NextResponse.json({ state: "ESCALATED", escalation });
 }

@@ -12,9 +12,9 @@ export async function POST(request: Request, ctx: RouteContext<"/api/mock/resolv
   const row = await loadRow(pool, id, user);
   if (!row) return jsonError(404, "Ticket not found");
   if (row.current_state !== "ESCALATED" || row.resolver?.status !== "NEW") return jsonError(409, "This ticket was already claimed");
-  const resolver = { ...row.resolver, status: "IN_PROGRESS", claimed_by: user.username };
+  const resolver = { ...row.resolver, status: "IN_PROGRESS", claimed_by: user.id };
   await pool.query(`UPDATE incidents SET resolver = $2, current_state = 'RESOLUTION_IN_PROGRESS', updated_at = now() WHERE id = $1`, [id, JSON.stringify(resolver)]);
-  await logEvent(pool, id, "CLAIMED", user.username, {});
-  mirror(id, { resolver_id: user.id, resolver_name: user.username, resolver_lane_state: "IN_PROGRESS" }, "to_inprogress");
+  await logEvent(pool, id, "CLAIMED", user.name, {});
+  mirror(id, { resolver_id: user.id, resolver_name: user.name, resolver_lane_state: "IN_PROGRESS" }, "to_inprogress", user.id);
   return NextResponse.json({ state: "RESOLUTION_IN_PROGRESS", resolver });
 }

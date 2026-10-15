@@ -15,7 +15,7 @@ export async function POST(request: Request, ctx: RouteContext<"/api/mock/incide
   if (row.current_state !== "PRINTED") return jsonError(409, "Print the tag before confirming it was added");
 
   await pool.query(`UPDATE incidents SET current_state = 'COMPLETED', new_tag_added = true, updated_at = now() WHERE id = $1`, [id]);
-  await logEvent(pool, id, "NEW_TAG_ADDED", user.username, {});
+  await logEvent(pool, id, "NEW_TAG_ADDED", user.name, {});
   mirror(id, { new_tag_added: true, closed_at: new Date().toISOString() });
   return NextResponse.json({ state: "COMPLETED" });
 }

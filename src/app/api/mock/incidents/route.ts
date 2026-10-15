@@ -74,7 +74,7 @@ export async function POST(request: Request) {
         [incidentId, i, img.slot, img.mime_type, img.sha256, img.image_base64, JSON.stringify(img.capture)],
       );
     }
-    await logEvent(client, incidentId, "CREATED", user.username, { images: images.length });
+    await logEvent(client, incidentId, "CREATED", user.name, { images: images.length });
     await client.query("COMMIT");
   } catch (err) {
     await client.query("ROLLBACK");

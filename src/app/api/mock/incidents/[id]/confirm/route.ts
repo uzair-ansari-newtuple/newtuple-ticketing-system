@@ -35,7 +35,7 @@ export async function POST(request: Request, ctx: RouteContext<"/api/mock/incide
   }
 
   await pool.query(`UPDATE incidents SET selected = $2, current_state = 'CONFIRMED', unread_for_store = false, missing_price_tag_count = COALESCE($3, missing_price_tag_count), updated_at = now() WHERE id = $1`, [id, JSON.stringify(selected), count]);
-  await logEvent(pool, id, "CONFIRMED", user.username, { sku: selected.sku, score: selected.score });
+  await logEvent(pool, id, "CONFIRMED", user.name, { sku: selected.sku, score: selected.score });
   mirror(id, { selected_candidate: selected.sku ?? undefined, missing_price_tag_count: count ?? undefined });
   return NextResponse.json({ state: "CONFIRMED", selected });
 }

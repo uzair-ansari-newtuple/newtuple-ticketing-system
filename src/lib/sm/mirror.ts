@@ -54,10 +54,11 @@ async function waitUntilAvailable(entityId: string, trigger: string) {
 }
 
 /** Saves the fields first and fires the trigger second, because a transition validates against saved data. */
-async function sync(incidentId: string, data: Fields, trigger?: string) {
+async function sync(incidentId: string, data: Fields, trigger?: string, assignee?: string | null) {
   const entityId = await capture(incidentId);
   if (!entityId) return;
   if (Object.keys(data).length) await smFetch("PUT", `/entity-records/${entityId}`, { data: encode(data) });
+  if (assignee !== undefined) await smFetch("PUT", `/entity-records/${entityId}/assignee`, assignee ? { assignee_id: assignee } : {});
   if (trigger) {
     await waitUntilAvailable(entityId, trigger);
     await smFetch("POST", `/entities/${entityId}/transitions`, { entity_id: entityId, trigger, idempotency_key: randomUUID(), inputs: {} });
@@ -65,7 +66,7 @@ async function sync(incidentId: string, data: Fields, trigger?: string) {
 }
 
 /** Mirrors a ticket change into the State Machine after the response is sent. A failure is logged and never reaches the user. */
-export function mirror(incidentId: string, data: Fields = {}, trigger?: string) {
+export function mirror(incidentId: string, data: Fields = {}, trigger?: string, assignee?: string | null) {
   if (!smEnabled()) return;
-  after(() => sync(incidentId, data, trigger).catch((err) => console.error(`[SM] ${incidentId}: ${err instanceof Error ? err.message : err}`)));
+  after(() => sync(incidentId, data, trigger, assignee).catch((err) => console.error(`[SM] ${incidentId}: ${err instanceof Error ? err.message : err}`)));
 }
