@@ -1,6 +1,6 @@
 # Newtuple Ticketing System
 
-A mobile-first PWA for missing price tags in retail apparel. An associate photographs or scans an item, the app finds the product, and prints a replacement barcode tag. Hard cases go to a resolver. Built with Next.js 16, shadcn/ui and Neon Postgres (pgvector).
+A mobile-first PWA for missing price tags in retail apparel. An associate photographs or scans an item, the app finds the product, and prints a replacement barcode tag. Hard cases go to a resolver. Built with Next.js 16, shadcn/ui, with the State Machine as its only data store.
 
 Everything is stored in the State Machine: accounts and roles, tickets and their photos, quality checks, and the product catalog with its photos and image vectors. The app has no database of its own.
 
@@ -50,7 +50,7 @@ The first run downloads the models (about 90 MB, cached after), so it needs inte
 | `npm run catalog` | Loads products from `data/products.json`, their photos from `public/catalog/<SKU>.jpg` and image vectors into the State Machine |
 | `python3 scripts/generate-seed-images.py` | Regenerates the sample product illustrations and price-tag images (macOS) |
 
-`public/catalog/tags/` holds sample price-tag images you can upload to try OCR and barcode reading without real tags. The product pictures are generated illustrations. To use real photos, drop `<SKU>.jpg` files into `public/catalog/` and run `npm run db:seed -- --embeddings`, and edit `db/seed/products.json` for your own products.
+`public/catalog/tags/` holds sample price-tag images you can upload to try OCR and barcode reading without real tags. The product pictures are generated illustrations. To use real photos, drop `<SKU>.jpg` files into `public/catalog/` and run `npm run catalog`, and edit `data/products.json` for your own products.
 
 ## Layout
 
