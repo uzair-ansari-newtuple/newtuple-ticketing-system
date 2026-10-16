@@ -16,7 +16,7 @@ export interface StoredPhoto {
 
 const toBlob = (p: StoredPhoto) => new Blob([Buffer.from(p.data, "base64")], { type: p.mime_type });
 
-const TESSERACT_CACHE = ".cache/tesseract";
+const TESSERACT_CACHE = process.env.VERCEL ? "/tmp/tesseract" : ".cache/tesseract";
 let ocrWorker: Promise<import("tesseract.js").Worker> | null = null;
 
 /** One worker is reused across photos, and its language file is cached on disk so it is downloaded only once. */
