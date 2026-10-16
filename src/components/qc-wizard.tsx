@@ -42,16 +42,6 @@ function InfoHint({ text, label }: { text: string; label: string }) {
   );
 }
 
-function NumberField({ label, value, onChange, disabled, hint, big }: { label: string; value: string; onChange: (v: string) => void; disabled?: boolean; hint?: string; big?: boolean }) {
-  return (
-    <label className="block">
-      <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</span>
-      <input inputMode="numeric" value={value} disabled={disabled} placeholder="0" onChange={(e) => onChange(digits(e.target.value))} className={`mt-1 w-full rounded-xl border bg-background text-center font-semibold outline-none focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-60 ${big ? "h-14 text-2xl" : "h-12 text-lg"}`} />
-      {hint ? <span className="mt-1 block text-xs text-muted-foreground">{hint}</span> : null}
-    </label>
-  );
-}
-
 function StepTabs({ step, unlocked, onGo, onBack }: { step: Step; unlocked: boolean; onGo: (s: Step) => void; onBack: () => void }) {
   return (
     <div className="flex items-center gap-2">
@@ -76,7 +66,7 @@ function StepTabs({ step, unlocked, onGo, onBack }: { step: Step; unlocked: bool
 function UpcBar({ upc, index, total, pallet }: { upc: UpcDetail; index: number; total: number; pallet: Pallet | null }) {
   return (
     <div className="grid grid-cols-2 gap-3 rounded-2xl bg-primary p-3.5 text-primary-foreground shadow-lg shadow-primary/20 sm:grid-cols-[1.3fr_1fr_1.4fr]">
-      <div className="min-w-0"><p className="text-[10px] font-semibold uppercase tracking-wider opacity-70">Current UPC</p><p className="truncate font-mono text-sm font-bold">{upc.upc_code} <span className="font-sans text-[11px] font-normal opacity-70">{index} of {total}</span></p></div>
+      <div className="min-w-0"><p className="text-[10px] font-semibold uppercase tracking-wider opacity-70">Current UPC</p><p className="truncate font-mono text-sm font-bold">{upc.upc_code}</p><p className="text-[11px] opacity-70">UPC {index} of {total}</p></div>
       <div className="min-w-0"><p className="text-[10px] font-semibold uppercase tracking-wider opacity-70">Pallet</p><p className="truncate text-sm font-bold">{pallet ? `Pallet ${pallet.position}` : "-"}</p></div>
       <div className="col-span-2 min-w-0 sm:col-span-1"><p className="text-[10px] font-semibold uppercase tracking-wider opacity-70">Style / Colour</p><p className="truncate text-sm font-bold">{upc.style_number} · {upc.color_name}</p><p className="truncate text-[11px] opacity-70">{upc.description}</p></div>
     </div>
@@ -307,81 +297,93 @@ function StepProduct({ upc, pallet, bundled, setBundled, checks, setChecks, edit
 // ------------------------------------------------------------------ step 3
 
 const EXPLAIN = {
-  mdl: "MDL is how many units are in one bundle. It is filled in from the PO. Look at a bundle and count the units in it. Only change it if the real number is different.",
-  bundles: "Open one full case and count the bundles inside it. Do not count loose units here.",
-  cases: "How many full, complete cases are on this pallet. Do not include a case that is only partly filled. Put those units under loose units.",
-  loose: "Units on the pallet that are not in a full case, such as what is left in an opened or partly filled case. Add them all up. Type 0 if there are none.",
-  perCase: "How many units are in one full case. Open a case and count what is inside.",
+  mdl: "MDL is the number of units inside one bundle. The PO tells you what to expect. Pick up one bundle and count the units in it. Only change the number if what you see is different.",
+  bundles: "Open one full case and count the bundles inside it. Count bundles only, not single units.",
+  cases: "Count the cases on this pallet that are completely full. A case that is only partly filled does not go here. Put its units under loose units instead.",
+  loose: "Add up every unit that is not inside a full case, for example what is left in a case that was opened or partly filled. Type 0 if there are none.",
+  perCase: "Open one full case and count all the units inside it.",
 };
 
 type CountDraft = { mdl: string; bundles: string; cases: string; loose: string };
+
+/** One question in the count: a title, a short explanation, a number box with minus and plus, the unit, and what the PO says. */
+function CountRow({ n, title, help, info, infoLabel, value, onChange, unit, poSays, disabled, result }: { n: number; title: string; help: string; info: string; infoLabel: string; value: string; onChange: (v: string) => void; unit: string; poSays?: string; disabled: boolean; result?: { ok: boolean; text: string } | null }) {
+  const bump = (delta: number) => onChange(String(Math.max(0, (value === "" ? 0 : Number(value)) + delta)));
+  return (
+    <section className="rounded-2xl border bg-card p-4">
+      <div className="flex items-start gap-3">
+        <span className="grid size-7 shrink-0 place-items-center rounded-full bg-primary/10 text-sm font-bold text-primary">{n}</span>
+        <div className="min-w-0 flex-1">
+          <h3 className="text-base font-semibold leading-tight">{title} <InfoHint label={infoLabel} text={info} /></h3>
+          <p className="mt-1 text-sm text-muted-foreground">{help}</p>
+
+          <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2">
+            <div className="inline-flex h-14 items-stretch overflow-hidden rounded-xl border bg-background focus-within:ring-3 focus-within:ring-ring/50">
+              <button type="button" aria-label={`One fewer: ${title}`} disabled={disabled || value === "" || value === "0"} onClick={() => bump(-1)} className="grid w-12 place-items-center text-2xl text-muted-foreground outline-none hover:bg-muted focus-visible:bg-muted disabled:opacity-40">−</button>
+              <input
+                inputMode="numeric"
+                aria-label={title}
+                value={value}
+                disabled={disabled}
+                placeholder={poSays ? `e.g. ${poSays}` : "e.g. 0"}
+                onChange={(e) => onChange(digits(e.target.value))}
+                className="w-24 border-x bg-transparent text-center text-2xl font-bold outline-none placeholder:text-base placeholder:font-normal placeholder:text-muted-foreground/60 disabled:opacity-60"
+              />
+              <button type="button" aria-label={`One more: ${title}`} disabled={disabled} onClick={() => bump(1)} className="grid w-12 place-items-center text-2xl text-primary outline-none hover:bg-muted focus-visible:bg-muted disabled:opacity-40">+</button>
+            </div>
+            <span className="text-sm font-medium text-foreground">{unit}</span>
+            {poSays ? <span className="rounded-full bg-muted px-3 py-1 text-xs font-medium text-muted-foreground">PO says {poSays}</span> : null}
+          </div>
+
+          {result ? <p className={`mt-3 w-fit max-w-full rounded-lg px-3 py-2 text-sm ${result.ok ? "bg-success/12 text-success" : "bg-warning/18 text-warning-foreground"}`}>{result.ok ? "✓ " : ""}{result.text}</p> : null}
+        </div>
+      </div>
+    </section>
+  );
+}
 
 function StepCount({ upc, pallet, bundled, draft, setDraft, editable }: { upc: UpcDetail; pallet: Pallet; bundled: boolean; draft: CountDraft; setDraft: (d: CountDraft) => void; editable: boolean }) {
   const set = (k: keyof CountDraft) => (v: string) => setDraft({ ...draft, [k]: v });
   const mdl = num(draft.mdl);
   const bundles = bundled ? num(draft.bundles) : 1;
   const perCase = (bundles ?? 0) * (mdl ?? 0);
-  const total = palletTotal({ mdl_actual: mdl, bundles_per_case: bundles, full_cases_count: num(draft.cases), partial_units: num(draft.loose) });
-  const others = upc.received_units - pallet.total_units;
-  const counted = others + total;
+  const cases = num(draft.cases);
+  const loose = num(draft.loose);
+  const total = palletTotal({ mdl_actual: mdl, bundles_per_case: bundles, full_cases_count: cases, partial_units: loose });
+  const counted = upc.received_units - pallet.total_units + total;
   const remaining = Math.max(0, upc.expected_units - counted);
-  const mdlOk = mdl !== null && mdl === pallet.mdl_expected;
+  const step = bundled ? 0 : -1;
+  const rowNo = (n: number) => n + step;
 
   return (
     <section className="rounded-2xl border bg-card p-4 shadow-sm">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <h2 className="text-xl font-bold">3. Count the units</h2>
-          <p className="mt-1 text-sm text-muted-foreground">{bundled ? "Work from top to bottom: units in one bundle, bundles in one case, full cases on the pallet, then loose units. The app adds it all up for you." : "Count the units in one case, then the full cases on the pallet, then any loose units. The app adds it all up for you."}</p>
-        </div>
-        <div className="grid shrink-0 grid-cols-2 divide-x self-start rounded-2xl border bg-primary/8 text-center">
-          <div className="px-3 py-2"><p className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">Counted on this pallet</p><p className="text-2xl font-bold text-primary">{fmt(total)}</p></div>
-          <div className="px-3 py-2"><p className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">Still to count</p><p className={`text-2xl font-bold ${remaining ? "text-warning-foreground" : "text-success"}`}>{fmt(remaining)}</p></div>
-        </div>
+      <h2 className="text-xl font-bold">3. Count the units</h2>
+      <p className="mt-1 text-sm text-muted-foreground">Answer the questions below from top to bottom. Tap the <Info size={13} className="inline text-primary" /> next to a question if you are not sure what it means. The app adds everything up for you.</p>
+
+      <div className="mt-4 space-y-3">
+        {bundled ? (
+          <>
+            <CountRow n={rowNo(1)} title="How many units are in one bundle?" help="Pick up one bundle and count the units in it." info={EXPLAIN.mdl} infoLabel="units in one bundle" value={draft.mdl} onChange={set("mdl")} unit="units" poSays={String(pallet.mdl_expected)} disabled={!editable}
+              result={mdl === null ? null : mdl === pallet.mdl_expected ? { ok: true, text: "Same as the PO. No change needed." } : { ok: false, text: `The PO says ${pallet.mdl_expected}. Check that ${mdl} is what you counted.` }} />
+            <CountRow n={rowNo(2)} title="How many bundles are in one full case?" help="Open one full case and count the bundles inside it." info={EXPLAIN.bundles} infoLabel="bundles in a case" value={draft.bundles} onChange={set("bundles")} unit="bundles" poSays={String(pallet.bundles_expected)} disabled={!editable}
+              result={bundles !== null && mdl !== null && bundles > 0 ? { ok: true, text: `One full case = ${bundles} bundles × ${mdl} units = ${perCase} units.` } : null} />
+          </>
+        ) : (
+          <CountRow n={1} title="How many units are in one full case?" help="Open one full case and count all the units inside it." info={EXPLAIN.perCase} infoLabel="units in a case" value={draft.mdl} onChange={set("mdl")} unit="units" poSays={String(pallet.mdl_expected * pallet.bundles_expected)} disabled={!editable} />
+        )}
+        <CountRow n={rowNo(3)} title="How many full cases are on this pallet?" help="Count only the cases that are completely full." info={EXPLAIN.cases} infoLabel="full cases" value={draft.cases} onChange={set("cases")} unit="cases" poSays={pallet.expected_units ? String(Math.floor(pallet.expected_units / Math.max(1, pallet.mdl_expected * pallet.bundles_expected))) : undefined} disabled={!editable} />
+        <CountRow n={rowNo(4)} title="How many loose units are there?" help="Units that are not in a full case. Type 0 if there are none." info={EXPLAIN.loose} infoLabel="loose units" value={draft.loose} onChange={set("loose")} unit="units" disabled={!editable} />
       </div>
 
-      {bundled ? (
-        <>
-          <div className="mt-4 rounded-2xl border bg-muted/30 p-3.5">
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Part 1 — Units in one bundle (MDL) <InfoHint label="MDL" text={EXPLAIN.mdl} /></p>
-            <div className="mt-2 grid grid-cols-[1fr_auto_1fr] items-end gap-2 [&_span.uppercase]:leading-tight">
-              <div><p className="text-xs text-muted-foreground">PO says</p><p className="text-3xl font-bold text-primary">{pallet.mdl_expected}</p></div>
-              <span className="pb-3 text-muted-foreground">→</span>
-              <NumberField label="Units in a bundle (change only if different)" value={draft.mdl} onChange={set("mdl")} disabled={!editable} />
-            </div>
-            {mdl !== null ? <p className={`mt-2 rounded-lg px-3 py-2 text-sm ${mdlOk ? "bg-success/12 text-success" : "bg-warning/18 text-warning-foreground"}`}>{mdlOk ? "✓ Same as the PO. No change needed." : `The PO says ${pallet.mdl_expected}. Check that ${mdl} is what you counted.`}</p> : null}
-          </div>
-
-          <div className="mt-3 rounded-2xl border p-3.5">
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Part 2 — Bundles in one full case <InfoHint label="bundles in a case" text={EXPLAIN.bundles} /></p>
-            <div className="mt-2 grid grid-cols-2 items-end gap-3 text-center sm:grid-cols-3 sm:gap-2">
-              <div className="col-span-2 sm:col-span-1"><NumberField label="Bundles counted" value={draft.bundles} onChange={set("bundles")} disabled={!editable} hint={`PO says ${pallet.bundles_expected}`} /></div>
-              <div><p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Units / bundle</p><p className="mt-3 text-lg font-semibold">{mdl ?? "-"}</p><p className="text-[11px] text-muted-foreground">(from Part 1)</p></div>
-              <div><p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Total units this case</p><p className="mt-3 text-2xl font-bold text-primary">{perCase}</p></div>
-            </div>
-            {bundles !== null && mdl !== null && bundles > 0 ? <p className="mt-2 rounded-lg bg-success/12 px-3 py-2 text-sm text-success">✓ {bundles} bundles × {mdl} units = {perCase} units for this case.</p> : null}
-          </div>
-        </>
-      ) : (
-        <div className="mt-4 rounded-2xl border p-3.5">
-          <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Part 1 — Units in one full case <InfoHint label="units per case" text={EXPLAIN.perCase} /></p>
-          <div className="mt-2 max-w-48"><NumberField label="Units counted" value={draft.mdl} onChange={set("mdl")} disabled={!editable} hint={`PO says ${pallet.mdl_expected * pallet.bundles_expected}`} /></div>
+      <div className="mt-4 rounded-2xl border-2 border-primary/30 bg-primary/5 p-4">
+        <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">This pallet adds up to</p>
+        <p className="mt-1 text-3xl font-bold text-primary">{fmt(total)} <span className="text-base font-medium text-muted-foreground">units</span></p>
+        <p className="mt-1 text-sm text-muted-foreground">{cases ?? 0} full cases × {perCase} units per case + {loose ?? 0} loose units</p>
+        <div className="mt-3 grid grid-cols-2 gap-3 border-t pt-3 text-sm">
+          <div><p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Counted on the whole UPC</p><p className="text-lg font-bold">{fmt(counted)}</p></div>
+          <div><p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Still to count (PO says {fmt(upc.expected_units)})</p><p className={`text-lg font-bold ${remaining ? "text-warning-foreground" : "text-success"}`}>{fmt(remaining)}</p></div>
         </div>
-      )}
-
-      <div className="mt-3 rounded-2xl border p-3.5">
-        <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Part 3 — Full cases on this pallet <InfoHint label="full cases" text={EXPLAIN.cases} /></p>
-        <p className="mt-1 text-xs text-muted-foreground">Enter only full cases here. A case that is not full goes under loose units.</p>
-        <div className="mt-2 max-w-48"><NumberField label="Full cases" value={draft.cases} onChange={set("cases")} disabled={!editable} /></div>
       </div>
-
-      <div className="mt-3 rounded-2xl border p-3.5">
-        <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Part 4 — Loose units (not in a full case) <InfoHint label="loose units" text={EXPLAIN.loose} /></p>
-        <p className="mt-1 text-xs text-muted-foreground">Units that are not in a full case. Type 0 if there are none.</p>
-        <div className="mt-2 max-w-48"><NumberField label="Loose units" value={draft.loose} onChange={set("loose")} disabled={!editable} /></div>
-      </div>
-
-      <p className="mt-3 rounded-xl bg-primary/8 p-3 text-sm">This pallet: {draft.cases || 0} full cases × {perCase} units per case + {draft.loose || 0} loose units = <strong>{fmt(total)}</strong> units.</p>
     </section>
   );
 }
