@@ -371,10 +371,42 @@ function StepCount({ upc, pallet, bundled, draft, setDraft, editable }: { upc: U
   const step = bundled ? 0 : -1;
   const rowNo = (n: number) => n + step;
 
+  const target = Math.max(0, upc.expected_units - (upc.received_units - pallet.total_units));
+  const fullCase = pallet.mdl_expected * pallet.bundles_expected;
+  function fill(units: number) {
+    const u = Math.max(0, units);
+    setDraft({
+      mdl: String(bundled ? pallet.mdl_expected : fullCase),
+      bundles: bundled ? String(pallet.bundles_expected) : draft.bundles,
+      cases: String(Math.floor(u / Math.max(1, fullCase))),
+      loose: String(u % Math.max(1, fullCase)),
+    });
+  }
+  const quick: [string, string, number][] = [
+    ["Matches the PO", `${fmt(target)} units`, target],
+    ["Short by 1 case", `${fmt(target - fullCase)} units`, target - fullCase],
+    ["Over by 12 units", `${fmt(target + 12)} units`, target + 12],
+  ];
+
   return (
     <section className="rounded-2xl border bg-card p-4 shadow-sm">
       <h2 className="text-xl font-bold">3. Count the units</h2>
       <p className="mt-1 text-sm text-muted-foreground">Answer the questions below from top to bottom. Tap the <Info size={13} className="inline text-primary" /> next to a question if you are not sure what it means. The app adds everything up for you.</p>
+
+      {editable ? (
+        <div className="mt-4 rounded-2xl border border-dashed border-primary/40 bg-primary/5 p-3.5">
+          <p className="text-sm font-semibold">Quick fill for a demo</p>
+          <p className="text-xs text-muted-foreground">Tap one to fill in every number below, so you do not have to work them out.</p>
+          <div className="mt-2.5 grid gap-2 sm:grid-cols-3">
+            {quick.map(([label, sub, units]) => (
+              <Button key={label} type="button" variant="outline" disabled={units <= 0} onClick={() => fill(units)} className="h-auto flex-col items-start gap-0.5 whitespace-normal py-2.5 text-left">
+                <span className="text-sm font-semibold">{label}</span>
+                <span className="text-xs font-normal text-muted-foreground">{sub}</span>
+              </Button>
+            ))}
+          </div>
+        </div>
+      ) : null}
 
       <div className="mt-4 space-y-3">
         {bundled ? (
