@@ -36,6 +36,13 @@ for (const [name, description] of [["shipment", "A purchase order shipment being
   }
 }
 
+// ------------------------------------------------------------------ people: the user fields are dropdowns of the real State Machine users
+// The value stored is the user's id and the label shown is their name and role. Run this script again after adding users.
+const USER_FIELDS = ["user_id", "supervisor_user_id", "resolved_by_user_id", "assigned_to_user_id"];
+const users = rows(await call("GET", "/users?limit=200", undefined, token)).filter((u) => u.is_active !== false && (u.status ?? "active") === "active" && u.email !== process.env.SM_EMAIL && u.role !== "superadmin");
+const USER_OPTIONS = { enum_values: users.map((u) => u.id), enum_labels: users.map((u) => `${u.full_name || u.email} (${u.role ?? "user"})`) };
+console.log(`user dropdown: ${users.length} users`);
+
 // ------------------------------------------------------------------ library fields, then the forms
 const LIBRARY_TYPE = { text: "text", integer: "integer", boolean: "boolean", select: "select" };
 const existing = rows(await call("GET", "/field-library/fields?limit=200", undefined, token));
@@ -44,12 +51,20 @@ const library = {};
 for (const form of FORMS) {
   for (const f of form.fields) {
     if (library[f.key]) continue;
-    const type = LIBRARY_TYPE[f.type];
+    const isUser = USER_FIELDS.includes(f.key);
+    const type = isUser ? "select" : LIBRARY_TYPE[f.type];
     if (!type) throw new Error(`Unsupported field type "${f.type}" on ${f.key}`);
-    const settings = f.enum.length ? { enum_labels: f.enum, enum_values: f.enum } : {};
+    const settings = isUser ? USER_OPTIONS : f.enum.length ? { enum_labels: f.enum, enum_values: f.enum } : {};
     let field = byKey.get(f.key);
     const current = field?.field_type ?? field?.identity?.field_type;
-    if (field && current !== type) throw new Error(`Library field "${f.key}" already exists as ${current}, but DC QC needs ${type}`);
+    if (field && isUser) {
+      const same = current === "select" && JSON.stringify(field.version?.settings?.enum_values ?? []) === JSON.stringify(settings.enum_values);
+      if (!same) {
+        const id = field.library_field_id ?? field.identity?.library_field_id ?? field.id;
+        await call("POST", `/field-library/fields/${id}/versions`, { field_type: "select", description: `DC QC: ${f.key}`, settings }, token);
+        console.log(`field updated        ${f.key}: ${current} -> select (${users.length} users)`);
+      }
+    } else if (field && current !== type) throw new Error(`Library field "${f.key}" already exists as ${current}, but DC QC needs ${type}`);
     if (!field) {
       field = await call("POST", "/field-library/fields", { name: f.key, field_key: f.key, field_type: type, description: `DC QC: ${f.key}`, settings }, token);
       console.log(`field created        ${f.key}`);
@@ -126,6 +141,11 @@ for (const wf of WORKFLOWS) {
   const definition = structuredClone(source);
   definition.machine_key = `dcqc_${wf.key}_qc`;
   for (const f of definition.entity_schema.fields) if (f.type === "float") f.type = "string";
+  for (const f of definition.entity_schema.fields) {
+    if (!USER_FIELDS.includes(f.field)) continue;
+    Object.assign(f, { type: "enum", enum_values: USER_OPTIONS.enum_values, enum_labels: USER_OPTIONS.enum_labels });
+  }
+  for (const t of definition.transitions) for (const r of t.required_fields ?? []) if (USER_FIELDS.includes(r.field)) r.type = "enum";
   if (wf.key === "upc" && !definition.transitions.some((t) => t.trigger === "count_check")) {
     definition.transitions.push({ key: "count_check", trigger: "count_check", label: "Count check", from: "IN_PROGRESS", to_state: "IN_PROGRESS", required_fields: [], guards: [], pre_transition_tasks: [], post_transition_tasks: [], auto_transition: null, description: "Re-checks the pallet counts against the PO." });
   }
