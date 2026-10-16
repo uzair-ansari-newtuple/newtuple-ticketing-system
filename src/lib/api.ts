@@ -70,6 +70,7 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 export const api = {
   demoStatus: (token: string) => request<import("@/lib/demo/reset").DemoStatus>("/demo/status", { token }),
+  demoReindex: (token: string) => request<{ model: string; updated: number; failed: string[] }>("/library/reindex", { method: "POST", token, body: "{}" }),
   demoReset: (token: string) => request<import("@/lib/demo/reset").ResetSummary>("/demo/reset", { method: "POST", token, body: "{}" }),
   qcShipments: (token: string) => request<{ items: Shipment[] }>("/qc/shipments", { token }),
   qcFetch: (token: string) => request<{ created: string[]; items: Shipment[] }>("/qc/shipments/fetch", { method: "POST", token, body: "{}" }),

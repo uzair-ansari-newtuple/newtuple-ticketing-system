@@ -2,7 +2,8 @@ import sharp from "sharp";
 import { CLASSES, COLORS, normalizeGtin, parseTagText } from "@/lib/taxonomy";
 import { searchLibrary } from "@/lib/sm/catalog";
 import type { ClientAnalysis, PhotoSlot } from "@/lib/types";
-import { CLIP_MODEL_NAME, classifyEmbedding, embedImage, loadClip, meanEmbedding } from "./clip";
+import { classifyEmbedding, embeddingModelName, embedImage, loadClip, meanEmbedding } from "./clip";
+import { jinaEnabled, jinaLabels } from "./jina";
 
 export const MATCH_THRESHOLD = 0.88;
 const TEXT_SLOTS: PhotoSlot[] = ["tag", "label"];
@@ -46,7 +47,7 @@ async function detectBarcode(buffer: Buffer): Promise<string | null> {
 
 /** Reads the photos of one ticket with CLIP and OCR and searches the catalog, producing the same analysis the browser used to send. */
 export async function analyzeStoredPhotos(storeId: string, photos: StoredPhoto[]): Promise<{ analysis: ClientAnalysis; embeddings: number[][] }> {
-  const base: ClientAnalysis = { model: CLIP_MODEL_NAME, match: null, top_matches: [], match_threshold: MATCH_THRESHOLD, classification: null, ocr: null, error: null };
+  const base: ClientAnalysis = { model: embeddingModelName(), match: null, top_matches: [], match_threshold: MATCH_THRESHOLD, classification: null, ocr: null, error: null };
   try {
     // Tag and label photos are mostly white text, so they would look alike across every item and pollute matching.
     const productPhotos = photos.filter((p) => !TEXT_SLOTS.includes(p.slot));
@@ -101,5 +102,5 @@ export async function analyzeStoredPhotos(storeId: string, photos: StoredPhoto[]
 
 /** Loads the image model and the OCR engine so the first real request does not pay for it. The State Machine gives a connector only 10 seconds. */
 export async function warmUp(): Promise<void> {
-  await Promise.all([loadClip(), getOcrWorker(), import("zxing-wasm/reader"), import("sharp")]);
+  await Promise.all([jinaEnabled() ? jinaLabels() : loadClip(), getOcrWorker(), import("zxing-wasm/reader"), import("sharp")]);
 }

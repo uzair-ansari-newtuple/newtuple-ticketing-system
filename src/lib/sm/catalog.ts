@@ -113,7 +113,8 @@ export async function searchLibrary(storeId: string, queries: number[][]): Promi
   const best = new Map<string, { entry: Entry; similarity: number }>();
   for (const q of queries) {
     const scored: { entry: Entry; similarity: number }[] = [];
-    for (const entry of visible) for (const e of entry.embeddings) scored.push({ entry, similarity: dot(q, e) });
+    // A vector made by another model has a different length and cannot be compared, so it is skipped until the catalog is rebuilt.
+    for (const entry of visible) for (const e of entry.embeddings) if (e.length === q.length) scored.push({ entry, similarity: dot(q, e) });
     scored.sort((a, b) => b.similarity - a.similarity);
     for (const hit of scored.slice(0, PER_QUERY)) {
       const current = best.get(hit.entry.id);
@@ -198,4 +199,30 @@ export async function productPhoto(sku: string): Promise<{ bytes: Buffer; mime: 
   if (!items[0]) return null;
   const { bytes } = await smDownload(`/filehandler/${items[0].file_id}/download`);
   return { bytes, mime: items[0].content_type || "image/jpeg" };
+}
+
+/** Makes every catalog and store item's image vector again with `embed`, for when the model that makes the vectors changes. */
+export async function reindexCatalog(embed: (photo: Blob) => Promise<number[]>): Promise<{ updated: number; failed: string[] }> {
+  const entries = await fetchAll();
+  let updated = 0;
+  const failed: string[] = [];
+  for (let i = 0; i < entries.length; i += 4) {
+    await Promise.all(entries.slice(i, i + 4).map(async (e) => {
+      try {
+        let photo = e.kind === "catalog" ? await productPhoto(e.sku) : null;
+        if (!photo && e.thumb.startsWith("data:")) {
+          const [head, data] = e.thumb.split(",");
+          photo = { bytes: Buffer.from(data, "base64"), mime: head.slice(5, head.indexOf(";")) || "image/jpeg" };
+        }
+        if (!photo) throw new Error("no photo to read");
+        const vector = await embed(new Blob([new Uint8Array(photo.bytes)], { type: photo.mime }));
+        await putRecord(e.id, { embeddings: JSON.stringify([vector.map((x) => Math.round(x * 1e4) / 1e4)]) });
+        updated++;
+      } catch (err) {
+        failed.push(`${e.sku}: ${err instanceof Error ? err.message : "failed"}`);
+      }
+    }));
+  }
+  invalidate();
+  return { updated, failed };
 }

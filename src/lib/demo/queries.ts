@@ -17,3 +17,8 @@ export function useDemoReset() {
     onSuccess: () => Promise.all(["demo-status", "qc-shipments", "qc-shipment", "qc-upc", "qc-flagged", "qc-notifications", "incidents"].map((key) => client.invalidateQueries({ queryKey: [key] }))),
   });
 }
+
+export function useReindex() {
+  const token = useSession((s) => s.token)!;
+  return useMutation({ mutationFn: () => api.demoReindex(token) });
+}
