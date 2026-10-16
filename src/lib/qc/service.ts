@@ -255,13 +255,9 @@ export async function savePallet(upcId: string, palletId: string, input: { check
   await putRecord(palletId, patch);
   if (typeof input.is_prepack === "boolean") await putRecord(upcId, { is_prepack: input.is_prepack });
 
-  // The State Machine's count matcher connector adds up the pallets when the UPC is re-checked. If it is slow or down, the app runs the same check.
-  const expectedTotal = (await palletsOf(upcId)).reduce((sum, p) => sum + p.total_units, 0);
+  // The count_check step lets the State Machine's count matcher connector run too, but the app does not wait for it: it adds up the pallets and
+  // sets the label status itself every time. Ticking the label boxes does not change the unit total, so waiting for the total would never notice them.
   await fire(upcId, "count_check");
-  for (let i = 0; i < 16; i++) {
-    if (num((await getRecord(upcId))?.data.dcqc_received_units) === expectedTotal) return getUpc(upcId);
-    await new Promise((r) => setTimeout(r, 500));
-  }
   await matchUpcCount(upcId);
   return getUpc(upcId);
 }
