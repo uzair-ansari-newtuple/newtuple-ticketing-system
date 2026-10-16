@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRight, ClipboardCheck, ScanSearch } from "lucide-react";
+import { ArrowRight, ClipboardCheck, RotateCcw, ScanSearch } from "lucide-react";
 import Link from "next/link";
 import { AppShell } from "@/components/app-shell";
 import { Reveal, Stagger, StaggerItem } from "@/components/motion";
@@ -69,6 +69,18 @@ export default function AppsPage() {
                 <Stat value={tickets.updates} label="New updates" tone="alert" />
               </div>
               <span className="relative mt-5 inline-flex items-center gap-2 text-sm font-semibold text-primary">Open Ticketing <ArrowRight size={16} className="transition-transform group-hover:translate-x-1" /></span>
+            </Link>
+          </Reveal>
+        </StaggerItem>
+        <StaggerItem className="md:col-span-2">
+          <Reveal delay={0.16}>
+            <Link href="/demo" className="group flex items-center gap-4 rounded-3xl border border-dashed bg-card/60 p-5 outline-none transition-colors hover:bg-card focus-visible:ring-3 focus-visible:ring-ring/50">
+              <span className="grid size-11 shrink-0 place-items-center rounded-2xl bg-muted text-foreground"><RotateCcw size={22} /></span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-lg font-bold tracking-tight">Demo cockpit</span>
+                <span className="block text-sm text-muted-foreground">Put DC QC and Ticketing back at the start before the next demo.</span>
+              </span>
+              <ArrowRight size={18} className="shrink-0 transition-transform group-hover:translate-x-1" />
             </Link>
           </Reveal>
         </StaggerItem>

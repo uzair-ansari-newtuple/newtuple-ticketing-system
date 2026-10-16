@@ -30,91 +30,120 @@ export async function recordsWhere(typeName: string, field: string, value: strin
   return (await listRecords(typeName, { search: value, limit: 100 })).filter((r) => r.data[field] === value);
 }
 
-/** Brings the sample shipments into the State Machine: the shipment, its UPCs and their pallets. */
+type SeedShipment = (typeof SEED_SHIPMENTS)[number];
+type SeedUpc = SeedShipment["upcs"][number];
+
+export const shipmentSeed = (s: SeedShipment) => {
+  const units = s.upcs.reduce((sum, u) => sum + u.units, 0);
+  return {
+    identifier: s.po_number,
+    legacy_po_id: s.po_number,
+    po_number: s.po_number,
+    shipment_number: s.shipment_number,
+    dc_id: s.dc_id,
+    vendor_code: s.vendor_code,
+    vendor_name: s.vendor_name,
+    dcqc_qc_ready: false,
+    dcqc_blocking_upc_count: s.upcs.length,
+    dcqc_evidence_revision: 0,
+    expected_units: units,
+    shipped_total_units: units,
+    expected_total_cases: s.upcs.reduce((sum, u) => sum + Math.ceil(u.units / CASE_SIZE), 0),
+    expected_pallets: s.upcs.reduce((sum, u) => sum + u.pallets, 0),
+    is_active: true,
+  };
+};
+
+export const upcSeed = (s: SeedShipment, shipmentId: string, u: SeedUpc) => ({
+  identifier: `${s.po_number}/${u.sku}`,
+  legacy_upc_id: `${s.po_number}-${u.sku}`,
+  upc_code: u.sku,
+  item_description: u.name,
+  style_number: `ST-${u.sku.slice(-4)}`,
+  color_code: "MLT",
+  color_name: "Multicolor",
+  size_label: "OS",
+  expected_units: u.units,
+  shipped_units: u.units,
+  shipped_cases: Math.ceil(u.units / CASE_SIZE),
+  mdl: MDL,
+  units_per_bundle: MDL,
+  is_prepack: true,
+  retail_price: "4.99",
+  suggested_retail: "4.99",
+  legacy_po_id: shipmentId,
+  po_number: s.po_number,
+  dc_id: s.dc_id,
+  dcqc_received_units: 0,
+  dcqc_labels_complete: false,
+  allocatable_location_confirmed: false,
+  dcqc_evidence_revision: 0,
+});
+
+async function createUpc(s: SeedShipment, shipmentId: string, u: SeedUpc): Promise<string> {
+  const upc = await createRecord(UPC_TYPE, upcSeed(s, shipmentId, u));
+  await putRecord(upc.id, { dcqc_record_id: upc.id });
+  await enroll(upc.id, machines.upc());
+  return upc.id;
+}
+
+/** Creates the pallets of a UPC that it does not have yet. The expected units are shared across the pallets, the first ones taking the larger share. */
+async function createMissingPallets(s: SeedShipment, shipmentId: string, upcId: string, u: SeedUpc): Promise<void> {
+  const have = new Set((await recordsWhere(PALLET_TYPE, "upc_record_id", upcId)).map((p) => Number(p.data.position)));
+  const base = Math.floor(u.units / u.pallets / CASE_SIZE) * CASE_SIZE;
+  await Promise.all(Array.from({ length: u.pallets }, async (_, i) => {
+    if (have.has(i + 1)) return;
+    const share = i === u.pallets - 1 ? u.units - base * (u.pallets - 1) : base;
+    const pallet = await createRecord(PALLET_TYPE, {
+      identifier: `PLT-${u.sku.slice(-4)}-${i + 1}`,
+      legacy_pallet_id: `${s.po_number}-${u.sku}-${i + 1}`,
+      pallet_label: `PLT-${u.sku.slice(-4)}-${i + 1}`,
+      position: i + 1,
+      dcqc_pallet_status: "PENDING",
+      mdl_expected: MDL,
+      bundles_expected: BUNDLES_PER_CASE,
+      expected_units: share,
+      dcqc_partial_units: 0,
+      dcqc_total_units: 0,
+      upc_record_id: upcId,
+      shipment_record_id: shipmentId,
+      po_number: s.po_number,
+    });
+    await putRecord(pallet.id, { record_id: pallet.id });
+  }));
+}
+
+/** Brings the sample shipments into the State Machine: the shipment, its UPCs and their pallets. Anything already there is kept, anything missing is added. */
 export async function fetchShipments(): Promise<{ created: string[]; existing: string[] }> {
   const created: string[] = [];
   const existing: string[] = [];
   const have = await allOf(machines.shipment(), SHIPMENT_TYPE, ["po_number"]);
-  const known = new Set(have.map((i) => String(i.fields.po_number)));
+  const known = new Map(have.map((i) => [String(i.fields.po_number), i.id]));
 
   for (const s of SEED_SHIPMENTS) {
-    if (known.has(s.po_number)) {
-      existing.push(s.po_number);
-      continue;
+    let shipmentId = known.get(s.po_number);
+    let added = false;
+    if (!shipmentId) {
+      const shipment = await createRecord(SHIPMENT_TYPE, shipmentSeed(s));
+      await putRecord(shipment.id, { record_id: shipment.id });
+      await enroll(shipment.id, machines.shipment());
+      shipmentId = shipment.id;
+      added = true;
     }
-    const units = s.upcs.reduce((sum, u) => sum + u.units, 0);
-    const shipment = await createRecord(SHIPMENT_TYPE, {
-      identifier: s.po_number,
-      legacy_po_id: s.po_number,
-      po_number: s.po_number,
-      shipment_number: s.shipment_number,
-      dc_id: s.dc_id,
-      vendor_code: s.vendor_code,
-      vendor_name: s.vendor_name,
-      dcqc_qc_ready: false,
-      dcqc_blocking_upc_count: s.upcs.length,
-      dcqc_evidence_revision: 0,
-      expected_units: units,
-      shipped_total_units: units,
-      expected_total_cases: s.upcs.reduce((sum, u) => sum + Math.ceil(u.units / CASE_SIZE), 0),
-      expected_pallets: s.upcs.reduce((sum, u) => sum + u.pallets, 0),
-      is_active: true,
-    });
-    await putRecord(shipment.id, { record_id: shipment.id });
-    await enroll(shipment.id, machines.shipment());
 
+    const upcsHere = new Map((await allOf(machines.upc(), UPC_TYPE, ["upc_code"], { po_number: s.po_number })).map((i) => [String(i.fields.upc_code), i.id]));
+    const id = shipmentId;
     await Promise.all(s.upcs.map(async (u) => {
-      const upc = await createRecord(UPC_TYPE, {
-        identifier: `${s.po_number}/${u.sku}`,
-        legacy_upc_id: `${s.po_number}-${u.sku}`,
-        upc_code: u.sku,
-        item_description: u.name,
-        style_number: `ST-${u.sku.slice(-4)}`,
-        color_code: "MLT",
-        color_name: "Multicolor",
-        size_label: "OS",
-        expected_units: u.units,
-        shipped_units: u.units,
-        shipped_cases: Math.ceil(u.units / CASE_SIZE),
-        mdl: MDL,
-        units_per_bundle: MDL,
-        is_prepack: true,
-        retail_price: "4.99",
-        suggested_retail: "4.99",
-        legacy_po_id: shipment.id,
-        po_number: s.po_number,
-        dc_id: s.dc_id,
-        dcqc_received_units: 0,
-        dcqc_labels_complete: false,
-        allocatable_location_confirmed: false,
-        dcqc_evidence_revision: 0,
-      });
-      await putRecord(upc.id, { dcqc_record_id: upc.id });
-      await enroll(upc.id, machines.upc());
-
-      // The expected units are shared across the pallets, the first pallets taking the larger share.
-      const base = Math.floor(u.units / u.pallets / CASE_SIZE) * CASE_SIZE;
-      await Promise.all(Array.from({ length: u.pallets }, async (_, i) => {
-        const share = i === u.pallets - 1 ? u.units - base * (u.pallets - 1) : base;
-        const pallet = await createRecord(PALLET_TYPE, {
-          identifier: `PLT-${u.sku.slice(-4)}-${i + 1}`,
-          legacy_pallet_id: `${s.po_number}-${u.sku}-${i + 1}`,
-          pallet_label: `PLT-${u.sku.slice(-4)}-${i + 1}`,
-          position: i + 1,
-          dcqc_pallet_status: "PENDING",
-          mdl_expected: MDL,
-          bundles_expected: BUNDLES_PER_CASE,
-          expected_units: share,
-          dcqc_partial_units: 0,
-          dcqc_total_units: 0,
-          upc_record_id: upc.id,
-          shipment_record_id: shipment.id,
-          po_number: s.po_number,
-        });
-        await putRecord(pallet.id, { record_id: pallet.id });
-      }));
+      let upcId = upcsHere.get(u.sku);
+      if (!upcId) {
+        upcId = await createUpc(s, id, u);
+        added = true;
+      }
+      const before = (await recordsWhere(PALLET_TYPE, "upc_record_id", upcId)).length;
+      await createMissingPallets(s, id, upcId, u);
+      if (before < u.pallets) added = true;
     }));
-    created.push(s.po_number);
+    (added ? created : existing).push(s.po_number);
   }
   return { created, existing };
 }

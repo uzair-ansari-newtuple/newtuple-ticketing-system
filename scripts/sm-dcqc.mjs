@@ -149,6 +149,12 @@ for (const wf of WORKFLOWS) {
   if (wf.key === "upc" && !definition.transitions.some((t) => t.trigger === "count_check")) {
     definition.transitions.push({ key: "count_check", trigger: "count_check", label: "Count check", from: "IN_PROGRESS", to_state: "IN_PROGRESS", required_fields: [], guards: [], pre_transition_tasks: [], post_transition_tasks: [], auto_transition: null, description: "Re-checks the pallet counts against the PO." });
   }
+  // The demo cockpit sends a record back to the first state from any state that is not terminal.
+  const first = definition.states.find((s) => s.tags?.includes("initial"))?.name;
+  for (const s of definition.states) {
+    if (s.name === first || s.tags?.includes("terminal") || definition.transitions.some((t) => t.trigger === "demo_reset" && t.from === s.name)) continue;
+    definition.transitions.push({ key: `${s.name.toLowerCase()}__demo_reset`, trigger: "demo_reset", label: "Reset to start", from: s.name, to_state: first, required_fields: [], guards: [], pre_transition_tasks: [], post_transition_tasks: [], auto_transition: null, description: "Demo cockpit: start this record again." });
+  }
   for (const state of definition.states) {
     delete state.id;
     state.on_state_actions = ACTIONS[wf.key][state.name] ?? [];

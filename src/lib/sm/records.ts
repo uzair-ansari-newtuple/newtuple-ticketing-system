@@ -72,6 +72,9 @@ export async function addComment(entityId: string, text: string): Promise<void> 
   }
 }
 
+/** A comment the demo cockpit leaves on a record it reset. Comments before the latest one are hidden from the app. */
+export const DEMO_RESET_MARKER = "Demo reset";
+
 export interface RecordComment {
   id: string;
   text: string;
@@ -83,7 +86,9 @@ export interface RecordComment {
 export async function listComments(entityId: string): Promise<RecordComment[]> {
   try {
     const res = await smFetch<{ comments: { id: string; text: string; author_name?: string; created_at: string }[] }>("GET", `/entities/${entityId}/comments`);
-    return res.comments.map((c) => ({ id: c.id, text: c.text, author: c.author_name ?? "", created_at: c.created_at })).sort((a, b) => a.created_at.localeCompare(b.created_at));
+    const all = res.comments.map((c) => ({ id: c.id, text: c.text, author: c.author_name ?? "", created_at: c.created_at })).sort((a, b) => a.created_at.localeCompare(b.created_at));
+    const lastReset = all.map((c) => c.text).lastIndexOf(DEMO_RESET_MARKER);
+    return lastReset === -1 ? all : all.slice(lastReset + 1);
   } catch {
     return [];
   }

@@ -114,6 +114,12 @@ if (!definition.transitions.some((t) => t.trigger === "store_to_resolved")) {
   });
 }
 
+// The demo cockpit sends a ticket back to the first state from any other state.
+for (const state of definition.states) {
+  if (state.name === "CAPTURED" || definition.transitions.some((t) => t.trigger === "demo_reset" && t.from === state.name)) continue;
+  definition.transitions.push({ key: `${state.name.toLowerCase()}__demo_reset`, trigger: "demo_reset", label: "Reset to start", from: state.name, to_state: "CAPTURED", required_fields: [], guards: [], pre_transition_tasks: [], post_transition_tasks: [], auto_transition: null, description: "Demo cockpit: start this ticket again." });
+}
+
 const draft = await call("POST", `/workflow-state-machines/${MACHINE}/draft`, {}, token);
 const rowId = draft.id ?? draft.row_id;
 await call("PUT", `/workflow-state-machines/${rowId}/draft`, { definition }, token);
