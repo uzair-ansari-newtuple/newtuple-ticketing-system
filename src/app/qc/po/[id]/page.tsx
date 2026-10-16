@@ -91,7 +91,7 @@ export default function ShipmentPage() {
                   <p className="font-mono text-xs text-muted-foreground">{u.upc_code} · {u.style_number}</p>
                   <div className="mt-1 flex items-center gap-2">
                     <UpcBadge state={u.state} />
-                    <span className="text-xs text-muted-foreground">{u.received_units ? `${u.received_units} of ${u.expected_units}` : `Expected ${u.expected_units}`}</span>
+                    <span className="text-xs text-muted-foreground">{u.received_units ? `Counted ${u.received_units} · PO says ${u.expected_units}` : `PO says ${u.expected_units} units`}</span>
                   </div>
                 </div>
                 </div>

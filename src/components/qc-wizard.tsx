@@ -175,16 +175,26 @@ function StepUpcs({ shipment, onPick, onReview }: { shipment: ShipmentDetail; on
               <button disabled={hold || skipped} onClick={() => (approved ? setReopening(reopening === u.id ? null : u.id) : onPick(u))} className={`w-full rounded-2xl border p-3.5 text-left outline-none transition-colors focus-visible:ring-3 focus-visible:ring-ring/50 ${approved ? "border-success/40 bg-success/8" : hold ? "border-destructive/30 bg-destructive/5" : u.state === "IN_PROGRESS" ? "border-warning/50 bg-warning/8" : "bg-card hover:bg-muted/40"}`}>
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
-                    <p className="font-mono text-sm font-bold">{u.upc_code}</p>
-                    <p className="truncate text-sm font-medium">{u.description}</p>
-                    <p className="text-xs text-muted-foreground">{u.color_name} · Style {u.style_number}</p>
+                    <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Product</p>
+                    <p className="truncate text-base font-bold">{u.description}</p>
                   </div>
                   <UpcBadge state={u.state} />
                 </div>
-                <div className="mt-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-xs">
-                  <span>PO: <strong>{fmt(u.expected_units)}</strong> · You counted: <strong>{fmt(u.received_units)}</strong></span>
-                  <span className="text-muted-foreground">{approved ? "Approved. Tap to send back for rework" : hold ? "Waiting for the supervisor" : skipped ? "Skipped by the supervisor" : u.state === "IN_PROGRESS" ? "Tap to continue" : "Tap to start"} <ChevronRight size={12} className="inline" /></span>
-                </div>
+                <dl className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 text-sm sm:grid-cols-4">
+                  {[
+                    ["UPC (barcode)", u.upc_code, "font-mono"],
+                    ["Colour", u.color_name, ""],
+                    ["Style", u.style_number, ""],
+                    ["Size", u.size_label, ""],
+                  ].map(([label, value, extra]) => (
+                    <div key={label} className="min-w-0"><dt className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{label}</dt><dd className={`truncate font-medium ${extra}`}>{value}</dd></div>
+                  ))}
+                </dl>
+                <dl className="mt-3 grid grid-cols-2 gap-3 rounded-xl bg-muted/50 p-2.5 text-sm">
+                  <div><dt className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Units on the PO</dt><dd className="text-lg font-bold">{fmt(u.expected_units)}</dd></div>
+                  <div><dt className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Units you counted</dt><dd className={`text-lg font-bold ${u.received_units ? (u.received_units === u.expected_units ? "text-success" : "text-destructive") : ""}`}>{fmt(u.received_units)}</dd></div>
+                </dl>
+                <p className="mt-2 flex items-center justify-end gap-1 text-xs text-muted-foreground">{approved ? "Approved. Tap to send back for rework" : hold ? "Waiting for the supervisor" : skipped ? "Skipped by the supervisor" : u.state === "IN_PROGRESS" ? "Tap to continue" : "Tap to start"} <ChevronRight size={12} /></p>
               </button>
               {reopening === u.id ? (
                 <div className="mt-2 space-y-2 rounded-xl border bg-card p-3">
