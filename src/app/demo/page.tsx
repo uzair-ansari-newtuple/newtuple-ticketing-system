@@ -26,6 +26,7 @@ function Summary({ s }: { s: ResetSummary }) {
       <p className="flex items-center gap-2 font-semibold text-success"><Check size={16} /> Demo is back at the start</p>
       <ul className="mt-2 space-y-1 text-foreground/80">
         <li>Reset in place: {plural(s.shipments.reset, "shipment")}, {plural(s.upcs.reset, "UPC")}, {plural(s.tickets.reset, "ticket")}.</li>
+        {s.tickets.deleted ? <li>Removed because they were resolved: {plural(s.tickets.deleted, "ticket")}.</li> : null}
         {recreated ? <li>Made again because they were finished: {plural(s.shipments.recreated, "shipment")}, {plural(s.upcs.recreated, "UPC")}.</li> : null}
         <li>Cleared: {plural(s.cleared.pallets, "pallet")}, {plural(s.cleared.flags, "flag")}, {plural(s.cleared.notifications, "notification")}, {plural(s.cleared.photos, "photo")}.</li>
         {s.loaded.length ? <li>Loaded sample shipments: {s.loaded.join(", ")}.</li> : null}

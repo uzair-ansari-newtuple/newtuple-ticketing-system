@@ -1,10 +1,10 @@
 import { SEED_SHIPMENTS } from "@/data/qc";
 import { allOf, fetchShipments, FLAG_TYPE, machines, NOTIFICATION_TYPE, PALLET_TYPE, QC_PHOTO_TYPE, SHIPMENT_TYPE, shipmentSeed, UPC_TYPE, upcSeed } from "@/lib/qc/sm";
 import { smFetch, smEntityType, smMachine } from "@/lib/sm/client";
-import { addComment, deleteRecord, DEMO_RESET_MARKER, fire, listRecords, putRecord } from "@/lib/sm/records";
+import { addComment, deleteRecord, DEMO_RESET_MARKER, fire, getRecord, listRecords, PHOTO_FILE_TYPE, putRecord } from "@/lib/sm/records";
 
 /** States a workflow cannot leave, so a record in one of them is deleted and made again instead of reset. */
-const TERMINAL = { shipment: ["CLOSED"], upc: ["WONT_QC"] } as const;
+const TERMINAL = { shipment: ["CLOSED"], upc: ["WONT_QC"], ticket: ["RESOLVED"] } as const;
 
 /** What the ticket workflow produces after the store has captured the photos. A reset empties these and keeps the capture. */
 const TICKET_RESULT_FIELDS = [
@@ -26,7 +26,7 @@ export interface DemoStatus {
 export interface ResetSummary {
   shipments: { reset: number; recreated: number };
   upcs: { reset: number; recreated: number };
-  tickets: { reset: number };
+  tickets: { reset: number; deleted: number };
   cleared: { pallets: number; flags: number; notifications: number; photos: number };
   loaded: string[];
   warnings: string[];
@@ -76,6 +76,18 @@ async function save(id: string, data: Record<string, unknown>, warnings: string[
   }
 }
 
+/** Empty values for every field a record has been given beyond its starting data: the schema default if there is one, otherwise nothing, zero or false to match what is stored. */
+async function blanked(id: string, schema: { field: string; default?: unknown }[], keep: string[], only?: string[]): Promise<Record<string, unknown>> {
+  const data = (await getRecord(id))?.data ?? {};
+  const empty = (key: string): unknown => {
+    const fallback = schema.find((f) => f.field === key)?.default;
+    if (fallback !== undefined && fallback !== null) return fallback;
+    const value = data[key];
+    return typeof value === "number" ? 0 : typeof value === "boolean" ? false : null;
+  };
+  return Object.fromEntries(Object.keys(data).filter((k) => !keep.includes(k) && (!only || only.includes(k))).map((k) => [k, empty(k)]));
+}
+
 async function deleteQcPhotos(upcId: string): Promise<number> {
   const files = await smFetch<{ items: { file_id: string }[] }>("POST", "/filehandler/list", { owner_entity_id: upcId, type_id: QC_PHOTO_TYPE });
   for (const f of files.items) await smFetch("DELETE", `/filehandler/${f.file_id}`);
@@ -102,34 +114,44 @@ export async function resetDemo(): Promise<ResetSummary> {
   const summary: ResetSummary = {
     shipments: { reset: 0, recreated: 0 },
     upcs: { reset: 0, recreated: 0 },
-    tickets: { reset: 0 },
+    tickets: { reset: 0, deleted: 0 },
     cleared: { pallets: 0, flags: 0, notifications: 0, photos: 0 },
     loaded: [],
     warnings: [],
   };
 
+  // 1. Records in a state the workflow cannot leave are deleted first, so everything made again below is made fresh.
+  const [firstShipments, firstUpcs] = await Promise.all([
+    allOf(machines.shipment(), SHIPMENT_TYPE, ["po_number"]),
+    allOf(machines.upc(), UPC_TYPE, ["po_number", "upc_code"]),
+  ]);
+  await inBatches(firstUpcs.filter((u) => (TERMINAL.upc as readonly string[]).includes(u.state)), 4, async (u) => {
+    summary.cleared.photos += await deleteQcPhotos(u.id);
+    await deleteRecord(u.id);
+    summary.upcs.recreated++;
+  });
+  await inBatches(firstShipments.filter((s) => (TERMINAL.shipment as readonly string[]).includes(s.state)), 4, async (s) => {
+    await deleteRecord(s.id);
+    summary.shipments.recreated++;
+  });
+
+  // 2. Pallets, flags and notifications are made again from the sample data, so they are all deleted.
+  summary.cleared.pallets = await deleteAll(PALLET_TYPE);
+  summary.cleared.flags = await deleteAll(FLAG_TYPE);
+  summary.cleared.notifications = await deleteAll(NOTIFICATION_TYPE);
+
+  // 3. Anything missing from the sample data (deleted shipments and UPCs, and all the pallets) is made again.
+  summary.loaded = (await fetchShipments()).created;
+
+  // 4. What is left, in whatever state it reached, goes back to the start in place.
   const [shipments, upcs] = await Promise.all([
     allOf(machines.shipment(), SHIPMENT_TYPE, ["po_number"]),
     allOf(machines.upc(), UPC_TYPE, ["po_number", "upc_code"]),
   ]);
   const shipmentIds = new Map(shipments.map((s) => [String(s.fields.po_number), s.id]));
-
-  // Pallets, flags and notifications are made again from the sample data, so they are all deleted first.
-  summary.cleared.pallets = await deleteAll(PALLET_TYPE);
-  summary.cleared.flags = await deleteAll(FLAG_TYPE);
-  summary.cleared.notifications = await deleteAll(NOTIFICATION_TYPE);
-
   const [shipmentSchema, upcSchema] = await Promise.all([schemaFields(machines.shipment()), schemaFields(machines.upc())]);
-  const blank = (schema: { field: string; default?: unknown }[], keep: string[]) =>
-    Object.fromEntries(schema.filter((f) => !keep.includes(f.field)).map((f) => [f.field, f.default ?? null]));
-
   await inBatches(upcs, 4, async (u) => {
     summary.cleared.photos += await deleteQcPhotos(u.id);
-    if ((TERMINAL.upc as readonly string[]).includes(u.state)) {
-      await deleteRecord(u.id);
-      summary.upcs.recreated++;
-      return;
-    }
     const seedShipment = SEED_SHIPMENTS.find((s) => s.po_number === u.fields.po_number);
     const seedUpc = seedShipment?.upcs.find((x) => x.sku === u.fields.upc_code);
     const shipmentId = shipmentIds.get(String(u.fields.po_number));
@@ -139,17 +161,12 @@ export async function resetDemo(): Promise<ResetSummary> {
     }
     if (u.state !== "PENDING") await fire(u.id, "demo_reset");
     const seed = upcSeed(seedShipment, shipmentId, seedUpc);
-    await save(u.id, { ...blank(upcSchema, [...Object.keys(seed), "record_id", "dcqc_record_id"]), ...seed }, summary.warnings);
+    await save(u.id, { ...(await blanked(u.id, upcSchema, [...Object.keys(seed), "record_id", "dcqc_record_id"])), ...seed }, summary.warnings);
     await addComment(u.id, DEMO_RESET_MARKER);
     summary.upcs.reset++;
   });
 
   await inBatches(shipments, 4, async (s) => {
-    if ((TERMINAL.shipment as readonly string[]).includes(s.state)) {
-      await deleteRecord(s.id);
-      summary.shipments.recreated++;
-      return;
-    }
     const seedShipment = SEED_SHIPMENTS.find((x) => x.po_number === s.fields.po_number);
     if (!seedShipment) {
       summary.warnings.push(`Shipment ${String(s.fields.po_number)} is not part of the sample data, so it was left as it is`);
@@ -157,7 +174,7 @@ export async function resetDemo(): Promise<ResetSummary> {
     }
     if (s.state !== "CREATED") await fire(s.id, "demo_reset");
     const seed = shipmentSeed(seedShipment);
-    await save(s.id, { ...blank(shipmentSchema, [...Object.keys(seed), "record_id", "dcqc_record_id"]), ...seed }, summary.warnings);
+    await save(s.id, { ...(await blanked(s.id, shipmentSchema, [...Object.keys(seed), "record_id", "dcqc_record_id"])), ...seed }, summary.warnings);
     await addComment(s.id, DEMO_RESET_MARKER);
     summary.shipments.reset++;
   });
@@ -165,13 +182,18 @@ export async function resetDemo(): Promise<ResetSummary> {
   // Tickets go back to Captured. What the store captured stays, what the workflow produced is emptied.
   const tickets = await allOf(smMachine(), smEntityType(), ["identifier"]);
   await inBatches(tickets, 4, async (t) => {
+    if ((TERMINAL.ticket as readonly string[]).includes(t.state)) {
+      const files = await smFetch<{ items: { file_id: string }[] }>("POST", "/filehandler/list", { owner_entity_id: t.id, type_id: PHOTO_FILE_TYPE });
+      for (const f of files.items) await smFetch("DELETE", `/filehandler/${f.file_id}`);
+      await deleteRecord(t.id);
+      summary.tickets.deleted++;
+      return;
+    }
     if (t.state !== "CAPTURED") await fire(t.id, "demo_reset");
-    await save(t.id, Object.fromEntries(TICKET_RESULT_FIELDS.map((f) => [f, null])), summary.warnings);
+    await save(t.id, await blanked(t.id, [], [], TICKET_RESULT_FIELDS), summary.warnings);
     await addComment(t.id, DEMO_RESET_MARKER);
     summary.tickets.reset++;
   });
 
-  const loaded = await fetchShipments();
-  summary.loaded = loaded.created;
   return summary;
 }

@@ -7,6 +7,7 @@ One web app, two workflows, one data store.
 | [DC QC](dc-qc.md) | Checking a shipment against its purchase order at the distribution center, UPC by UPC |
 | [Ticketing](ticketing.md) | Fixing an item that is missing its price tag, from a photo to a printed tag |
 | [DC QC demo script](dc-qc-demo-script.md) | A 10-minute walkthrough for presenting DC QC to a retailer |
+| [Demo cockpit](demo-cockpit.md) | The page that puts DC QC and Ticketing back at the start before a demo |
 
 ## How the pieces fit
 
@@ -79,6 +80,7 @@ All tests need the backend (port 3001), the screens (port 3000) and the State Ma
 | Script | What it proves |
 |---|---|
 | `node scripts/test-qc-app.mjs` | Every DC QC step, rule, connector and comment (76 checks) |
+| `node scripts/test-demo-reset.mjs` | Reset, then the same full flow again (16 checks) |
 | `node scripts/test-workflow.mjs` | The Ticketing workflow, connectors, step and auto mode (66) |
 | `node scripts/test-sm-resolver.mjs` | A resolver working a ticket inside the State Machine (25) |
 | `node scripts/test-identity.mjs` | Login, roles and store access (26) |
