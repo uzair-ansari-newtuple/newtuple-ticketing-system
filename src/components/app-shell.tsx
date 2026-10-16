@@ -4,7 +4,7 @@ import { ArrowLeft, LayoutGrid, LogOut, Monitor, Moon, Sun } from "lucide-react"
 import { motion } from "motion/react";
 import { useTheme } from "next-themes";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useSyncExternalStore } from "react";
 import { EASE } from "@/components/motion";
 import { BottomNav } from "@/components/bottom-nav";
@@ -21,6 +21,7 @@ interface AppShellProps {
   title: string;
   subtitle?: string;
   back?: string;
+  backSmart?: boolean;
   footer?: React.ReactNode;
   nav?: boolean;
   area?: "tickets" | "qc" | "hub";
@@ -29,10 +30,28 @@ interface AppShellProps {
 
 const HOME = { tickets: "/", qc: "/qc", hub: "/apps" } as const;
 
-export function AppShell({ title, subtitle, back, footer, nav = true, area = "tickets", children }: AppShellProps) {
+let previousPath: string | null = null;
+let currentPath: string | null = null;
+const NOT_A_PLACE_TO_RETURN = ["/review", "/login"];
+
+export function AppShell({ title, subtitle, back, backSmart, footer, nav = true, area = "tickets", children }: AppShellProps) {
   // The QC and home screens use the extra room on tablets and desktops; ticketing stays a phone-width column.
   const width = area === "tickets" ? "max-w-2xl" : "max-w-2xl md:max-w-4xl";
   const router = useRouter();
+  const pathname = usePathname();
+  useEffect(() => {
+    if (currentPath !== pathname) {
+      previousPath = currentPath;
+      currentPath = pathname;
+    }
+  }, [pathname]);
+  const backHref = back ?? (area === "hub" ? undefined : "/apps");
+  function goBack(e: React.MouseEvent) {
+    if (backSmart && previousPath && previousPath !== pathname && !NOT_A_PLACE_TO_RETURN.includes(previousPath)) {
+      e.preventDefault();
+      router.back();
+    }
+  }
   const { setTheme } = useTheme();
   const token = useSession((s) => s.token);
   const user = useSession((s) => s.user);
@@ -69,8 +88,8 @@ export function AppShell({ title, subtitle, back, footer, nav = true, area = "ti
     <div className={`flex min-h-dvh flex-1 flex-col ${showNav ? "pb-[calc(4rem+env(safe-area-inset-bottom))]" : ""}`}>
       <header className="sticky top-0 z-30 border-b bg-background/75 pt-[env(safe-area-inset-top)] backdrop-blur-xl">
         <div className={`mx-auto flex h-14 w-full ${width} items-center gap-2 px-4`}>
-          {back ? (
-            <Button render={<Link href={back} />} nativeButton={false} variant="ghost" size="icon" aria-label="Back" className="-ml-2">
+          {backHref ? (
+            <Button render={<Link href={backHref} onClick={goBack} />} nativeButton={false} variant="ghost" size="icon" aria-label="Back" className="-ml-2">
               <ArrowLeft />
             </Button>
           ) : null}

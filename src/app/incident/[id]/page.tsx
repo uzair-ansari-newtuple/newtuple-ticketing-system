@@ -261,6 +261,7 @@ export default function IncidentPage({ params }: { params: Promise<{ id: string 
       title={d.title.toUpperCase()}
       subtitle={`#${String(d.short_number).padStart(3, "0")} · ${timeAgo(d.created_at)}`}
       back="/inbox"
+      backSmart
       footer={<Button render={<Link href="/capture" />} nativeButton={false} size="lg" variant="outline" className="w-full"><Plus /> Capture another item</Button>}
     >
       <div className="mb-4 flex flex-wrap items-center gap-2">

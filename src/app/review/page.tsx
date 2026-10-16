@@ -100,6 +100,26 @@ export default function ReviewPage() {
     })();
   }, [token, user, photos, router, queryClient, attempt]);
 
+  // While photos are being checked and uploaded, the phone's back button is held so the work is not cut off.
+  const guard = useRef({ busy: false, incidentId: null as string | null });
+  useEffect(() => {
+    guard.current = { busy: !error && quality?.can_create_incident !== false && (stage === "quality" || stage === "create"), incidentId: incident?.id ?? null };
+  });
+  useEffect(() => {
+    window.history.pushState({ review: true }, "");
+    const onPop = () => {
+      const { busy, incidentId } = guard.current;
+      if (busy) {
+        window.history.pushState({ review: true }, "");
+        toast.message("Please wait while your photos are checked");
+        return;
+      }
+      router.replace(incidentId ? `/incident/${incidentId}` : "/capture");
+    };
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, [router]);
+
   // From here the State Machine moves the ticket. This screen only watches it and offers the next click in step mode.
   useEffect(() => {
     if (stage !== "pipeline" || !incident || !token) return;
