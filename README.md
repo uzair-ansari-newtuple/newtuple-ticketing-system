@@ -17,7 +17,7 @@ npm install
 cp .env.example .env        # then fill in the SM_* values
 node scripts/sm-data.mjs    # file types, entity types and the catalog workflow in the State Machine
 npm run catalog             # products, photos and image vectors
-node scripts/sm-dcqc.mjs    # (run it again after adding users, so the user dropdowns list them) DC QC: the shipment, UPC and pallet entities, their forms, connectors and the DCQC Shipment QC and DCQC UPC QC workflows
+node scripts/sm-dcqc.mjs    # QC photo file type, entities, forms, connectors and the DCQC Shipment QC and DCQC UPC QC workflows
 npm run dev:api             # backend on port 3001
 npm run dev:web             # screens on port 3000
 ```
