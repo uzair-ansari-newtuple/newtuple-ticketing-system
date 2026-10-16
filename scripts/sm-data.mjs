@@ -23,10 +23,15 @@ else {
 }
 
 const types = rows(await call("GET", "/entity-types?limit=200", undefined, token));
-if (types.some((t) => t.name === "quality_check")) console.log("entity type exists  quality_check");
-else {
-  await call("POST", "/entity-types", { name: "quality_check", description: "A photo quality check. Valid for 15 minutes and used once to create a ticket." }, token);
-  console.log("entity type created quality_check");
+for (const [name, description] of [
+  ["incident", "A missing-price-tag ticket"],
+  ["quality_check", "A photo quality check. Valid for 15 minutes and used once to create a ticket."],
+]) {
+  if (types.some((t) => t.name === name)) console.log(`entity type exists  ${name}`);
+  else {
+    await call("POST", "/entity-types", { name, description }, token);
+    console.log(`entity type created ${name}`);
+  }
 }
 
 if (fileTypes.some((t) => t.type_id === "product_photo")) console.log("file type exists    product_photo");

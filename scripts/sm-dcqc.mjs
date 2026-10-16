@@ -47,7 +47,11 @@ for (const [name, description] of [["shipment", "A purchase order shipment being
 // ------------------------------------------------------------------ people: the user fields are dropdowns of the real State Machine users
 // The value stored is the user's id and the label shown is their name and role. Run this script again after adding users.
 const USER_FIELDS = ["user_id", "supervisor_user_id", "resolved_by_user_id", "assigned_to_user_id"];
-const users = rows(await call("GET", "/users?limit=200", undefined, token)).filter((u) => u.is_active !== false && (u.status ?? "active") === "active" && u.email !== process.env.SM_EMAIL && u.role !== "superadmin");
+const everyone = rows(await call("GET", "/users?limit=200", undefined, token)).filter((u) => u.is_active !== false && (u.status ?? "active") === "active");
+const people = everyone.filter((u) => u.email !== process.env.SM_EMAIL && u.role !== "superadmin");
+// A State Machine that has only admins still needs a dropdown with something in it, so it falls back to everyone.
+const users = people.length ? people : everyone;
+if (!users.length) throw new Error("The State Machine has no active users, so the user dropdowns on the DC QC forms would be empty.");
 const USER_OPTIONS = { enum_values: users.map((u) => u.id), enum_labels: users.map((u) => `${u.full_name || u.email} (${u.role ?? "user"})`) };
 console.log(`user dropdown: ${users.length} users`);
 
