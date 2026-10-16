@@ -19,7 +19,7 @@ const photo = `data:image/jpeg;base64,${readFileSync("public/catalog/40041440553
 const ALL_CHECKS = Object.fromEntries(["inspect_case_opened", "inspect_style_confirmed", "inspect_color_confirmed", "inspect_upc_confirmed", "inspect_price_confirmed", "label_pallet_confirmed", "label_cases_confirmed"].map((k) => [k, true]));
 const until = async (get, ok, ms = 20000) => { const end = Date.now() + ms; let v; while (Date.now() < end) { v = await get(); if (ok(v)) return v; await sleep(700); } return v; };
 
-execSync("node scripts/sm-clean-qc.mjs --yes", { stdio: "pipe" });
+if (!process.env.KEEP_DATA) execSync("node scripts/sm-clean-qc.mjs --yes", { stdio: "pipe" });
 const startedAt = new Date(Date.now() - 2000).toISOString();
 token = (await call("/auth/login", { auth: false, body: { email: process.env.DEMO_STORE_EMAIL, password: process.env.DEMO_STORE_PASSWORD } })).b.access_token;
 
@@ -31,7 +31,7 @@ const countPallet = async (upcId, p, units = p.expected_units) => {
 
 section("Signing in and fetching shipments");
 check("the QC list needs a signed-in user", (await call("/qc/shipments", { auth: false })).s === 401);
-check("an empty State Machine gives an empty list", (await call("/qc/shipments")).b.items.length === 0);
+if (!process.env.KEEP_DATA) check("an empty State Machine gives an empty list", (await call("/qc/shipments")).b.items.length === 0);
 const fetched = await call("/qc/shipments/fetch", { body: {} });
 check("fetching brings in four shipments", fetched.s === 200 && fetched.b.items.length === 4, JSON.stringify(fetched.b)?.slice(0, 120));
 check("fetching again adds none", (await call("/qc/shipments/fetch", { body: {} })).b.created.length === 0);
