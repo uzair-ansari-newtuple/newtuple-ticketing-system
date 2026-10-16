@@ -2,7 +2,7 @@
 
 import { AlertTriangle, Camera, Check, ChevronLeft, ChevronRight, Images, ImagePlus, Info, Loader2, MessageSquare, RotateCcw } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useRef, useState, type Dispatch, type SetStateAction } from "react";
+import { useEffect, useRef, useState, type Dispatch, type SetStateAction } from "react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/app-shell";
 import { CameraSheet } from "@/components/camera-sheet";
@@ -620,6 +620,22 @@ export function QcWizard({ shipment }: { shipment: ShipmentDetail }) {
     setStep(2);
   };
   const back = () => (step === 1 ? router.push("/qc") : step === 2 ? toUpcs() : setStep((step - 1) as Step));
+
+  // In the installed app the phone's back button or swipe steps back inside the wizard instead of leaving it.
+  const latest = useRef({ back, atRoot: step === 1 });
+  useEffect(() => {
+    latest.current = { back, atRoot: step === 1 };
+  });
+  useEffect(() => {
+    window.history.pushState({ qcWizard: true }, "");
+    const onPop = () => {
+      const { back: goBack, atRoot } = latest.current;
+      goBack();
+      if (!atRoot) window.history.pushState({ qcWizard: true }, "");
+    };
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, []);
 
   return (
     <AppShell title="QC Check" subtitle="Work through each step at your own pace. You can flag an exception at any step." back="/qc" area="qc">
