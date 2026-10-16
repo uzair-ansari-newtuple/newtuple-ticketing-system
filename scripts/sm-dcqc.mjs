@@ -20,6 +20,14 @@ const rows = (x) => (Array.isArray(x) ? x : x?.items ?? []);
 const load = (name) => JSON.parse(readFileSync(`data/dcqc/${name}`, "utf8"));
 const { access_token: token } = await call("POST", "/auth/login", { email: process.env.SM_EMAIL, password: process.env.SM_PASSWORD });
 
+// QC photos use a dedicated file type. Provision it with the QC workflows so uploads work on a fresh State Machine too.
+const fileTypes = rows(await call("GET", "/config/file-types", undefined, token));
+if (fileTypes.some((fileType) => fileType.type_id === "qc_photo")) console.log("file type exists    qc_photo");
+else {
+  await call("POST", "/config/file-types", { type_id: "qc_photo", display_name: "QC photo", description: "Goods and label photos captured during DC quality checks", folder: "dc-qc-photos", allowed_extensions: [".jpg", ".jpeg", ".png"], max_size_mb: 10 }, token);
+  console.log("file type created   qc_photo");
+}
+
 const FORMS = load("forms.json");
 const WORKFLOWS = [
   { key: "shipment", file: "shipment-workflow.json", forms: ["Shipment Details", "QC Completion", "Receipt Action"] },

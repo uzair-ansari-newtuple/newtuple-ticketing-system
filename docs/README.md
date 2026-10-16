@@ -64,13 +64,13 @@ node scripts/sm-users.mjs    # roles and the first users
 node scripts/sm-setup.mjs    # Ticketing connectors
 node scripts/sm-workflow.mjs --mode step --publish   # the Ticketing workflow
 npm run catalog              # product catalog, photos and image vectors
-node scripts/sm-dcqc.mjs     # DC QC entities, forms, connectors and both workflows
+node scripts/sm-dcqc.mjs     # QC photo file type, DC QC entities, forms, connectors and both workflows
 
 npm run dev:api              # backend on port 3001
 npm run dev:web              # screens on port 3000
 ```
 
-Every setup script can be run again safely. Run `node scripts/sm-dcqc.mjs` again after adding users, so the user dropdowns on the DC QC forms list them.
+Every setup script can be run again safely. Run `node scripts/sm-dcqc.mjs` again after adding users, so the user dropdowns on the DC QC forms list them. It also ensures the `qc_photo` file type exists for uploaded product and label photos.
 
 ## Tests
 
