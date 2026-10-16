@@ -2,7 +2,7 @@ export type CaptureProfile = "PHOTO_LANE";
 export type JobStatus = "pending" | "running" | "completed" | "failed";
 export type PhotoSlot = "front" | "back" | "tag" | "label" | "other";
 
-export type UserRole = "store" | "resolver";
+export type UserRole = "store" | "resolver" | "superadmin";
 
 export interface SessionUser {
   id: string;

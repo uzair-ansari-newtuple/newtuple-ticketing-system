@@ -208,8 +208,8 @@ export function toSummary(row: IncidentRow): IncidentSummary {
   };
 }
 
-/** Stores see their own tickets. Resolvers only see tickets that were escalated. */
-const canSee = (row: IncidentRow, user: AppUser) => (user.role === "store" ? row.store_id === user.store_id : row.escalation !== null);
+/** Stores see their own tickets, resolvers see escalated tickets, and superadmins can see all tickets. */
+const canSee = (row: IncidentRow, user: AppUser) => user.role === "superadmin" || (user.role === "store" ? row.store_id === user.store_id : row.escalation !== null);
 
 /** A ticket by id, with no check on who is asking. Used by the connectors, which are not signed in as a user. */
 export async function getRow(id: string): Promise<IncidentRow | null> {
@@ -254,8 +254,17 @@ export interface ListedTicket {
 
 /** The tickets a user may see, newest activity first, read with just the fields a list needs. */
 export async function listRows(user: AppUser): Promise<ListedTicket[]> {
-  const filters: Record<string, string> = user.role === "store" ? { store_id: user.store_id ?? "" } : { escalated: "true" };
-  const { items } = await listTickets({ fields: SUMMARY_FIELDS, filters });
+  const filters: Record<string, string> = user.role === "superadmin" ? {} : user.role === "store" ? { store_id: user.store_id ?? "" } : { escalated: "true" };
+  const items: TicketListItem[] = [];
+  let offset = 0;
+  let total = Number.POSITIVE_INFINITY;
+  while (offset < total) {
+    const page = await listTickets({ fields: SUMMARY_FIELDS, filters, limit: 200, offset });
+    items.push(...page.items);
+    total = page.total;
+    if (page.items.length === 0) break;
+    offset += page.items.length;
+  }
   const toListed = (i: TicketListItem): ListedTicket => ({ row: rowFromData(i.id, i.fields, i.created_at, i.updated_at), smState: i.state });
   return items.map(toListed).sort((a, b) => b.row.updated_at.getTime() - a.row.updated_at.getTime());
 }

@@ -35,7 +35,7 @@ export default function LoginPage() {
     setBusy(true);
     try {
       const res = await api.login(email, password);
-      if (res.user.role !== "store") {
+      if (res.user.role === "resolver") {
         toast.error("Resolvers work tickets in the State Machine, not in this app");
         return;
       }

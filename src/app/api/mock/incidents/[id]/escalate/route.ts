@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { jsonError, userFromRequest } from "@/lib/mock/http";
+import { isSuperAdmin } from "@/lib/sm/identity";
 import { loadRow, saveRow } from "@/lib/mock/incidents";
 import { addComment, ticketState } from "@/lib/sm/records";
 import { parseItemCount } from "@/lib/mock/item-count";
@@ -12,7 +13,7 @@ const MAX_NOTE = 500;
 
 export async function POST(request: Request, ctx: RouteContext<"/api/mock/incidents/[id]/escalate">) {
   const user = await userFromRequest(request);
-  if (user?.role !== "store") return jsonError(401, "Could not validate credentials");
+  if (user?.role !== "store" && !isSuperAdmin(user)) return jsonError(401, "Could not validate credentials");
   const { id } = await ctx.params;
   const body = (await request.json().catch(() => null)) as { reason?: EscalationReason; note?: string; item_age?: ItemAge; missing_price_tag_count?: number } | null;
   if (!body?.reason || !REASONS.includes(body.reason)) return jsonError(422, "Choose a reason for requesting assistance");

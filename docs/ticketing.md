@@ -15,6 +15,10 @@ The flow was modelled on the CitiTrends ResolverIQ process.
 
 A store associate belongs to one **store**. The store's id and name come from a `store_assignment` record in the State Machine. An associate sees only their own store's tickets. The old resolver screens were removed from the app on purpose: resolvers work tickets in the State Machine, and the app follows along.
 
+A State Machine **Super Administrator** can sign in to the ticketing app and view or act on tickets across stores. A superadmin does not need a store assignment to sign in or view tickets. Store-bound work such as starting a new ticket or running its photo quality check uses that account's optional `store_assignment` as the default store; assign one in the ticketing State Machine if the account needs to create tickets.
+
+The browser sends the signed-in user's access token with each ticketing API request. The API validates that token before handling the request. State Machine data operations remain server-side and use the app's configured service account; the service credentials are never sent to the browser.
+
 ## The whole journey
 
 ```

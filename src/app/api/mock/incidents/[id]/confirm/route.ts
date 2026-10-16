@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { jsonError, userFromRequest } from "@/lib/mock/http";
+import { isSuperAdmin } from "@/lib/sm/identity";
 import { MIN_PRINT_SCORE } from "@/lib/mock/flow";
 import { parseItemCount } from "@/lib/mock/item-count";
 import { loadRow, saveRow } from "@/lib/mock/incidents";
@@ -8,7 +9,7 @@ import type { Candidate } from "@/lib/types";
 
 export async function POST(request: Request, ctx: RouteContext<"/api/mock/incidents/[id]/confirm">) {
   const user = await userFromRequest(request);
-  if (user?.role !== "store") return jsonError(401, "Could not validate credentials");
+  if (user?.role !== "store" && !isSuperAdmin(user)) return jsonError(401, "Could not validate credentials");
   const { id } = await ctx.params;
   const body = (await request.json().catch(() => null)) as { candidate_key?: string; acknowledged?: boolean; missing_price_tag_count?: number } | null;
   if (body?.acknowledged !== true) return jsonError(422, "Confirm that this is the right item before continuing");

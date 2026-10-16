@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { jsonError, userFromRequest } from "@/lib/mock/http";
+import { isSuperAdmin } from "@/lib/sm/identity";
 import { EMPTY_ANALYSIS, listRows, toSummary } from "@/lib/mock/incidents";
 import { consumeQuality, getQuality, releaseQuality } from "@/lib/mock/quality";
 import { smBaseUrl } from "@/lib/sm/client";
@@ -17,7 +18,7 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   const user = await userFromRequest(request);
-  if (user?.role !== "store" || !user.store_id) return jsonError(401, "Could not validate credentials");
+  if (!user || (user.role !== "store" && !isSuperAdmin(user)) || !user.store_id) return jsonError(401, "Could not validate credentials");
   const body = (await request.json().catch(() => null)) as { quality_check_id?: string; images?: ImagePayload[]; thumb?: string } | null;
   if (!body) return jsonError(422, "Invalid request");
 

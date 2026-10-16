@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server";
 import { jsonError, userFromRequest } from "@/lib/mock/http";
+import { isSuperAdmin } from "@/lib/sm/identity";
 import { loadRow } from "@/lib/mock/incidents";
 import { advancePipeline } from "@/lib/sm/pipeline";
 
 export async function POST(request: Request, ctx: RouteContext<"/api/mock/incidents/[id]/advance">) {
   const user = await userFromRequest(request);
-  if (user?.role !== "store") return jsonError(401, "Could not validate credentials");
+  if (user?.role !== "store" && !isSuperAdmin(user)) return jsonError(401, "Could not validate credentials");
   const { id } = await ctx.params;
   const body = (await request.json().catch(() => null)) as { trigger?: string } | null;
   if (!body?.trigger) return jsonError(422, "trigger is required");
