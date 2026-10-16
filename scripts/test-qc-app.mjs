@@ -23,8 +23,11 @@ execSync("node scripts/sm-clean-qc.mjs --yes", { stdio: "pipe" });
 const startedAt = new Date(Date.now() - 2000).toISOString();
 token = (await call("/auth/login", { auth: false, body: { email: process.env.DEMO_STORE_EMAIL, password: process.env.DEMO_STORE_PASSWORD } })).b.access_token;
 
-/** Counts a pallet exactly as the PO expects: full cases of 4 bundles of 6, plus the loose units. */
-const countPallet = (upcId, p, units = p.expected_units) => call(`/qc/upcs/${upcId}/pallets/${p.id}`, { body: { checks: ALL_CHECKS, mdl_actual: 6, bundles_per_case: 4, full_cases_count: Math.floor(units / 24), partial_units: units % 24 } });
+/** Counts a pallet exactly as the PO expects (full cases of 4 bundles of 6, plus loose units), after adding the label photo it needs. */
+const countPallet = async (upcId, p, units = p.expected_units) => {
+  await call(`/qc/upcs/${upcId}/photo`, { body: { photo, kind: "label", pallet_id: p.id } });
+  return call(`/qc/upcs/${upcId}/pallets/${p.id}`, { body: { checks: ALL_CHECKS, mdl_actual: 6, bundles_per_case: 4, full_cases_count: Math.floor(units / 24), partial_units: units % 24 } });
+};
 
 section("Signing in and fetching shipments");
 check("the QC list needs a signed-in user", (await call("/qc/shipments", { auth: false })).s === 401);
@@ -51,25 +54,33 @@ check("the start time is recorded by the connector", Boolean(live.started_at), J
 
 section("Check a UPC and approve it");
 let u = (await call(`/qc/upcs/${flower.id}`)).b;
-r = await call(`/qc/upcs/${flower.id}/pallets/${u.pallets[0].id}`, { body: { mdl_actual: -1 } });
-check("a bad count is refused", r.s === 422, `${r.s}`);
 r = await call(`/qc/upcs/${flower.id}/approve`, { body: {} });
 check("approving before any check is refused", r.s === 409, `${r.s} ${JSON.stringify(r.b)}`);
+r = await call(`/qc/upcs/${flower.id}/pallets/${u.pallets[0].id}`, { body: { checks: { inspect_case_opened: true } } });
+check("ticking a first check moves the UPC to IN_PROGRESS", r.s === 200 && r.b.state === "IN_PROGRESS" && r.b.pallets[0].status === "IN_PROGRESS" && r.b.pallets[0].total_units === 0, JSON.stringify(r.b)?.slice(0, 200));
+r = await call(`/qc/upcs/${flower.id}/pallets/${u.pallets[0].id}`, { body: { mdl_actual: 6, bundles_per_case: 4, full_cases_count: 1 } });
+check("a count cannot be saved before a photo is added", r.s === 409 && /photo/.test(r.b.detail), JSON.stringify(r.b));
+r = await call(`/qc/upcs/${flower.id}/photo`, { body: { photo } });
+check("a goods photo is saved with the UPC", r.s === 200 && r.b.photos.length === 1 && r.b.photos[0].kind === "goods" && r.b.photo_count === 1, `${r.s}`);
+r = await call(`/qc/upcs/${flower.id}/pallets/${u.pallets[0].id}`, { body: { mdl_actual: -1 } });
+check("a bad count is refused", r.s === 422, `${r.s}`);
 r = await call(`/qc/upcs/${flower.id}/pallets/${u.pallets[0].id}`, { body: { checks: { inspect_case_opened: true }, mdl_actual: 6, bundles_per_case: 4, full_cases_count: 1 } });
-check("a first partial check moves the UPC to IN_PROGRESS", r.s === 200 && r.b.state === "IN_PROGRESS" && r.b.pallets[0].status === "IN_PROGRESS" && r.b.pallets[0].total_units === 24, JSON.stringify(r.b)?.slice(0, 200));
+check("once there is a photo, a partial count is saved (1 case = 24 units)", r.s === 200 && r.b.pallets[0].status === "IN_PROGRESS" && r.b.pallets[0].total_units === 24, JSON.stringify(r.b)?.slice(0, 200));
 r = await countPallet(flower.id, u.pallets[0]);
 check("a full check and count completes the pallet", r.s === 200 && r.b.pallets[0].status === "COMPLETE" && r.b.received_units === 48 && r.b.labels_complete, JSON.stringify(r.b.pallets));
 check("the count matcher says it matches", r.b.count.result === "MATCH");
-r = await call(`/qc/upcs/${flower.id}/approve`, { body: {} });
-check("approving without a photo is refused", r.s === 409 && /photo/.test(r.b.detail), JSON.stringify(r.b));
-r = await call(`/qc/upcs/${flower.id}/photo`, { body: { photo } });
-check("a photo is saved with the UPC", r.s === 200 && r.b.photos.length === 1 && r.b.photo_count === 1, `${r.s}`);
 r = await call(`/qc/upcs/${flower.id}/approve`, { body: {} });
 check("the UPC is approved", r.s === 200 && r.b.state === "APPROVED", JSON.stringify(r.b)?.slice(0, 160));
 
 section("A count that does not match");
 u = (await call(`/qc/upcs/${bubble.id}`)).b;
 await call(`/qc/upcs/${bubble.id}/photo`, { body: { photo } });
+r = await call(`/qc/upcs/${bubble.id}/pallets/${u.pallets[0].id}`, { body: { checks: { label_pallet_confirmed: true } } });
+check("the label boxes cannot be ticked without a label photo", r.s === 409 && /labels/.test(r.b.detail), JSON.stringify(r.b));
+r = await call(`/qc/upcs/${bubble.id}/photo`, { body: { photo, kind: "label", pallet_id: "not-a-pallet" } });
+check("a label photo must belong to one of the UPC's pallets", r.s === 422, `${r.s}`);
+r = await call(`/qc/upcs/${bubble.id}/photo`, { body: { photo, kind: "label", pallet_id: u.pallets[0].id } });
+check("a label photo is saved against its pallet and kept apart from the goods photos", r.s === 200 && r.b.pallets[0].label_photo_count === 1 && r.b.photos.filter((x) => x.kind === "label").length === 1 && r.b.photos.some((x) => x.kind === "goods"), JSON.stringify(r.b.photos?.map((x) => [x.kind, x.pallet_id])));
 r = await countPallet(bubble.id, u.pallets[0], 30);
 check("a short count is shown as short by 6", r.s === 200 && r.b.count.result === "SHORT" && r.b.count.diff === 6, JSON.stringify(r.b.count));
 r = await call(`/qc/upcs/${bubble.id}/approve`, { body: {} });

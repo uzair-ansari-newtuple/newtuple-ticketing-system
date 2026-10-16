@@ -21,7 +21,7 @@ const STEPS: { n: Step; label: string }[] = [
   { n: 1, label: "UPCs" },
   { n: 2, label: "Product" },
   { n: 3, label: "Count" },
-  { n: 4, label: "Scan Labels" },
+  { n: 4, label: "Labels" },
 ];
 const MAX_PHOTOS = 5;
 const PRODUCT_CHECKS = CHECKS.slice(0, 5);
@@ -78,7 +78,7 @@ function UpcBar({ upc, index, total, pallet }: { upc: UpcDetail; index: number; 
     <div className="grid grid-cols-2 gap-3 rounded-2xl bg-primary p-3.5 text-primary-foreground shadow-lg shadow-primary/20 sm:grid-cols-[1.3fr_1fr_1.4fr]">
       <div className="min-w-0"><p className="text-[10px] font-semibold uppercase tracking-wider opacity-70">Current UPC</p><p className="truncate font-mono text-sm font-bold">{upc.upc_code} <span className="font-sans text-[11px] font-normal opacity-70">{index} of {total}</span></p></div>
       <div className="min-w-0"><p className="text-[10px] font-semibold uppercase tracking-wider opacity-70">Pallet</p><p className="truncate text-sm font-bold">{pallet ? `Pallet ${pallet.position}` : "-"}</p></div>
-      <div className="col-span-2 min-w-0 sm:col-span-1"><p className="text-[10px] font-semibold uppercase tracking-wider opacity-70">Style / Color</p><p className="truncate text-sm font-bold">{upc.style_number} · {upc.color_name}</p><p className="truncate text-[11px] opacity-70">{upc.description}</p></div>
+      <div className="col-span-2 min-w-0 sm:col-span-1"><p className="text-[10px] font-semibold uppercase tracking-wider opacity-70">Style / Colour</p><p className="truncate text-sm font-bold">{upc.style_number} · {upc.color_name}</p><p className="truncate text-[11px] opacity-70">{upc.description}</p></div>
     </div>
   );
 }
@@ -115,16 +115,16 @@ function CountProgress({ expected, counted }: { expected: number; counted: numbe
   return (
     <div className="rounded-2xl border bg-card p-3.5 shadow-sm">
       <div className="flex items-center justify-between text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-        <span>UPC total count progress</span>
-        {exact ? <span className="normal-case tracking-normal text-success">Exact match reached.</span> : null}
+        <span>This UPC so far</span>
+        {exact ? <span className="normal-case tracking-normal text-success">Matches the PO.</span> : null}
       </div>
       <Progress value={pct} className="my-2 h-2" />
       <div className="grid grid-cols-2 gap-3 text-center sm:grid-cols-4 sm:gap-2">
         {[
-          { label: "Counted so far", value: fmt(counted), tone: "text-primary" },
-          { label: "Expected", value: fmt(expected), tone: "" },
-          { label: "Remaining", value: fmt(remaining), tone: remaining ? "text-warning-foreground" : "text-success" },
-          { label: "Total variance", value: counted === 0 ? "-" : `${variance > 0 ? "+" : ""}${fmt(variance)}`, tone: counted === 0 ? "" : variance === 0 ? "text-success" : "text-destructive" },
+          { label: "You counted", value: fmt(counted), tone: "text-primary" },
+          { label: "PO says", value: fmt(expected), tone: "" },
+          { label: "Still to count", value: fmt(remaining), tone: remaining ? "text-warning-foreground" : "text-success" },
+          { label: "Difference", value: counted === 0 ? "-" : `${variance > 0 ? "+" : ""}${fmt(variance)}`, tone: counted === 0 ? "" : variance === 0 ? "text-success" : "text-destructive" },
         ].map((m) => (
           <div key={m.label}><p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">{m.label}</p><p className={`text-lg font-bold ${m.tone}`}>{m.value}</p></div>
         ))}
@@ -145,8 +145,8 @@ function StepUpcs({ shipment, onPick, onReview }: { shipment: ShipmentDetail; on
 
   return (
     <section className="rounded-2xl border bg-card p-4 shadow-sm">
-      <h2 className="text-xl font-bold">1. UPCs</h2>
-      <p className="mt-1 text-sm text-muted-foreground">UPCs are pre-loaded from the PO. Select the UPC you&apos;re standing in front of. After each pallet you&apos;ll be asked if there&apos;s another one. Return here once all pallets for a UPC are done.</p>
+      <h2 className="text-xl font-bold">1. Pick a UPC</h2>
+      <p className="mt-1 text-sm text-muted-foreground">Tap the UPC you are standing in front of. For each of its pallets you will check the product, count the units and confirm the labels. A UPC turns green when it is approved.</p>
 
       <div className="mt-4 rounded-2xl border bg-muted/40 p-3.5">
         <div className="flex items-center justify-between text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"><span>Worksheet summary</span><span className="text-success">{pct}% complete</span></div>
@@ -154,11 +154,11 @@ function StepUpcs({ shipment, onPick, onReview }: { shipment: ShipmentDetail; on
         <div className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-3">
           {[
             ["UPCs approved", `${t.approved}/${t.upcs}`],
-            ["UPCs flagged", String(t.on_hold)],
-            ["Active UPCs", String(shipment.upcs.filter((u) => u.state === "IN_PROGRESS").length)],
+            ["Held for supervisor", String(t.on_hold)],
+            ["In progress", String(shipment.upcs.filter((u) => u.state === "IN_PROGRESS").length)],
             ["Units counted", fmt(t.received)],
-            ["Expected units", fmt(t.units)],
-            ["Won't QC", String(t.wont_qc)],
+            ["Units on the PO", fmt(t.units)],
+            ["Skipped (won't QC)", String(t.wont_qc)],
           ].map(([label, value]) => (
             <div key={label}><p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">{label}</p><p className="text-lg font-bold">{value}</p></div>
           ))}
@@ -182,8 +182,8 @@ function StepUpcs({ shipment, onPick, onReview }: { shipment: ShipmentDetail; on
                   <UpcBadge state={u.state} />
                 </div>
                 <div className="mt-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-xs">
-                  <span>Expected: <strong>{fmt(u.expected_units)}</strong> · Counted: <strong>{fmt(u.received_units)}</strong></span>
-                  <span className="text-muted-foreground">{approved ? "Tap to reopen for rework" : hold ? "Waiting for the supervisor" : skipped ? "Skipped by the supervisor" : "Tap to check"} <ChevronRight size={12} className="inline" /></span>
+                  <span>PO: <strong>{fmt(u.expected_units)}</strong> · You counted: <strong>{fmt(u.received_units)}</strong></span>
+                  <span className="text-muted-foreground">{approved ? "Approved. Tap to send back for rework" : hold ? "Waiting for the supervisor" : skipped ? "Skipped by the supervisor" : u.state === "IN_PROGRESS" ? "Tap to continue" : "Tap to start"} <ChevronRight size={12} className="inline" /></span>
                 </div>
               </button>
               {reopening === u.id ? (
@@ -200,13 +200,13 @@ function StepUpcs({ shipment, onPick, onReview }: { shipment: ShipmentDetail; on
         })}
       </ul>
 
-      <p className="mt-4 rounded-xl bg-primary/8 p-3 text-xs leading-relaxed">Work through all {t.upcs} UPCs from the PO. A UPC flagged with an exception is held for the supervisor, who approves it, sends it back or skips it. The Review PO button appears once every UPC is approved or skipped.</p>
+      <p className="mt-4 rounded-xl bg-primary/8 p-3 text-xs leading-relaxed">There are {t.upcs} UPCs on this PO. If something is wrong with a UPC, flag it: it is held for the supervisor, who can approve it, send it back for a recount, or skip it. The &quot;Review and submit&quot; button appears when every UPC is approved or skipped.</p>
 
       {ready ? (
         <div className="mt-4 rounded-2xl border border-success/40 bg-success/8 p-4">
-          <p className="font-semibold text-success">Ready to review all UPCs</p>
-          <p className="mt-1 text-sm text-muted-foreground">Review the QC summary for this PO, then send it for receipt verification.</p>
-          <Button size="lg" className="mt-3 h-12 w-full" onClick={onReview}>Review PO <ChevronRight /></Button>
+          <p className="font-semibold text-success">All UPCs are done</p>
+          <p className="mt-1 text-sm text-muted-foreground">Look over the summary, then submit QC so the PO can go to receipt.</p>
+          <Button size="lg" className="mt-3 h-12 w-full" onClick={onReview}>Review and submit <ChevronRight /></Button>
         </div>
       ) : null}
     </section>
@@ -215,30 +215,54 @@ function StepUpcs({ shipment, onPick, onReview }: { shipment: ShipmentDetail; on
 
 // ------------------------------------------------------------------ step 2
 
-function StepProduct({ upc, pallet, bundled, setBundled, checks, setChecks, editable }: { upc: UpcDetail; pallet: Pallet; bundled: boolean; setBundled: (v: boolean) => void; checks: Record<CheckKey, boolean>; setChecks: Dispatch<SetStateAction<Record<CheckKey, boolean>>>; editable: boolean }) {
-  const { photo } = useQcMutations();
+/** Photos for one purpose, with the camera and upload buttons. A required photo shows a clear warning until one is added. */
+function PhotoPicker({ title, photos, required, requiredText, editable, pending, onAdd, alt }: { title: string; photos: string[]; required: boolean; requiredText: string; editable: boolean; pending: boolean; onAdd: (blob: Blob) => void; alt: string }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [cameraOpen, setCameraOpen] = useState(false);
+  return (
+    <div>
+      <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{title} ({photos.length}/{MAX_PHOTOS}){required ? " · required" : ""}</p>
+      {photos.length ? (
+        <div className="mb-2 grid grid-cols-3 gap-2">
+          {photos.map((src, i) => (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img key={i} src={src} alt={`${alt} ${i + 1}`} className="aspect-square w-full rounded-xl border object-cover" />
+          ))}
+        </div>
+      ) : required ? <p className="mb-2 rounded-xl bg-destructive/10 p-3 text-sm font-medium text-destructive">{requiredText}</p> : null}
+      {editable && photos.length < MAX_PHOTOS ? (
+        <div className="grid grid-cols-2 gap-2">
+          <Button variant="outline" size="lg" className="h-12" disabled={pending} onClick={() => setCameraOpen(true)}>{pending ? <Loader2 className="animate-spin" /> : <Camera />} Take photo</Button>
+          <Button variant="outline" size="lg" className="h-12" disabled={pending} onClick={() => fileRef.current?.click()}><ImagePlus /> Upload</Button>
+        </div>
+      ) : null}
+      <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) onAdd(f); }} />
+      {cameraOpen ? <CameraSheet onCapture={(b) => { setCameraOpen(false); onAdd(b); }} onClose={() => setCameraOpen(false)} /> : null}
+    </div>
+  );
+}
+
+function StepProduct({ upc, pallet, bundled, setBundled, checks, setChecks, editable }: { upc: UpcDetail; pallet: Pallet; bundled: boolean; setBundled: (v: boolean) => void; checks: Record<CheckKey, boolean>; setChecks: Dispatch<SetStateAction<Record<CheckKey, boolean>>>; editable: boolean }) {
+  const { photo } = useQcMutations();
   const sub: Record<string, string> = {
-    inspect_case_opened: "Open one representative case and check the carton seal",
-    inspect_style_confirmed: `${upc.style_number} — matches PO`,
-    inspect_color_confirmed: `${upc.color_name} — matches PO`,
-    inspect_upc_confirmed: `${upc.upc_code} — matches PO`,
-    inspect_price_confirmed: `Retail $${upc.retail_price} — matches PO`,
+    inspect_case_opened: "Open one case and look at the carton seal",
+    inspect_style_confirmed: `PO says style ${upc.style_number}`,
+    inspect_color_confirmed: `PO says colour ${upc.color_name}`,
+    inspect_upc_confirmed: `PO says UPC ${upc.upc_code}`,
+    inspect_price_confirmed: `PO says retail price $${upc.retail_price}`,
   };
 
   async function add(blob: Blob) {
-    setCameraOpen(false);
-    photo.mutate({ id: upc.id, photo: await makeThumb(blob, 640) }, { onSuccess: () => toast.success("Photo saved"), onError: (e) => toast.error(e.message) });
+    photo.mutate({ id: upc.id, photo: await makeThumb(blob, 640), kind: "goods" }, { onSuccess: () => toast.success("Photo saved"), onError: (e) => toast.error(e.message) });
   }
 
   return (
     <section className="rounded-2xl border bg-card p-4 shadow-sm">
-      <h2 className="text-xl font-bold">2. Inspect Product</h2>
-      <p className="mt-1 text-sm text-muted-foreground">Inspect one representative case for UPC {upc.upc_code} — Pallet {pallet.position}. Complete the checklist and photograph the item.</p>
+      <h2 className="text-xl font-bold">2. Check the product</h2>
+      <p className="mt-1 text-sm text-muted-foreground">Open one case from Pallet {pallet.position} and compare it with the PO. Tick each box once you have checked it. Then add at least one photo of the goods. <strong>A photo is required.</strong></p>
 
       <div className="mt-4 overflow-hidden rounded-2xl border">
-        <p className="bg-muted/60 px-3.5 py-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Inspection checklist</p>
+        <p className="bg-muted/60 px-3.5 py-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Tick each one when checked</p>
         <ul className="divide-y">
           {PRODUCT_CHECKS.map(([key, label]) => (
             <li key={key}>
@@ -252,7 +276,7 @@ function StepProduct({ upc, pallet, bundled, setBundled, checks, setChecks, edit
       </div>
 
       <div className="mt-4 rounded-2xl border p-3.5">
-        <p className="text-sm font-semibold">Is the product packed in bundles? <InfoHint label="packed in bundles" text="Yes if the units inside the case are grouped into small bundles (for example 4 bundles of 6). The count step then asks for bundles. Choose No if the units are loose in the case; the count step then asks for units per case." /></p>
+        <p className="text-sm font-semibold">Are the units packed in bundles? <InfoHint label="packed in bundles" text="Yes if the units inside the case are grouped into small bundles (for example 4 bundles of 6). The count step then asks for bundles. Choose No if the units are loose in the case; the count step then asks for units per case." /></p>
         <div className="mt-2 grid grid-cols-2 gap-2">
           {[true, false].map((v) => (
             <button key={String(v)} disabled={!editable} onClick={() => setBundled(v)} aria-pressed={bundled === v} className={`flex h-12 items-center gap-2 rounded-xl border px-3 text-sm font-semibold outline-none focus-visible:ring-3 focus-visible:ring-ring/50 ${bundled === v ? "border-primary bg-primary/10 text-primary" : "bg-card"}`}>
@@ -264,24 +288,8 @@ function StepProduct({ upc, pallet, bundled, setBundled, checks, setChecks, edit
       </div>
 
       <div className="mt-4">
-        <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Product images ({upc.photos.length}/{MAX_PHOTOS})</p>
-        {upc.photos.length ? (
-          <div className="mb-2 grid grid-cols-3 gap-2">
-            {upc.photos.map((src, i) => (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img key={i} src={src} alt={`Goods ${i + 1}`} className="aspect-square w-full rounded-xl border object-cover" />
-            ))}
-          </div>
-        ) : <p className="mb-2 text-sm text-muted-foreground">At least one photo is needed before the UPC can be approved.</p>}
-        {editable && upc.photos.length < MAX_PHOTOS ? (
-          <div className="grid grid-cols-2 gap-2">
-            <Button variant="outline" size="lg" className="h-12" disabled={photo.isPending} onClick={() => setCameraOpen(true)}>{photo.isPending ? <Loader2 className="animate-spin" /> : <Camera />} Take photo</Button>
-            <Button variant="outline" size="lg" className="h-12" disabled={photo.isPending} onClick={() => fileRef.current?.click()}><ImagePlus /> Upload</Button>
-          </div>
-        ) : null}
-        <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={async (e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) await add(f); }} />
+        <PhotoPicker title="Photos of the goods" photos={upc.photos.filter((p) => p.kind === "goods").map((p) => p.src)} required requiredText="No photo yet. Take at least one photo of the goods to continue." editable={editable} pending={photo.isPending} onAdd={add} alt="Goods" />
       </div>
-      {cameraOpen ? <CameraSheet onCapture={add} onClose={() => setCameraOpen(false)} /> : null}
     </section>
   );
 }
@@ -313,29 +321,29 @@ function StepCount({ upc, pallet, bundled, draft, setDraft, editable }: { upc: U
     <section className="rounded-2xl border bg-card p-4 shadow-sm">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h2 className="text-xl font-bold">3. Count</h2>
-          <p className="mt-1 text-sm text-muted-foreground">{bundled ? "Open one case from the current pallet. Count the units in one bundle, then count the bundles in the case. The app works out the totals for you." : "Open one case from the current pallet and count the units in it. The app works out the totals for you."}</p>
+          <h2 className="text-xl font-bold">3. Count the units</h2>
+          <p className="mt-1 text-sm text-muted-foreground">{bundled ? "Work from top to bottom: units in one bundle, bundles in one case, full cases on the pallet, then loose units. The app adds it all up for you." : "Count the units in one case, then the full cases on the pallet, then any loose units. The app adds it all up for you."}</p>
         </div>
         <div className="grid shrink-0 grid-cols-2 divide-x self-start rounded-2xl border bg-primary/8 text-center">
-          <div className="px-3 py-2"><p className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">Total units</p><p className="text-2xl font-bold text-primary">{fmt(total)}</p></div>
-          <div className="px-3 py-2"><p className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">Remaining</p><p className={`text-2xl font-bold ${remaining ? "text-warning-foreground" : "text-success"}`}>{fmt(remaining)}</p></div>
+          <div className="px-3 py-2"><p className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">Counted on this pallet</p><p className="text-2xl font-bold text-primary">{fmt(total)}</p></div>
+          <div className="px-3 py-2"><p className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">Still to count</p><p className={`text-2xl font-bold ${remaining ? "text-warning-foreground" : "text-success"}`}>{fmt(remaining)}</p></div>
         </div>
       </div>
 
       {bundled ? (
         <>
           <div className="mt-4 rounded-2xl border bg-muted/30 p-3.5">
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Part 1 — MDL (units per bundle) <InfoHint label="MDL" text={EXPLAIN.mdl} /></p>
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Part 1 — Units in one bundle (MDL) <InfoHint label="MDL" text={EXPLAIN.mdl} /></p>
             <div className="mt-2 grid grid-cols-[1fr_auto_1fr] items-end gap-2 [&_span.uppercase]:leading-tight">
-              <div><p className="text-xs text-muted-foreground">MDL from PO</p><p className="text-3xl font-bold text-primary">{pallet.mdl_expected}</p></div>
+              <div><p className="text-xs text-muted-foreground">PO says</p><p className="text-3xl font-bold text-primary">{pallet.mdl_expected}</p></div>
               <span className="pb-3 text-muted-foreground">→</span>
-              <NumberField label="Actual MDL (edit only if different)" value={draft.mdl} onChange={set("mdl")} disabled={!editable} />
+              <NumberField label="Units in a bundle (change only if different)" value={draft.mdl} onChange={set("mdl")} disabled={!editable} />
             </div>
-            {mdl !== null ? <p className={`mt-2 rounded-lg px-3 py-2 text-sm ${mdlOk ? "bg-success/12 text-success" : "bg-warning/18 text-warning-foreground"}`}>{mdlOk ? "✓ MDL matches PO expectation — no changes needed." : `MDL differs from the PO (${pallet.mdl_expected}). Make sure ${mdl} is what you counted.`}</p> : null}
+            {mdl !== null ? <p className={`mt-2 rounded-lg px-3 py-2 text-sm ${mdlOk ? "bg-success/12 text-success" : "bg-warning/18 text-warning-foreground"}`}>{mdlOk ? "✓ Same as the PO. No change needed." : `The PO says ${pallet.mdl_expected}. Check that ${mdl} is what you counted.`}</p> : null}
           </div>
 
           <div className="mt-3 rounded-2xl border p-3.5">
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Part 2 — Bundle count in case <InfoHint label="bundles in a case" text={EXPLAIN.bundles} /></p>
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Part 2 — Bundles in one full case <InfoHint label="bundles in a case" text={EXPLAIN.bundles} /></p>
             <div className="mt-2 grid grid-cols-2 items-end gap-3 text-center sm:grid-cols-3 sm:gap-2">
               <div className="col-span-2 sm:col-span-1"><NumberField label="Bundles counted" value={draft.bundles} onChange={set("bundles")} disabled={!editable} hint={`PO says ${pallet.bundles_expected}`} /></div>
               <div><p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Units / bundle</p><p className="mt-3 text-lg font-semibold">{mdl ?? "-"}</p><p className="text-[11px] text-muted-foreground">(from Part 1)</p></div>
@@ -346,24 +354,24 @@ function StepCount({ upc, pallet, bundled, draft, setDraft, editable }: { upc: U
         </>
       ) : (
         <div className="mt-4 rounded-2xl border p-3.5">
-          <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Part 1 — Units in one case <InfoHint label="units per case" text={EXPLAIN.perCase} /></p>
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Part 1 — Units in one full case <InfoHint label="units per case" text={EXPLAIN.perCase} /></p>
           <div className="mt-2 max-w-48"><NumberField label="Units counted" value={draft.mdl} onChange={set("mdl")} disabled={!editable} hint={`PO says ${pallet.mdl_expected * pallet.bundles_expected}`} /></div>
         </div>
       )}
 
       <div className="mt-3 rounded-2xl border p-3.5">
         <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Part 3 — Full cases on this pallet <InfoHint label="full cases" text={EXPLAIN.cases} /></p>
-        <p className="mt-1 text-xs text-muted-foreground">Count and enter the number of full, complete cases on this pallet. Do not include any oddball or incomplete case here.</p>
+        <p className="mt-1 text-xs text-muted-foreground">Enter only full cases here. A case that is not full goes under loose units.</p>
         <div className="mt-2 max-w-48"><NumberField label="Full cases" value={draft.cases} onChange={set("cases")} disabled={!editable} /></div>
       </div>
 
       <div className="mt-3 rounded-2xl border p-3.5">
-        <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Part 4 — Loose or partial units <InfoHint label="loose units" text={EXPLAIN.loose} /></p>
-        <p className="mt-1 text-xs text-muted-foreground">Units not in a full case. Leave 0 if there are none.</p>
+        <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Part 4 — Loose units (not in a full case) <InfoHint label="loose units" text={EXPLAIN.loose} /></p>
+        <p className="mt-1 text-xs text-muted-foreground">Units that are not in a full case. Type 0 if there are none.</p>
         <div className="mt-2 max-w-48"><NumberField label="Loose units" value={draft.loose} onChange={set("loose")} disabled={!editable} /></div>
       </div>
 
-      <p className="mt-3 rounded-xl bg-primary/8 p-3 text-sm">Pallet total = {draft.cases || 0} cases × {perCase} units per case + {draft.loose || 0} loose = <strong>{fmt(total)}</strong> units.</p>
+      <p className="mt-3 rounded-xl bg-primary/8 p-3 text-sm">This pallet: {draft.cases || 0} full cases × {perCase} units per case + {draft.loose || 0} loose units = <strong>{fmt(total)}</strong> units.</p>
     </section>
   );
 }
@@ -371,23 +379,33 @@ function StepCount({ upc, pallet, bundled, draft, setDraft, editable }: { upc: U
 // ------------------------------------------------------------------ step 4
 
 function StepLabels({ upc, pallet, checks, setChecks, editable, onAnother, onDone, busy }: { upc: UpcDetail; pallet: Pallet; checks: Record<CheckKey, boolean>; setChecks: Dispatch<SetStateAction<Record<CheckKey, boolean>>>; editable: boolean; onAnother: () => void; onDone: () => void; busy: boolean }) {
-  const labelsOk = LABEL_CHECKS.every(([k]) => checks[k]);
+  const { photo } = useQcMutations();
+  const labelPhotos = upc.photos.filter((p) => p.kind === "label" && p.pallet_id === pallet.id).map((p) => p.src);
+  const hasLabelPhoto = labelPhotos.length >= 1;
+  const labelsOk = LABEL_CHECKS.every(([k]) => checks[k]) && hasLabelPhoto;
+  async function addLabelPhoto(blob: Blob) {
+    photo.mutate({ id: upc.id, photo: await makeThumb(blob, 640), kind: "label", pallet_id: pallet.id }, { onSuccess: () => toast.success("Label photo saved"), onError: (e) => toast.error(e.message) });
+  }
   const variance = pallet.expected_units ? pallet.total_units - pallet.expected_units : 0;
   const cases = pallet.full_cases_count ?? 0;
   const perCase = (pallet.bundles_per_case ?? 0) * (pallet.mdl_actual ?? 0);
   return (
     <section className="rounded-2xl border bg-card p-4 shadow-sm">
-      <h2 className="text-xl font-bold">4. Scan Labels</h2>
-      <p className="mt-1 text-sm text-muted-foreground">Apply labels to all cases and the pallet, then confirm below. Once done, say whether there is another pallet for this UPC or mark it complete.</p>
+      <h2 className="text-xl font-bold">4. Confirm the labels</h2>
+      <p className="mt-1 text-sm text-muted-foreground">Put the labels on the pallet and on every case, scan them, then tick both boxes. After that, tell us if this UPC has another pallet.</p>
+
+      <div className="mt-4">
+        <PhotoPicker title={`Photo of the labels on pallet ${pallet.position}`} photos={labelPhotos} required requiredText="No label photo yet. Take a photo that shows the pallet label and the case labels, then tick the boxes below." editable={editable} pending={photo.isPending} onAdd={addLabelPhoto} alt="Labels" />
+      </div>
 
       <div className="mt-4 overflow-hidden rounded-2xl border">
-        <p className="bg-muted/60 px-3.5 py-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Label confirmation</p>
+        <p className="bg-muted/60 px-3.5 py-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Tick both when done</p>
         <ul className="divide-y">
           {LABEL_CHECKS.map(([key]) => (
             <li key={key}>
-              <button disabled={!editable} role="checkbox" aria-checked={checks[key]} onClick={() => setChecks((c) => ({ ...c, [key]: !c[key] }))} className="flex w-full items-center gap-3 px-3.5 py-3 text-left outline-none focus-visible:bg-muted/50 disabled:opacity-60">
+              <button disabled={!editable || !hasLabelPhoto} role="checkbox" aria-checked={checks[key]} onClick={() => setChecks((c) => ({ ...c, [key]: !c[key] }))} className="flex w-full items-center gap-3 px-3.5 py-3 text-left outline-none focus-visible:bg-muted/50 disabled:opacity-60">
                 <span className={`grid size-6 shrink-0 place-items-center rounded-md border-2 ${checks[key] ? "border-success bg-success text-white" : "border-muted-foreground/40"}`}>{checks[key] ? <Check size={15} /> : null}</span>
-                <span><span className="block text-sm font-semibold">{key === "label_pallet_confirmed" ? "Pallet label scanned" : "All case labels scanned"}</span><span className="block text-xs text-muted-foreground">{key === "label_pallet_confirmed" ? "The pallet label has been applied and scanned" : "Every case on this pallet has been labelled and scanned"}</span></span>
+                <span><span className="block text-sm font-semibold">{key === "label_pallet_confirmed" ? "Pallet label is on and scanned" : "Every case label is on and scanned"}</span><span className="block text-xs text-muted-foreground">{key === "label_pallet_confirmed" ? "One label on the pallet itself" : "Every case on this pallet has its label"}</span></span>
               </button>
             </li>
           ))}
@@ -395,27 +413,27 @@ function StepLabels({ upc, pallet, checks, setChecks, editable, onAnother, onDon
       </div>
 
       <div className="mt-3 rounded-2xl border p-3.5">
-        <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Pallet {pallet.position} summary — UPC {upc.upc_code}</p>
+        <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Pallet {pallet.position} result</p>
         <div className="mt-2 grid grid-cols-2 gap-3 text-center sm:grid-cols-4 sm:gap-2">
           {[
-            ["Units this pallet", fmt(pallet.total_units), "text-primary"],
-            ["Expected count", pallet.expected_units ? fmt(pallet.expected_units) : "-", ""],
-            ["Remaining count", pallet.expected_units ? fmt(Math.max(0, pallet.expected_units - pallet.total_units)) : "-", ""],
-            ["Total variance", pallet.expected_units ? `${variance > 0 ? "+" : ""}${fmt(variance)}` : "-", variance === 0 ? "text-success" : "text-destructive"],
+            ["Counted on this pallet", fmt(pallet.total_units), "text-primary"],
+            ["PO says", pallet.expected_units ? fmt(pallet.expected_units) : "-", ""],
+            ["Still to count", pallet.expected_units ? fmt(Math.max(0, pallet.expected_units - pallet.total_units)) : "-", ""],
+            ["Difference", pallet.expected_units ? `${variance > 0 ? "+" : ""}${fmt(variance)}` : "-", variance === 0 ? "text-success" : "text-destructive"],
           ].map(([label, value, tone]) => (
             <div key={label}><p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">{label}</p><p className={`text-lg font-bold ${tone}`}>{value}</p></div>
           ))}
         </div>
-        <p className="mt-2 text-xs text-muted-foreground">{cases} cases × {pallet.bundles_per_case ?? 0} bundles × {pallet.mdl_actual ?? 0} MDL + {pallet.partial_units ?? 0} partial = {fmt(cases * perCase + (pallet.partial_units ?? 0))}</p>
+        <p className="mt-2 text-xs text-muted-foreground">{cases} full cases × {pallet.bundles_per_case ?? 0} bundles × {pallet.mdl_actual ?? 0} units + {pallet.partial_units ?? 0} loose = {fmt(cases * perCase + (pallet.partial_units ?? 0))} units</p>
       </div>
 
       <div className="mt-3 rounded-2xl border p-3.5">
-        <p className="text-sm font-bold uppercase">Is there another pallet with this UPC?</p>
+        <p className="text-sm font-bold uppercase">Does this UPC have another pallet?</p>
         <div className="mt-3 grid gap-2 sm:grid-cols-2">
-          <Button size="lg" className="h-12" disabled={!editable || !labelsOk || busy} onClick={onAnother}>{busy ? <Loader2 className="animate-spin" /> : <RotateCcw />} Yes — start next pallet</Button>
-          <Button size="lg" className="h-12 bg-success text-white hover:bg-success/90" disabled={!editable || !labelsOk || busy} onClick={onDone}>{busy ? <Loader2 className="animate-spin" /> : <Check />} No — done with this UPC</Button>
+          <Button size="lg" className="h-12" disabled={!editable || !labelsOk || busy} onClick={onAnother}>{busy ? <Loader2 className="animate-spin" /> : <RotateCcw />} Yes, check the next pallet</Button>
+          <Button size="lg" className="h-12 bg-success text-white hover:bg-success/90" disabled={!editable || !labelsOk || busy} onClick={onDone}>{busy ? <Loader2 className="animate-spin" /> : <Check />} No, finish this UPC</Button>
         </div>
-        {!labelsOk ? <p className="mt-2 text-xs text-muted-foreground">Confirm both labels first.</p> : null}
+        {!labelsOk ? <p className="mt-2 text-xs text-muted-foreground">{!hasLabelPhoto ? "Add the label photo first, then tick both boxes." : "Tick both label boxes first."}</p> : null}
       </div>
     </section>
   );
@@ -442,7 +460,8 @@ function PalletFlow({ upc, pallet, step, setStep, onPallet, onToUpcs }: { upc: U
   const busy = save.isPending || approve.isPending || addPallet.isPending;
   const suggested: FlagReason = reason ?? (upc.count ? suggestedReason(upc.count.result) : "OTHER");
 
-  const productReady = PRODUCT_CHECKS.every(([k]) => checks[k]);
+  const hasPhoto = upc.photo_count >= 1;
+  const productReady = PRODUCT_CHECKS.every(([k]) => checks[k]) && hasPhoto;
   const countReady = num(draft.mdl) !== null && (!bundled || num(draft.bundles) !== null) && num(draft.cases) !== null;
 
   async function acceptProduct() {
@@ -498,27 +517,29 @@ function PalletFlow({ upc, pallet, step, setStep, onPallet, onToUpcs }: { upc: U
 
       {flagOpen ? (
         <section className="rounded-2xl border bg-card p-4 shadow-sm">
-          <h2 className="text-sm font-semibold">Flag an exception</h2>
+          <h2 className="text-sm font-semibold">Report a problem with this UPC</h2>
+          <p className="mt-1 text-sm text-muted-foreground">Choose what is wrong. The UPC is held and a supervisor decides what happens next.</p>
           <div className="mt-3 flex flex-wrap gap-2" role="radiogroup" aria-label="Reason">
             {(Object.keys(FLAG_REASONS) as FlagReason[]).map((key) => (
               <button key={key} role="radio" aria-checked={suggested === key} onClick={() => setReason(key)} className={`rounded-full border px-3 py-1.5 text-sm font-medium outline-none focus-visible:ring-3 focus-visible:ring-ring/50 ${suggested === key ? "border-transparent bg-primary text-primary-foreground" : "bg-background text-muted-foreground hover:text-foreground"}`}>{FLAG_REASONS[key]}</button>
             ))}
           </div>
-          <Textarea className="mt-3" rows={3} placeholder="Add a note for the supervisor (optional)" value={note} onChange={(e) => setNote(e.target.value)} />
+          <Textarea className="mt-3" rows={3} placeholder="What happened? (optional)" value={note} onChange={(e) => setNote(e.target.value)} />
           <div className="mt-3 grid grid-cols-2 gap-2">
             <Button variant="outline" onClick={() => setFlagOpen(false)} disabled={flag.isPending}>Cancel</Button>
-            <Button variant="destructive" disabled={flag.isPending} onClick={() => flag.mutate({ id: upc.id, reason: suggested, note: note.trim() }, { onSuccess: () => { toast.success("Flagged for the supervisor"); onToUpcs(); }, onError: fail })}>{flag.isPending ? <Loader2 className="animate-spin" /> : null} Submit flag</Button>
+            <Button variant="destructive" disabled={flag.isPending} onClick={() => flag.mutate({ id: upc.id, reason: suggested, note: note.trim() }, { onSuccess: () => { toast.success("Flagged for the supervisor"); onToUpcs(); }, onError: fail })}>{flag.isPending ? <Loader2 className="animate-spin" /> : null} Send to supervisor</Button>
           </div>
         </section>
       ) : null}
 
       <div className="sticky bottom-[calc(4.5rem+env(safe-area-inset-bottom))] z-30 -mx-1 rounded-2xl border bg-background/90 p-2 shadow-lg backdrop-blur-xl">
+        {step === 2 && editable && !productReady ? <p className="px-2 pb-2 text-center text-xs font-medium text-destructive">{!hasPhoto ? "Add at least one photo of the goods and tick all 5 boxes to continue." : "Tick all 5 boxes to continue."}</p> : null}
         <div className="grid grid-cols-[1fr_auto_1.4fr] gap-2">
-          <Button variant="outline" className="h-12 min-w-0 px-3" onClick={() => (step === 2 ? onToUpcs() : setStep((step - 1) as Step))}><ChevronLeft className="shrink-0" /> <span className="truncate"><span className="sm:hidden">Back</span><span className="hidden sm:inline">{step === 2 ? "Back to UPCs" : step === 3 ? "Back: product" : "Back: count"}</span></span></Button>
-          <Button variant="outline" className="h-12 border-destructive/40 text-destructive hover:bg-destructive/10" disabled={!editable} onClick={() => setFlagOpen(true)}><AlertTriangle className="shrink-0" /> <span className="hidden sm:inline">Flag</span></Button>
-          {step === 2 ? <Button className="h-12 min-w-0 px-3" disabled={!editable || !productReady || busy} onClick={acceptProduct}>{busy ? <Loader2 className="animate-spin" /> : null} <span className="truncate"><span className="sm:hidden">Next</span><span className="hidden sm:inline">Accept &amp; next: Count</span></span> <ChevronRight className="shrink-0" /></Button> : null}
-          {step === 3 ? <Button className="h-12 min-w-0 px-3" disabled={!editable || !countReady || busy} onClick={acceptCount}>{busy ? <Loader2 className="animate-spin" /> : null} <span className="truncate"><span className="sm:hidden">Next</span><span className="hidden sm:inline">Accept count → Labels</span></span> <ChevronRight className="shrink-0" /></Button> : null}
-          {step === 4 ? <span className="self-center px-2 text-center text-xs text-muted-foreground">Choose yes or no above</span> : null}
+          <Button variant="outline" className="h-12 min-w-0 px-3" onClick={() => (step === 2 ? onToUpcs() : setStep((step - 1) as Step))}><ChevronLeft className="shrink-0" /> <span className="truncate"><span className="sm:hidden">Back</span><span className="hidden sm:inline">{step === 2 ? "Back to UPCs" : step === 3 ? "Back to product" : "Back to count"}</span></span></Button>
+          <Button variant="outline" className="h-12 border-destructive/40 text-destructive hover:bg-destructive/10" disabled={!editable} onClick={() => setFlagOpen(true)}><AlertTriangle className="shrink-0" /> <span className="hidden sm:inline">Report a problem</span></Button>
+          {step === 2 ? <Button className="h-12 min-w-0 px-3" disabled={!editable || !productReady || busy} onClick={acceptProduct}>{busy ? <Loader2 className="animate-spin" /> : null} <span className="truncate"><span className="sm:hidden">Next</span><span className="hidden sm:inline">Continue to count</span></span> <ChevronRight className="shrink-0" /></Button> : null}
+          {step === 3 ? <Button className="h-12 min-w-0 px-3" disabled={!editable || !countReady || busy} onClick={acceptCount}>{busy ? <Loader2 className="animate-spin" /> : null} <span className="truncate"><span className="sm:hidden">Next</span><span className="hidden sm:inline">Save count and continue</span></span> <ChevronRight className="shrink-0" /></Button> : null}
+          {step === 4 ? <span className="self-center px-2 text-center text-xs text-muted-foreground">Answer the question above</span> : null}
         </div>
       </div>
     </>

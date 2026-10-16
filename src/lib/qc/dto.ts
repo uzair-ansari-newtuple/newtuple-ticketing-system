@@ -96,6 +96,7 @@ export interface Pallet {
   bundles_per_case: number | null;
   full_cases_count: number | null;
   partial_units: number | null;
+  label_photo_count: number;
   total_units: number;
 }
 
@@ -114,7 +115,7 @@ export interface UpcDetail extends Upc {
   comments: UpcComment[];
   shipment_state: ShipmentState;
   pallets: Pallet[];
-  photos: string[];
+  photos: { src: string; kind: "goods" | "label"; pallet_id: string | null }[];
   count: { result: CountResult; diff: number } | null;
 }
 

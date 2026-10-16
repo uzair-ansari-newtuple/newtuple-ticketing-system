@@ -35,17 +35,17 @@ export default function CompleteQcPage() {
   const footer = shipment.state === "IN_PROGRESS" ? (
     <Button size="lg" className="h-12 w-full text-base" disabled={!ready || complete.isPending} onClick={submit}>
       {complete.isPending ? <Loader2 className="animate-spin" /> : null}
-      {ready ? "Submit QC complete" : `${t.blocking} UPC${t.blocking === 1 ? "" : "s"} still blocking`}
+      {ready ? "Submit QC" : `${t.blocking} UPC${t.blocking === 1 ? "" : "s"} still blocking`}
     </Button>
   ) : undefined;
 
   return (
-    <AppShell title="QC summary" subtitle={`${shipment.po_number} · ${shipment.vendor_name}`} back={`/qc/po/${id}`} area="qc" footer={footer}>
+    <AppShell title="Review and submit" subtitle={`${shipment.po_number} · ${shipment.vendor_name}`} back={`/qc/po/${id}`} area="qc" footer={footer}>
       <Reveal className="grid grid-cols-3 gap-2 text-center">
         {[
-          { label: "Approved", value: t.approved, tone: "text-success" },
-          { label: "Won't QC", value: t.wont_qc, tone: "text-foreground" },
-          { label: "Units counted", value: `${t.received}/${t.units}`, tone: "text-foreground" },
+          { label: "UPCs approved", value: t.approved, tone: "text-success" },
+          { label: "UPCs skipped", value: t.wont_qc, tone: "text-foreground" },
+          { label: "Units counted / on the PO", value: `${t.received}/${t.units}`, tone: "text-foreground" },
         ].map((m) => (
           <div key={m.label} className="rounded-2xl border bg-card p-3 shadow-sm">
             <p className={`text-2xl font-bold ${m.tone}`}>{m.value}</p>
@@ -54,9 +54,9 @@ export default function CompleteQcPage() {
         ))}
       </Reveal>
       {ready ? (
-        <div className="mt-6 flex items-center gap-2 rounded-xl bg-success/12 p-3 text-sm font-medium text-success"><CheckCircle2 size={18} /> Every UPC is approved or skipped, so QC can be submitted.</div>
+        <div className="mt-6 flex items-center gap-2 rounded-xl bg-success/12 p-3 text-sm font-medium text-success"><CheckCircle2 size={18} /> Every UPC is approved or skipped. Submit QC to send this PO on to receipt.</div>
       ) : (
-        <p className="mt-6 text-center text-sm text-muted-foreground">{shipment.state === "IN_PROGRESS" ? "Finish the remaining UPCs first." : "QC on this shipment is already submitted."}</p>
+        <p className="mt-6 text-center text-sm text-muted-foreground">{shipment.state === "IN_PROGRESS" ? "Some UPCs are not finished. Go back and finish them first." : "QC for this shipment was already submitted."}</p>
       )}
     </AppShell>
   );

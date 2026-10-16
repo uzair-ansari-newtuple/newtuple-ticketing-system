@@ -49,7 +49,7 @@ export function useQcMutations() {
     receipt: useMutation({ mutationFn: (v: { id: string } & Parameters<typeof api.qcReceipt>[2]) => api.qcReceipt(token, v.id, v), ...done }),
     pallet: useMutation({ mutationFn: (v: { upcId: string; palletId: string } & Parameters<typeof api.qcPallet>[3]) => api.qcPallet(token, v.upcId, v.palletId, v), ...done }),
     addPallet: useMutation({ mutationFn: (id: string) => api.qcAddPallet(token, id), ...done }),
-    photo: useMutation({ mutationFn: (v: { id: string; photo: string }) => api.qcPhoto(token, v.id, v.photo), ...done }),
+    photo: useMutation({ mutationFn: (v: { id: string; photo: string; kind?: "goods" | "label"; pallet_id?: string }) => api.qcPhoto(token, v.id, v), ...done }),
     approve: useMutation({ mutationFn: (id: string) => api.qcApprove(token, id), ...done }),
     flag: useMutation({ mutationFn: (v: { id: string } & Parameters<typeof api.qcFlag>[2]) => api.qcFlag(token, v.id, v), ...done }),
     resolve: useMutation({ mutationFn: (v: { id: string } & Parameters<typeof api.qcResolve>[2]) => api.qcResolve(token, v.id, v), ...done }),

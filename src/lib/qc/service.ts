@@ -17,7 +17,7 @@ export class QcError extends Error {
 }
 
 const SHIPMENT_FIELDS = ["po_number", "shipment_number", "vendor_name", "vendor_code", "dc_id", "dcqc_qc_ready", "started_at", "completed_at", "confirmation_number"];
-const UPC_FIELDS = ["legacy_po_id", "po_number", "upc_code", "item_description", "style_number", "color_name", "size_label", "expected_units", "shipped_cases", "mdl", "units_per_bundle", "is_prepack", "retail_price", "dcqc_received_units", "dcqc_labels_complete", "flag_id", "dcqc_evidence_revision", "dcqc_rework_reason"];
+const UPC_FIELDS = ["legacy_po_id", "po_number", "upc_code", "item_description", "style_number", "color_name", "size_label", "expected_units", "shipped_cases", "mdl", "units_per_bundle", "is_prepack", "retail_price", "dcqc_received_units", "dcqc_labels_complete", "flag_id", "dcqc_evidence_revision", "goods_photo_count", "dcqc_rework_reason"];
 
 const num = (v: unknown) => (v === null || v === undefined || v === "" ? null : Number(v));
 const text = (v: unknown) => (v === null || v === undefined ? "" : String(v));
@@ -41,7 +41,7 @@ const upcFrom = (i: TicketListItem): Upc => ({
   state: i.state as UpcState,
   received_units: num(i.fields.dcqc_received_units) ?? 0,
   labels_complete: bool(i.fields.dcqc_labels_complete),
-  photo_count: num(i.fields.dcqc_evidence_revision) ?? 0,
+  photo_count: num(i.fields.goods_photo_count) ?? 0,
   rework_reason: text(i.fields.dcqc_rework_reason),
   flag: null,
 });
@@ -131,6 +131,7 @@ function palletFrom(r: { id: string; data: Record<string, unknown> }): Pallet {
     bundles_per_case: num(d.bundles_per_case),
     full_cases_count: num(d.full_cases_count),
     partial_units: num(d.dcqc_partial_units),
+    label_photo_count: num(d.label_photo_count) ?? 0,
     total_units: num(d.dcqc_total_units) ?? 0,
   };
 }
@@ -139,10 +140,16 @@ async function palletsOf(upcId: string): Promise<Pallet[]> {
   return (await recordsWhere(PALLET_TYPE, "upc_record_id", upcId)).map(palletFrom).sort((a, b) => a.position - b.position);
 }
 
-async function photosOf(upcId: string): Promise<string[]> {
+async function photosOf(upcId: string): Promise<UpcDetail["photos"]> {
   const files = await smFetch<{ items: { file_id: string; content_type: string; metadata: Record<string, unknown> }[] }>("POST", "/filehandler/list", { owner_entity_id: upcId, type_id: QC_PHOTO_TYPE });
   const sorted = files.items.sort((a, b) => Number(a.metadata.position ?? 0) - Number(b.metadata.position ?? 0));
-  return Promise.all(sorted.map(async (f) => `data:${f.content_type};base64,${(await smDownload(`/filehandler/${f.file_id}/download`)).bytes.toString("base64")}`));
+  return Promise.all(
+    sorted.map(async (f) => ({
+      src: `data:${f.content_type};base64,${(await smDownload(`/filehandler/${f.file_id}/download`)).bytes.toString("base64")}`,
+      kind: (f.metadata.kind === "label" ? "label" : "goods") as "goods" | "label",
+      pallet_id: typeof f.metadata.pallet_id === "string" ? f.metadata.pallet_id : null,
+    })),
+  );
 }
 
 export async function getUpc(id: string): Promise<UpcDetail> {
@@ -226,6 +233,8 @@ async function begin(upc: Upc, userId: string) {
 export async function savePallet(upcId: string, palletId: string, input: { checks?: Partial<Record<CheckKey, unknown>>; is_prepack?: unknown; mdl_actual?: unknown; bundles_per_case?: unknown; full_cases_count?: unknown; partial_units?: unknown }, userId: string): Promise<UpcDetail> {
   const { upc } = await loadUpc(upcId);
   await begin(upc, userId);
+  const countsGiven = [input.mdl_actual, input.bundles_per_case, input.full_cases_count, input.partial_units].some((v) => v !== undefined);
+  if (countsGiven && upc.photo_count < 1) throw new QcError(409, "Add at least one photo of the goods before you save a count.");
   const record = await getRecord(palletId);
   if (!record || record.data.upc_record_id !== upcId) throw new QcError(404, "Pallet not found");
 
@@ -237,6 +246,8 @@ export async function savePallet(upcId: string, palletId: string, input: { check
     patch[field] = value;
   }
   const merged = { ...record.data, ...patch };
+  const labelsTicked = bool(merged.label_pallet_confirmed) || bool(merged.label_cases_confirmed);
+  if (labelsTicked && (num(merged.label_photo_count) ?? 0) < 1) throw new QcError(409, "Add at least one photo of the labels on this pallet before you confirm them.");
   patch.dcqc_total_units = palletTotal({ mdl_actual: num(merged.mdl_actual), bundles_per_case: num(merged.bundles_per_case), full_cases_count: num(merged.full_cases_count), partial_units: num(merged.dcqc_partial_units) });
   const checked = CHECKS.every(([key]) => bool(merged[key]));
   const counted = num(merged.mdl_actual) !== null && num(merged.bundles_per_case) !== null && num(merged.full_cases_count) !== null;
@@ -281,19 +292,29 @@ export async function addPallet(upcId: string, userId: string): Promise<UpcDetai
   return getUpc(upcId);
 }
 
-export async function addPhoto(upcId: string, photo: unknown, userId: string): Promise<UpcDetail> {
+/** Saves a photo with the UPC. A goods photo shows the product; a label photo shows the labels on one pallet and is tied to it. */
+export async function addPhoto(upcId: string, input: { photo: unknown; kind?: unknown; pallet_id?: unknown }, userId: string): Promise<UpcDetail> {
   const { upc, data } = await loadUpc(upcId);
   await begin(upc, userId);
-  const match = typeof photo === "string" ? /^data:(image\/(?:jpeg|png));base64,(.+)$/.exec(photo) : null;
+  const kind = input.kind === "label" ? "label" : "goods";
+  const palletId = typeof input.pallet_id === "string" ? input.pallet_id : null;
+  const pallet = kind === "label" ? await getRecord(palletId ?? "") : null;
+  if (kind === "label" && (!pallet || pallet.data.upc_record_id !== upcId)) throw new QcError(422, "Choose the pallet this label photo belongs to.");
+  const match = typeof input.photo === "string" ? /^data:(image\/(?:jpeg|png));base64,(.+)$/.exec(input.photo) : null;
   if (!match) throw new QcError(422, "The photo must be a JPEG or PNG image");
   const bytes = Buffer.from(match[2], "base64");
   if (bytes.length > 8 * 1024 * 1024) throw new QcError(413, "The photo is too large");
   const position = num(data.dcqc_evidence_revision) ?? 0;
   const form = new FormData();
-  form.append("file", new Blob([new Uint8Array(bytes)], { type: match[1] }), `upc-${position + 1}.${match[1] === "image/png" ? "png" : "jpg"}`);
-  const query = new URLSearchParams({ type_id: QC_PHOTO_TYPE, owner_entity_id: upcId, owner_entity_type: UPC_TYPE, metadata: JSON.stringify({ position }) });
+  form.append("file", new Blob([new Uint8Array(bytes)], { type: match[1] }), `${kind}-${position + 1}.${match[1] === "image/png" ? "png" : "jpg"}`);
+  const query = new URLSearchParams({ type_id: QC_PHOTO_TYPE, owner_entity_id: upcId, owner_entity_type: UPC_TYPE, metadata: JSON.stringify({ position, kind, pallet_id: palletId }) });
   const { file_id } = await smUpload<{ file_id: string }>(`/filehandler/upload?${query}`, form);
-  await putRecord(upcId, { dcqc_evidence_revision: position + 1, ...(position === 0 ? { photo_ref: file_id } : {}) });
+  await putRecord(upcId, {
+    dcqc_evidence_revision: position + 1,
+    ...(position === 0 ? { photo_ref: file_id } : {}),
+    ...(kind === "goods" ? { goods_photo_count: (num(data.goods_photo_count) ?? 0) + 1 } : {}),
+  });
+  if (kind === "label" && pallet && palletId) await putRecord(palletId, { label_photo_count: (num(pallet.data.label_photo_count) ?? 0) + 1 });
   return getUpc(upcId);
 }
 
@@ -302,11 +323,13 @@ export async function approveUpc(upcId: string, user: Actor): Promise<UpcDetail>
   const detail = await getUpc(upcId);
   requireShipmentInProgress(detail.shipment_state);
   if (detail.state !== "IN_PROGRESS") throw new QcError(409, detail.state === "PENDING" ? "Check at least one pallet first" : "This UPC cannot be approved now");
-  if (!detail.pallets.length || detail.pallets.some((p) => p.status !== "COMPLETE")) throw new QcError(409, "Finish the checks and counts on every pallet first");
-  if (!detail.labels_complete) throw new QcError(409, "Confirm the pallet and case labels first");
+  if (!detail.pallets.length || detail.pallets.some((p) => p.status !== "COMPLETE")) throw new QcError(409, "Finish the checks and count on every pallet first.");
+  if (!detail.labels_complete) throw new QcError(409, "Tick both label boxes (pallet label and case labels) first.");
   const result = matchCount(detail.expected_units, detail.received_units);
   if (result.result !== "MATCH") throw new QcError(409, `The count does not match the PO (${result.result === "SHORT" ? "short" : "over"} by ${result.diff}). Flag the UPC instead.`);
-  if (detail.photo_count < 1) throw new QcError(409, "Take a photo of the goods first");
+  if (detail.photo_count < 1) throw new QcError(409, "Add at least one photo of the goods before approving this UPC.");
+  const noLabelPhoto = detail.pallets.find((p) => p.label_photo_count < 1);
+  if (noLabelPhoto) throw new QcError(409, `Add a photo of the labels on pallet ${noLabelPhoto.position} before approving this UPC.`);
   await putRecord(upcId, { user_id: user.id });
   await fire(upcId, "upc_approve");
   await addComment(upcId, `Approved by ${user.name}: ${detail.received_units} of ${detail.expected_units} units counted across ${detail.pallets.length} pallet${detail.pallets.length === 1 ? "" : "s"}.`);

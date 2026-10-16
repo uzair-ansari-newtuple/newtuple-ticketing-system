@@ -20,9 +20,9 @@ type Tab = "open" | "resolved";
 type Action = "approve" | "return" | "wont_qc";
 
 const ANSWERS: { key: Action; label: string }[] = [
-  { key: "approve", label: "Approve UPC" },
-  { key: "return", label: "Send back" },
-  { key: "wont_qc", label: "Won't QC" },
+  { key: "approve", label: "Approve as counted" },
+  { key: "return", label: "Send back to recount" },
+  { key: "wont_qc", label: "Skip this UPC" },
 ];
 
 export default function ExceptionsPage() {
@@ -46,14 +46,14 @@ export default function ExceptionsPage() {
   }
 
   return (
-    <AppShell title="Exceptions" subtitle="UPCs flagged for the supervisor" area="qc">
-      <PillTabs id="qc-exceptions" value={tab} onChange={setTab} tabs={[{ key: "open", label: "On hold", count: open.length, highlight: true }, { key: "resolved", label: "Answered", count: resolved.length }]} />
+    <AppShell title="Exceptions" subtitle="UPCs that someone reported a problem with. A supervisor decides what happens next." area="qc">
+      <PillTabs id="qc-exceptions" value={tab} onChange={setTab} tabs={[{ key: "open", label: "Waiting for supervisor", count: open.length, highlight: true }, { key: "resolved", label: "Answered", count: resolved.length }]} />
       {isLoading ? (
         <Skeleton className="mt-4 h-32 w-full rounded-2xl" />
       ) : isError ? (
         <QueryError error={error} onRetry={refetch} />
       ) : shown.length === 0 ? (
-        <p className="mt-12 text-center text-sm text-muted-foreground">{tab === "open" ? "Nothing is on hold." : "No flags answered yet."}</p>
+        <p className="mt-12 text-center text-sm text-muted-foreground">{tab === "open" ? "Nothing is waiting for a supervisor." : "No problems have been answered yet."}</p>
       ) : (
         <StaggerList className="mt-4 space-y-2.5">
           {shown.map((u) => (
@@ -65,16 +65,17 @@ export default function ExceptionsPage() {
                 </div>
                 {u.flag ? <Badge variant={u.state === "SUPERVISOR_HOLD" ? "destructive" : "success"}>{FLAG_REASONS[u.flag.reason]}</Badge> : null}
               </div>
-              <p className="mt-2 text-sm">Counted <strong>{u.received_units}</strong> of {u.expected_units}</p>
+              <p className="mt-2 text-sm">Counted <strong>{u.received_units}</strong> · PO says {u.expected_units}</p>
               {u.flag?.note ? <p className="mt-1 text-sm text-muted-foreground">{u.flag.note}</p> : null}
               {u.state !== "SUPERVISOR_HOLD" ? (
                 <p className="mt-2 rounded-lg bg-success/12 p-2 text-sm text-success">
-                  {u.state === "APPROVED" ? "Approved" : u.state === "WONT_QC" ? "Skipped (won't QC)" : "Sent back to the associate"}
+                  {u.state === "APPROVED" ? "Approved as counted" : u.state === "WONT_QC" ? "Skipped (left out of QC)" : "Sent back to the associate to recount"}
                   {u.flag?.resolution_note ? `: ${u.flag.resolution_note}` : ""}
                 </p>
               ) : answering === u.id ? (
                 <div className="mt-3 space-y-2">
-                  <Textarea rows={2} placeholder="Add a note (optional)" value={note} onChange={(e) => setNote(e.target.value)} />
+                  <p className="rounded-xl bg-primary/8 p-3 text-xs leading-relaxed"><strong>Approve as counted:</strong> accept the units as they are. <strong>Send back to recount:</strong> the associate checks the UPC again. <strong>Skip this UPC:</strong> it is left out of QC (for example when a claim has been filed).</p>
+                  <Textarea rows={2} placeholder="Add a note for the associate (optional)" value={note} onChange={(e) => setNote(e.target.value)} />
                   <div className="grid grid-cols-3 gap-2">
                     {ANSWERS.map((a) => (
                       <Button key={a.key} size="sm" variant={a.key === "approve" ? "default" : "outline"} disabled={resolve.isPending} onClick={() => answer(u.id, a.key)}>

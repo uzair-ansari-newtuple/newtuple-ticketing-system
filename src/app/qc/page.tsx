@@ -62,7 +62,7 @@ export default function QcHomePage() {
   ) : undefined;
 
   return (
-    <AppShell title="Shipments" subtitle="Choose the POs to check" area="qc" footer={footer}>
+    <AppShell title="Shipments" subtitle="Tick the shipments you want to check, then tap Start QC" area="qc" footer={footer}>
       {isLoading || (shipments.length === 0 && fetchMutation.isPending) ? (
         <div className="space-y-2.5" aria-busy="true">
           {fetchMutation.isPending ? <p className="flex items-center gap-2 pb-1 text-sm text-muted-foreground"><Loader2 size={16} className="animate-spin" /> Fetching shipments from the DC…</p> : null}{[0, 1, 2].map((i) => <Skeleton key={i} className="h-28 w-full rounded-2xl" />)}</div>
@@ -73,7 +73,7 @@ export default function QcHomePage() {
           <span className="grid size-16 place-items-center rounded-2xl bg-primary/10 text-primary"><PackageSearch size={30} /></span>
           <div>
             <p className="font-semibold">No shipments yet</p>
-            <p className="mt-1 text-sm text-muted-foreground">Nothing has arrived at the DC yet. Fetch again to check.</p>
+            <p className="mt-1 text-sm text-muted-foreground">No shipments have arrived at the DC yet. Tap Fetch POs to look again.</p>
           </div>
           <Button size="lg" onClick={() => fetchFromSource()} disabled={fetchMutation.isPending}>
             {fetchMutation.isPending ? <Loader2 className="animate-spin" /> : <RefreshCw />} Fetch POs
