@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { authorizeConnector, incidentIdFrom, runMapAttributes } from "@/lib/sm/stages";
 
+export const maxDuration = 300;
+
 export async function POST(request: Request) {
   const denied = authorizeConnector(request);
   if (denied) return denied;

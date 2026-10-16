@@ -53,6 +53,8 @@ export function loadClip(onProgress?: (p: LoadProgress) => void): Promise<ClipRu
   runtime ??= (async () => {
     const tf = await import("@huggingface/transformers");
     tf.env.allowLocalModels = false;
+    // Vercel only lets a function write to /tmp.
+    if (process.env.VERCEL) tf.env.cacheDir = "/tmp/hf-cache";
 
     const files = new Map<string, number>();
     const progress_callback = (info: { status: string; file?: string; progress?: number }) => {
