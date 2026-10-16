@@ -102,34 +102,29 @@ function CountProgress({ expected, counted, unsaved }: { expected: number; count
   const variance = counted - expected;
   const remaining = Math.max(0, expected - counted);
   const pct = expected ? Math.min(100, Math.round((counted / expected) * 100)) : 0;
-  const exact = counted === expected && expected > 0;
-  const status =
-    counted === 0
-      ? { tone: "text-muted-foreground", text: "Nothing counted yet. This updates as you type your counts." }
-      : exact
-        ? { tone: "text-success", text: "✓ Matches what was expected." }
-        : counted < expected
-          ? { tone: "text-warning-foreground", text: `${fmt(remaining)} still to count. If this is everything, the UPC is short by ${fmt(remaining)}.` }
-          : { tone: "text-destructive", text: `${fmt(variance)} more than expected. Check the counts again.` };
+  const variancePct = expected ? Math.round((Math.abs(variance) / expected) * 1000) / 10 : 0;
+  const done = remaining === 0 && expected > 0;
   return (
     <div className={`rounded-2xl border bg-card p-3.5 shadow-sm ${unsaved ? "ring-2 ring-primary/30" : ""}`}>
-      <div className="flex items-center justify-between text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-        <span>This UPC so far</span>
-        {unsaved ? <span className="rounded-full bg-primary/10 px-2 py-0.5 normal-case tracking-normal text-primary">Not saved yet</span> : null}
+      <div className="flex items-center justify-between gap-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+        <span>UPC total count progress</span>
+        <span aria-live="polite" className={`normal-case tracking-normal ${done ? "text-success" : "text-destructive"}`}>{done ? "✓ Nothing remaining." : `${fmt(remaining)} units remaining.`}</span>
       </div>
-      <Progress value={pct} className="my-2 h-2" />
-      <p className="mb-2 text-center text-[11px] text-muted-foreground">Expected = the amount the purchase order asked for.</p>
-      <div className="grid grid-cols-2 gap-3 text-center sm:grid-cols-4 sm:gap-2">
+      <Progress value={pct} className="my-2.5 h-2" />
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-2">
         {[
-          { label: "You counted", value: fmt(counted), tone: "text-primary" },
-          { label: "Expected", value: fmt(expected), tone: "" },
-          { label: "Still to count", value: fmt(remaining), tone: remaining ? "text-warning-foreground" : "text-success" },
-          { label: "Difference", value: counted === 0 ? "-" : `${variance > 0 ? "+" : ""}${fmt(variance)}`, tone: counted === 0 ? "" : variance === 0 ? "text-success" : "text-destructive" },
+          { label: "Counted so far", value: fmt(counted), tone: "text-primary", sub: unsaved ? "Not saved yet" : "" },
+          { label: "Expected", value: fmt(expected), tone: "", sub: "" },
+          { label: "Remaining", value: fmt(remaining), tone: remaining ? "text-destructive" : "text-success", sub: "" },
+          { label: "Total variance", value: `${variance > 0 ? "+" : ""}${fmt(variance)}`, tone: variance === 0 ? "text-success" : "text-destructive", sub: `${variancePct}% variance` },
         ].map((m) => (
-          <div key={m.label}><p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">{m.label}</p><p className={`text-lg font-bold ${m.tone}`}>{m.value}</p></div>
+          <div key={m.label}>
+            <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">{m.label}</p>
+            <p className={`text-lg font-bold ${m.tone}`}>{m.value}</p>
+            {m.sub ? <p className="text-[10px] text-muted-foreground">{m.sub}</p> : null}
+          </div>
         ))}
       </div>
-      <p aria-live="polite" className={`mt-3 rounded-lg bg-muted/50 px-3 py-2 text-center text-sm font-medium ${status.tone}`}>{status.text}{unsaved ? " Tap “Save count and continue” to save it." : ""}</p>
     </div>
   );
 }
@@ -373,8 +368,16 @@ function StepCount({ upc, pallet, bundled, draft, setDraft, editable }: { upc: U
 
   return (
     <section className="rounded-2xl border bg-card p-4 shadow-sm">
-      <h2 className="text-xl font-bold">3. Count the units</h2>
-      <p className="mt-1 text-sm text-muted-foreground">Answer the questions below from top to bottom. Tap the <Info size={13} className="inline text-primary" /> next to a question if you are not sure what it means. The app adds everything up for you.</p>
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h2 className="text-xl font-bold">3. Count</h2>
+          <p className="mt-1 text-sm text-muted-foreground">Open one case from the current pallet (Pallet {pallet.position}). {bundled ? "Count the size mix in one bundle, then count bundles in the case." : "Count the units in one full case."} The app calculates totals — no mental math.</p>
+        </div>
+        <div className="grid shrink-0 grid-cols-2 divide-x rounded-2xl border border-primary/20 bg-primary/5 text-center">
+          <div className="px-3 py-2"><p className="text-[10px] font-semibold uppercase tracking-wide text-primary">Total units</p><p className="text-2xl font-bold text-primary">{fmt(total)}</p></div>
+          <div className="px-3 py-2"><p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Remaining</p><p className={`text-2xl font-bold ${remaining ? "text-destructive" : "text-success"}`}>{fmt(remaining)}</p></div>
+        </div>
+      </div>
 
       <div className="mt-4 space-y-3">
         {bundled ? (
