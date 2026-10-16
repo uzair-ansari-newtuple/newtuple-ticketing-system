@@ -1,4 +1,5 @@
 import { CLASSES, COLORS } from "@/lib/taxonomy";
+import { JINA_MODEL, jinaEnabled, jinaImage, jinaLabels } from "./jina";
 
 const MODEL = "Xenova/clip-vit-base-patch32";
 const LOGIT_SCALE = 100;
@@ -21,6 +22,9 @@ interface ClipRuntime {
 let runtime: Promise<ClipRuntime> | null = null;
 
 export const CLIP_MODEL_NAME = "clip-vit-base-patch32";
+
+/** The model that makes the vectors right now: Jina when an API key is set, otherwise the one that runs inside the server. */
+export const embeddingModelName = () => (jinaEnabled() ? JINA_MODEL : CLIP_MODEL_NAME);
 
 function normalize(v: number[]): number[] {
   const norm = Math.sqrt(v.reduce((a, x) => a + x * x, 0)) || 1;
@@ -50,6 +54,7 @@ async function embedTexts(tf: Transformers, texts: string[]): Promise<number[][]
 }
 
 export function loadClip(onProgress?: (p: LoadProgress) => void): Promise<ClipRuntime> {
+  if (process.env.VERCEL) return Promise.reject(new Error("JINA_API_KEY is not set. Add it in the Vercel environment variables and redeploy."));
   runtime ??= (async () => {
     const tf = await import("@huggingface/transformers");
     tf.env.allowLocalModels = false;
@@ -79,6 +84,7 @@ export function loadClip(onProgress?: (p: LoadProgress) => void): Promise<ClipRu
 }
 
 export async function embedImage(source: string | Blob, onProgress?: (p: LoadProgress) => void): Promise<number[]> {
+  if (jinaEnabled()) return jinaImage(typeof source === "string" ? await (await fetch(source)).blob() : source);
   const { tf, processor, vision } = await loadClip(onProgress);
   const image = typeof source === "string" ? await tf.RawImage.fromURL(source) : await tf.RawImage.fromBlob(source);
   const inputs = await processor(image);
@@ -102,6 +108,6 @@ function softmaxTop(embedding: number[], labels: number[][]): Scored {
 }
 
 export async function classifyEmbedding(embedding: number[]) {
-  const { classEmbeds, colorEmbeds } = await loadClip();
+  const { classEmbeds, colorEmbeds } = jinaEnabled() ? await jinaLabels() : await loadClip();
   return { cls: softmaxTop(embedding, classEmbeds), color: softmaxTop(embedding, colorEmbeds) };
 }

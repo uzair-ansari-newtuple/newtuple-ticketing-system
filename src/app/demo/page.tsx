@@ -1,13 +1,13 @@
 "use client";
 
-import { Check, Loader2, RotateCcw, TriangleAlert } from "lucide-react";
+import { Check, Loader2, RotateCcw, ScanSearch, TriangleAlert } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/app-shell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useDemoReset, useDemoStatus } from "@/lib/demo/queries";
+import { useDemoReset, useDemoStatus, useReindex } from "@/lib/demo/queries";
 import type { ResetSummary } from "@/lib/demo/reset";
 
 const STATE_LABEL: Record<string, string> = {
@@ -39,6 +39,7 @@ function Summary({ s }: { s: ResetSummary }) {
 export default function DemoCockpitPage() {
   const status = useDemoStatus();
   const reset = useDemoReset();
+  const reindex = useReindex();
   const [typed, setTyped] = useState("");
   const [summary, setSummary] = useState<ResetSummary | null>(null);
   const ready = typed.trim().toUpperCase() === "RESET";
@@ -91,6 +92,15 @@ export default function DemoCockpitPage() {
         </section>
 
         {summary ? <Summary s={summary} /> : null}
+
+        <section className="rounded-2xl border bg-card p-4 shadow-sm">
+          <h2 className="text-base font-bold">Rebuild image index</h2>
+          <p className="mt-1 text-sm text-muted-foreground">Makes the image vector of every catalog product again with the model the app uses now. Run it once after the image model changes, so photos can be matched.</p>
+          <Button variant="outline" size="lg" className="mt-3 h-12 w-full" disabled={reindex.isPending} onClick={() => reindex.mutate(undefined, { onSuccess: (r) => toast.success(`Rebuilt ${r.updated} items with ${r.model}${r.failed.length ? `, ${r.failed.length} failed` : ""}`), onError: (e) => toast.error(e.message) })}>
+            {reindex.isPending ? <Loader2 className="animate-spin" /> : <ScanSearch />} {reindex.isPending ? "Rebuilding, this takes a minute…" : "Rebuild image index"}
+          </Button>
+          {reindex.data?.failed.length ? <p className="mt-2 text-sm text-warning-foreground">Could not rebuild: {reindex.data.failed.slice(0, 3).join("; ")}</p> : null}
+        </section>
       </div>
     </AppShell>
   );
