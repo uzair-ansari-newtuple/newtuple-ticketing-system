@@ -525,6 +525,8 @@ function PalletFlow({ upc, pallet, index, total, step, setStep, onPallet, onToUp
   const draftTotal = palletTotal({ mdl_actual: num(draft.mdl), bundles_per_case: bundled ? num(draft.bundles) : 1, full_cases_count: num(draft.cases), partial_units: num(draft.loose) });
   const countedLive = upc.received_units - pallet.total_units + (step === 3 ? draftTotal : pallet.total_units);
   const unsaved = step === 3 && draftTotal !== pallet.total_units;
+  const hasCount = step === 3 ? draftTotal > 0 : step === 4 && pallet.total_units > 0;
+  const mismatch = hasCount && countedLive !== upc.expected_units;
   const productReady = PRODUCT_CHECKS.every(([k]) => checks[k]) && hasPhoto;
   const countReady = num(draft.mdl) !== null && (!bundled || num(draft.bundles) !== null) && num(draft.cases) !== null;
 
@@ -602,9 +604,10 @@ function PalletFlow({ upc, pallet, index, total, step, setStep, onPallet, onToUp
 
       <div className="sticky bottom-[calc(4.5rem+env(safe-area-inset-bottom))] z-30 -mx-1 rounded-2xl border bg-background/90 p-2 shadow-lg backdrop-blur-xl">
         {step === 2 && editable && !productReady ? <p className="px-2 pb-2 text-center text-xs font-medium text-destructive">{!hasPhoto ? "Add at least one photo of the goods and tick all 5 boxes to continue." : "Tick all 5 boxes to continue."}</p> : null}
-        <div className="grid grid-cols-[1fr_auto_1.4fr] gap-2">
+        {mismatch ? <p className="px-2 pb-2 text-center text-xs font-medium text-warning-foreground">The count does not match the PO yet. If this is all there is, report a problem so a supervisor can decide.</p> : null}
+        <div className={`grid gap-2 ${mismatch ? "grid-cols-[1fr_auto_1.4fr]" : "grid-cols-[1fr_1.4fr]"}`}>
           <Button variant="outline" className="h-12 min-w-0 px-3" onClick={() => (step === 2 ? onToUpcs() : setStep((step - 1) as Step))}><ChevronLeft className="shrink-0" /> <span className="truncate"><span className="sm:hidden">Back</span><span className="hidden sm:inline">{step === 2 ? "Back to UPCs" : step === 3 ? "Back to product" : "Back to count"}</span></span></Button>
-          <Button variant="outline" className="h-12 border-destructive/40 text-destructive hover:bg-destructive/10" disabled={!editable} onClick={() => setFlagOpen(true)}><AlertTriangle className="shrink-0" /> <span className="hidden sm:inline">Report a problem</span></Button>
+          {mismatch ? <Button variant="outline" className="h-12 border-destructive/40 text-destructive hover:bg-destructive/10" disabled={!editable} onClick={() => setFlagOpen(true)}><AlertTriangle className="shrink-0" /> <span className="hidden sm:inline">Report a problem</span></Button> : null}
           {step === 2 ? <Button className="h-12 min-w-0 px-3" disabled={!editable || !productReady || busy} onClick={acceptProduct}>{busy ? <Loader2 className="animate-spin" /> : null} <span className="truncate"><span className="sm:hidden">Next</span><span className="hidden sm:inline">Continue to count</span></span> <ChevronRight className="shrink-0" /></Button> : null}
           {step === 3 ? <Button className="h-12 min-w-0 px-3" disabled={!editable || !countReady || busy} onClick={acceptCount}>{busy ? <Loader2 className="animate-spin" /> : null} <span className="truncate"><span className="sm:hidden">Next</span><span className="hidden sm:inline">Save count and continue</span></span> <ChevronRight className="shrink-0" /></Button> : null}
           {step === 4 ? <span className="self-center px-2 text-center text-xs text-muted-foreground">Answer the question above</span> : null}
