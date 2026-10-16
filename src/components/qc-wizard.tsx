@@ -106,13 +106,14 @@ function CountProgress({ expected, counted }: { expected: number; counted: numbe
     <div className="rounded-2xl border bg-card p-3.5 shadow-sm">
       <div className="flex items-center justify-between text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
         <span>This UPC so far</span>
-        {exact ? <span className="normal-case tracking-normal text-success">Matches the PO.</span> : null}
+        {exact ? <span className="normal-case tracking-normal text-success">Matches what was expected.</span> : null}
       </div>
       <Progress value={pct} className="my-2 h-2" />
+      <p className="mb-2 text-center text-[11px] text-muted-foreground">Expected = the amount the purchase order asked for.</p>
       <div className="grid grid-cols-2 gap-3 text-center sm:grid-cols-4 sm:gap-2">
         {[
           { label: "You counted", value: fmt(counted), tone: "text-primary" },
-          { label: "PO says", value: fmt(expected), tone: "" },
+          { label: "Expected", value: fmt(expected), tone: "" },
           { label: "Still to count", value: fmt(remaining), tone: remaining ? "text-warning-foreground" : "text-success" },
           { label: "Difference", value: counted === 0 ? "-" : `${variance > 0 ? "+" : ""}${fmt(variance)}`, tone: counted === 0 ? "" : variance === 0 ? "text-success" : "text-destructive" },
         ].map((m) => (
@@ -147,7 +148,7 @@ function StepUpcs({ shipment, onPick, onReview }: { shipment: ShipmentDetail; on
             ["Held for supervisor", String(t.on_hold)],
             ["In progress", String(shipment.upcs.filter((u) => u.state === "IN_PROGRESS").length)],
             ["Units counted", fmt(t.received)],
-            ["Units on the PO", fmt(t.units)],
+            ["Units expected", fmt(t.units)],
             ["Skipped (won't QC)", String(t.wont_qc)],
           ].map(([label, value]) => (
             <div key={label}><p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">{label}</p><p className="text-lg font-bold">{value}</p></div>
@@ -181,7 +182,7 @@ function StepUpcs({ shipment, onPick, onReview }: { shipment: ShipmentDetail; on
                   ))}
                 </dl>
                 <dl className="mt-3 grid grid-cols-2 gap-3 rounded-xl bg-muted/50 p-2.5 text-sm">
-                  <div><dt className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Units on the PO</dt><dd className="text-lg font-bold">{fmt(u.expected_units)}</dd></div>
+                  <div><dt className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Units expected</dt><dd className="text-lg font-bold">{fmt(u.expected_units)}</dd></div>
                   <div><dt className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Units you counted</dt><dd className={`text-lg font-bold ${u.received_units ? (u.received_units === u.expected_units ? "text-success" : "text-destructive") : ""}`}>{fmt(u.received_units)}</dd></div>
                 </dl>
                 <p className="mt-2 flex items-center justify-end gap-1 text-xs text-muted-foreground">{approved ? "Approved. Tap to send back for rework" : hold ? "Waiting for the supervisor" : skipped ? "Skipped by the supervisor" : u.state === "IN_PROGRESS" ? "Tap to continue" : "Tap to start"} <ChevronRight size={12} /></p>
@@ -205,7 +206,7 @@ function StepUpcs({ shipment, onPick, onReview }: { shipment: ShipmentDetail; on
       {ready ? (
         <div className="mt-4 rounded-2xl border border-success/40 bg-success/8 p-4">
           <p className="font-semibold text-success">All UPCs are done</p>
-          <p className="mt-1 text-sm text-muted-foreground">Look over the summary, then submit QC so the PO can go to receipt.</p>
+          <p className="mt-1 text-sm text-muted-foreground">Look over the summary, then submit QC so this shipment can go on to receipt.</p>
           <Button size="lg" className="mt-3 h-12 w-full" onClick={onReview}>Review and submit <ChevronRight /></Button>
         </div>
       ) : null}
@@ -246,10 +247,10 @@ function StepProduct({ upc, pallet, bundled, setBundled, checks, setChecks, edit
   const { photo } = useQcMutations();
   const sub: Record<string, string> = {
     inspect_case_opened: "Open one case and look at the carton seal",
-    inspect_style_confirmed: `PO says style ${upc.style_number}`,
-    inspect_color_confirmed: `PO says colour ${upc.color_name}`,
-    inspect_upc_confirmed: `PO says UPC ${upc.upc_code}`,
-    inspect_price_confirmed: `PO says retail price $${upc.retail_price}`,
+    inspect_style_confirmed: `Expected style: ${upc.style_number}`,
+    inspect_color_confirmed: `Expected colour: ${upc.color_name}`,
+    inspect_upc_confirmed: `Expected UPC: ${upc.upc_code}`,
+    inspect_price_confirmed: `Expected retail price: $${upc.retail_price}`,
   };
 
   async function add(blob: Blob) {
@@ -259,7 +260,7 @@ function StepProduct({ upc, pallet, bundled, setBundled, checks, setChecks, edit
   return (
     <section className="rounded-2xl border bg-card p-4 shadow-sm">
       <h2 className="text-xl font-bold">2. Check the product</h2>
-      <p className="mt-1 text-sm text-muted-foreground">Open one case from Pallet {pallet.position} and compare it with the PO. Tick each box once you have checked it. Then add at least one photo of the goods. <strong>A photo is required.</strong></p>
+      <p className="mt-1 text-sm text-muted-foreground">Open one case from Pallet {pallet.position} and compare it with the purchase order (PO). Tick each box once you have checked it. Then add at least one photo of the goods. <strong>A photo is required.</strong></p>
 
       <div className="mt-4 overflow-hidden rounded-2xl border">
         <p className="bg-muted/60 px-3.5 py-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Tick each one when checked</p>
@@ -306,8 +307,8 @@ const EXPLAIN = {
 
 type CountDraft = { mdl: string; bundles: string; cases: string; loose: string };
 
-/** One question in the count: a title, a short explanation, a number box with minus and plus, the unit, and what the PO says. */
-function CountRow({ n, title, help, info, infoLabel, value, onChange, unit, poSays, disabled, result }: { n: number; title: string; help: string; info: string; infoLabel: string; value: string; onChange: (v: string) => void; unit: string; poSays?: string; disabled: boolean; result?: { ok: boolean; text: string } | null }) {
+/** One question in the count: a title, a short explanation, a number box with minus and plus, the unit, and what the purchase order expected. */
+function CountRow({ n, title, help, info, infoLabel, value, onChange, unit, expected, example, disabled, result }: { n: number; title: string; help: string; info: string; infoLabel: string; value: string; onChange: (v: string) => void; unit: string; expected?: string; example?: string; disabled: boolean; result?: { ok: boolean; text: string } | null }) {
   const bump = (delta: number) => onChange(String(Math.max(0, (value === "" ? 0 : Number(value)) + delta)));
   return (
     <section className="rounded-2xl border bg-card p-4">
@@ -325,14 +326,14 @@ function CountRow({ n, title, help, info, infoLabel, value, onChange, unit, poSa
                 aria-label={title}
                 value={value}
                 disabled={disabled}
-                placeholder={poSays ? `e.g. ${poSays}` : "e.g. 0"}
+                placeholder={`e.g. ${example ?? 0}`}
                 onChange={(e) => onChange(digits(e.target.value))}
                 className="w-24 border-x bg-transparent text-center text-2xl font-bold outline-none placeholder:text-base placeholder:font-normal placeholder:text-muted-foreground/60 disabled:opacity-60"
               />
               <button type="button" aria-label={`One more: ${title}`} disabled={disabled} onClick={() => bump(1)} className="grid w-12 place-items-center text-2xl text-primary outline-none hover:bg-muted focus-visible:bg-muted disabled:opacity-40">+</button>
             </div>
             <span className="text-sm font-medium text-foreground">{unit}</span>
-            {poSays ? <span className="rounded-full bg-muted px-3 py-1 text-xs font-medium text-muted-foreground">PO says {poSays}</span> : null}
+            {expected ? <span title="This is what the purchase order asked for" className="rounded-full bg-muted px-3 py-1 text-xs font-medium text-muted-foreground">Expected: {expected}</span> : null}
           </div>
 
           {result ? <p className={`mt-3 w-fit max-w-full rounded-lg px-3 py-2 text-sm ${result.ok ? "bg-success/12 text-success" : "bg-warning/18 text-warning-foreground"}`}>{result.ok ? "✓ " : ""}{result.text}</p> : null}
@@ -352,6 +353,7 @@ function StepCount({ upc, pallet, bundled, draft, setDraft, editable }: { upc: U
   const total = palletTotal({ mdl_actual: mdl, bundles_per_case: bundles, full_cases_count: cases, partial_units: loose });
   const counted = upc.received_units - pallet.total_units + total;
   const remaining = Math.max(0, upc.expected_units - counted);
+  const expectedCases = pallet.expected_units ? Math.floor(pallet.expected_units / Math.max(1, pallet.mdl_expected * pallet.bundles_expected)) : 0;
   const step = bundled ? 0 : -1;
   const rowNo = (n: number) => n + step;
 
@@ -363,16 +365,16 @@ function StepCount({ upc, pallet, bundled, draft, setDraft, editable }: { upc: U
       <div className="mt-4 space-y-3">
         {bundled ? (
           <>
-            <CountRow n={rowNo(1)} title="How many units are in one bundle?" help="Pick up one bundle and count the units in it." info={EXPLAIN.mdl} infoLabel="units in one bundle" value={draft.mdl} onChange={set("mdl")} unit="units" poSays={String(pallet.mdl_expected)} disabled={!editable}
-              result={mdl === null ? null : mdl === pallet.mdl_expected ? { ok: true, text: "Same as the PO. No change needed." } : { ok: false, text: `The PO says ${pallet.mdl_expected}. Check that ${mdl} is what you counted.` }} />
-            <CountRow n={rowNo(2)} title="How many bundles are in one full case?" help="Open one full case and count the bundles inside it." info={EXPLAIN.bundles} infoLabel="bundles in a case" value={draft.bundles} onChange={set("bundles")} unit="bundles" poSays={String(pallet.bundles_expected)} disabled={!editable}
+            <CountRow n={rowNo(1)} title="How many units are in one bundle?" help="Pick up one bundle and count the units in it." info={EXPLAIN.mdl} infoLabel="units in one bundle" value={draft.mdl} onChange={set("mdl")} unit="units per bundle" expected={`${pallet.mdl_expected} units per bundle`} example={String(pallet.mdl_expected)} disabled={!editable}
+              result={mdl === null ? null : mdl === pallet.mdl_expected ? { ok: true, text: "Same as expected. No change needed." } : { ok: false, text: `Expected ${pallet.mdl_expected} units per bundle. Check that ${mdl} is what you counted.` }} />
+            <CountRow n={rowNo(2)} title="How many bundles are in one full case?" help="Open one full case and count the bundles inside it." info={EXPLAIN.bundles} infoLabel="bundles in a case" value={draft.bundles} onChange={set("bundles")} unit="bundles per case" expected={`${pallet.bundles_expected} bundles per case`} example={String(pallet.bundles_expected)} disabled={!editable}
               result={bundles !== null && mdl !== null && bundles > 0 ? { ok: true, text: `One full case = ${bundles} bundles × ${mdl} units = ${perCase} units.` } : null} />
           </>
         ) : (
-          <CountRow n={1} title="How many units are in one full case?" help="Open one full case and count all the units inside it." info={EXPLAIN.perCase} infoLabel="units in a case" value={draft.mdl} onChange={set("mdl")} unit="units" poSays={String(pallet.mdl_expected * pallet.bundles_expected)} disabled={!editable} />
+          <CountRow n={1} title="How many units are in one full case?" help="Open one full case and count all the units inside it." info={EXPLAIN.perCase} infoLabel="units in a case" value={draft.mdl} onChange={set("mdl")} unit="units per case" expected={`${pallet.mdl_expected * pallet.bundles_expected} units per case`} example={String(pallet.mdl_expected * pallet.bundles_expected)} disabled={!editable} />
         )}
-        <CountRow n={rowNo(3)} title="How many full cases are on this pallet?" help="Count only the cases that are completely full." info={EXPLAIN.cases} infoLabel="full cases" value={draft.cases} onChange={set("cases")} unit="cases" poSays={pallet.expected_units ? String(Math.floor(pallet.expected_units / Math.max(1, pallet.mdl_expected * pallet.bundles_expected))) : undefined} disabled={!editable} />
-        <CountRow n={rowNo(4)} title="How many loose units are there?" help="Units that are not in a full case. Type 0 if there are none." info={EXPLAIN.loose} infoLabel="loose units" value={draft.loose} onChange={set("loose")} unit="units" disabled={!editable} />
+        <CountRow n={rowNo(3)} title="How many full cases are on this pallet?" help="Count only the cases that are completely full." info={EXPLAIN.cases} infoLabel="full cases" value={draft.cases} onChange={set("cases")} unit="full cases" expected={expectedCases ? `about ${expectedCases} full case${expectedCases === 1 ? "" : "s"} (${fmt(pallet.expected_units)} units)` : undefined} example={expectedCases ? String(expectedCases) : "0"} disabled={!editable} />
+        <CountRow n={rowNo(4)} title="How many loose units are there?" help="Units that are not in a full case. Type 0 if there are none." info={EXPLAIN.loose} infoLabel="loose units" value={draft.loose} onChange={set("loose")} unit="loose units" example="0" disabled={!editable} />
       </div>
 
       <div className="mt-4 rounded-2xl border-2 border-primary/30 bg-primary/5 p-4">
@@ -381,7 +383,7 @@ function StepCount({ upc, pallet, bundled, draft, setDraft, editable }: { upc: U
         <p className="mt-1 text-sm text-muted-foreground">{cases ?? 0} full cases × {perCase} units per case + {loose ?? 0} loose units</p>
         <div className="mt-3 grid grid-cols-2 gap-3 border-t pt-3 text-sm">
           <div><p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Counted on the whole UPC</p><p className="text-lg font-bold">{fmt(counted)}</p></div>
-          <div><p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Still to count (PO says {fmt(upc.expected_units)})</p><p className={`text-lg font-bold ${remaining ? "text-warning-foreground" : "text-success"}`}>{fmt(remaining)}</p></div>
+          <div><p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Still to count (expected {fmt(upc.expected_units)})</p><p className={`text-lg font-bold ${remaining ? "text-warning-foreground" : "text-success"}`}>{fmt(remaining)}</p></div>
         </div>
       </div>
     </section>
@@ -429,7 +431,7 @@ function StepLabels({ upc, pallet, checks, setChecks, editable, onAnother, onDon
         <div className="mt-2 grid grid-cols-2 gap-3 text-center sm:grid-cols-4 sm:gap-2">
           {[
             ["Counted on this pallet", fmt(pallet.total_units), "text-primary"],
-            ["PO says", pallet.expected_units ? fmt(pallet.expected_units) : "-", ""],
+            ["Expected", pallet.expected_units ? fmt(pallet.expected_units) : "-", ""],
             ["Still to count", pallet.expected_units ? fmt(Math.max(0, pallet.expected_units - pallet.total_units)) : "-", ""],
             ["Difference", pallet.expected_units ? `${variance > 0 ? "+" : ""}${fmt(variance)}` : "-", variance === 0 ? "text-success" : "text-destructive"],
           ].map(([label, value, tone]) => (

@@ -45,7 +45,7 @@ export default function CompleteQcPage() {
         {[
           { label: "UPCs approved", value: t.approved, tone: "text-success" },
           { label: "UPCs skipped", value: t.wont_qc, tone: "text-foreground" },
-          { label: "Units counted / on the PO", value: `${t.received}/${t.units}`, tone: "text-foreground" },
+          { label: "Units counted / expected", value: `${t.received}/${t.units}`, tone: "text-foreground" },
         ].map((m) => (
           <div key={m.label} className="rounded-2xl border bg-card p-3 shadow-sm">
             <p className={`text-2xl font-bold ${m.tone}`}>{m.value}</p>

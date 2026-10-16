@@ -326,7 +326,7 @@ export async function approveUpc(upcId: string, user: Actor): Promise<UpcDetail>
   if (!detail.pallets.length || detail.pallets.some((p) => p.status !== "COMPLETE")) throw new QcError(409, "Finish the checks and count on every pallet first.");
   if (!detail.labels_complete) throw new QcError(409, "Tick both label boxes (pallet label and case labels) first.");
   const result = matchCount(detail.expected_units, detail.received_units);
-  if (result.result !== "MATCH") throw new QcError(409, `The count does not match the PO (${result.result === "SHORT" ? "short" : "over"} by ${result.diff}). Flag the UPC instead.`);
+  if (result.result !== "MATCH") throw new QcError(409, `The count does not match what the purchase order expected (${result.result === "SHORT" ? "short" : "over"} by ${result.diff}). Flag the UPC instead.`);
   if (detail.photo_count < 1) throw new QcError(409, "Add at least one photo of the goods before approving this UPC.");
   const noLabelPhoto = detail.pallets.find((p) => p.label_photo_count < 1);
   if (noLabelPhoto) throw new QcError(409, `Add a photo of the labels on pallet ${noLabelPhoto.position} before approving this UPC.`);

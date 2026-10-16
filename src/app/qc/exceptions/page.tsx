@@ -65,7 +65,7 @@ export default function ExceptionsPage() {
                 </div>
                 {u.flag ? <Badge variant={u.state === "SUPERVISOR_HOLD" ? "destructive" : "success"}>{FLAG_REASONS[u.flag.reason]}</Badge> : null}
               </div>
-              <p className="mt-2 text-sm">Counted <strong>{u.received_units}</strong> · PO says {u.expected_units}</p>
+              <p className="mt-2 text-sm">Counted <strong>{u.received_units}</strong> · Expected {u.expected_units}</p>
               {u.flag?.note ? <p className="mt-1 text-sm text-muted-foreground">{u.flag.note}</p> : null}
               {u.state !== "SUPERVISOR_HOLD" ? (
                 <p className="mt-2 rounded-lg bg-success/12 p-2 text-sm text-success">
