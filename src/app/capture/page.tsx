@@ -1,6 +1,6 @@
 "use client";
 
-import { Camera, Check, ImagePlus, Image as ImageIcon, MapPin, Trash2 } from "lucide-react";
+import { Camera, Check, ImagePlus, Image as ImageIcon, Images, MapPin, Trash2 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import Link from "next/link";
 import { useRef, useState } from "react";
@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { AppShell } from "@/components/app-shell";
 import { CameraSheet } from "@/components/camera-sheet";
 import { MetadataCard } from "@/components/metadata-card";
+import { SamplePhotosSheet } from "@/components/sample-photos-sheet";
 import { EASE, Stagger, StaggerItem } from "@/components/motion";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -23,6 +24,7 @@ import { useCapture } from "@/store/capture";
 export default function CapturePage() {
   const { photos, setPhoto, removePhoto } = useCapture();
   const fileRef = useRef<HTMLInputElement>(null);
+  const [samplesOpen, setSamplesOpen] = useState(false);
   const [active, setActive] = useState<PhotoSlot>(() => SLOTS.find((s) => !useCapture.getState().photos.some((p) => p.slot === s.key))?.key ?? "front");
   const [cameraOpen, setCameraOpen] = useState(false);
   const [attachLocation, setAttachLocation] = useState(false);
@@ -179,6 +181,9 @@ export default function CapturePage() {
             <Button size="lg" variant="outline" disabled={busy} onClick={() => fileRef.current?.click()}>
               <ImagePlus /> Upload
             </Button>
+            <Button size="lg" variant="outline" className="col-span-2" disabled={busy} onClick={() => setSamplesOpen(true)}>
+              <Images /> Sample photos
+            </Button>
           </div>
           <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/heic,image/heif" multiple hidden onChange={(e) => onFiles(e.target.files)} />
           <div className="mt-4 flex items-center gap-2.5">
@@ -204,6 +209,19 @@ export default function CapturePage() {
           <Checkbox id="hide-location" checked={hideLocation} onCheckedChange={(v) => setHideLocation(v === true)} />
           <Label htmlFor="hide-location">Location found in photos. Hide coordinates on screen.</Label>
         </div>
+      ) : null}
+
+      {samplesOpen ? (
+        <SamplePhotosSheet
+          onClose={() => setSamplesOpen(false)}
+          onPick={(blob) => {
+            setSamplesOpen(false);
+            void run(async () => {
+              await ingest(new File([blob], `sample-${Date.now()}.jpg`, { type: blob.type || "image/jpeg" }), "uploaded", active);
+              setActive(nextEmptySlot(active));
+            });
+          }}
+        />
       ) : null}
 
       <AnimatePresence>
