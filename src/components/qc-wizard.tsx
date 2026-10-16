@@ -27,7 +27,7 @@ const STEPS: { n: Step; label: string }[] = [
 const MAX_PHOTOS = 5;
 const PRODUCT_CHECKS = CHECKS.slice(0, 5);
 const LABEL_CHECKS = CHECKS.slice(5);
-const MAX_VARIANCE_TO_FINISH = 10;
+const MAX_VARIANCE_PCT_TO_FINISH = 10;
 const digits = (v: string) => v.replace(/\D/g, "");
 const num = (v: string) => (v === "" ? null : Number(v));
 const fmt = (n: number) => n.toLocaleString();
@@ -415,7 +415,8 @@ function StepLabels({ upc, pallet, checks, setChecks, editable, onAnother, onDon
   const labelPhotos = upc.photos.filter((p) => p.kind === "label" && p.pallet_id === pallet.id).map((p) => p.src);
   const hasLabelPhoto = labelPhotos.length >= 1;
   const upcVariance = upc.received_units - upc.expected_units;
-  const tooFar = Math.abs(upcVariance) > MAX_VARIANCE_TO_FINISH;
+  const upcVariancePct = upc.expected_units ? (Math.abs(upcVariance) / upc.expected_units) * 100 : 0;
+  const tooFar = upcVariancePct > MAX_VARIANCE_PCT_TO_FINISH;
   const palletOk = checks.label_pallet_confirmed;
   const casesOk = checks.label_cases_confirmed;
   const labelsOk = LABEL_CHECKS.every(([k]) => checks[k]) && hasLabelPhoto;
@@ -475,7 +476,7 @@ function StepLabels({ upc, pallet, checks, setChecks, editable, onAnother, onDon
           <Button size="lg" className="h-12" disabled={!editable || !labelsOk || busy} onClick={onAnother}>{busy ? <Loader2 className="animate-spin" /> : <RotateCcw />} Yes, check the next pallet</Button>
           <Button size="lg" className="h-12 bg-success text-white hover:bg-success/90" disabled={!editable || !labelsOk || tooFar || busy} onClick={onDone}>{busy ? <Loader2 className="animate-spin" /> : <Check />} No, finish this UPC</Button>
         </div>
-        {tooFar ? <p className="mt-2 text-xs font-medium text-destructive">This UPC is {Math.abs(upcVariance)} units {upcVariance < 0 ? "short" : "over"}, more than {MAX_VARIANCE_TO_FINISH}. You cannot finish it. Count again, add another pallet, or report a problem so a supervisor can decide.</p> : null}
+        {tooFar ? <p className="mt-2 text-xs font-medium text-destructive">This UPC is {Math.abs(upcVariance)} units {upcVariance < 0 ? "short" : "over"} ({Math.round(upcVariancePct * 10) / 10}% variance). You can only finish a UPC within {MAX_VARIANCE_PCT_TO_FINISH}%. Count again, add another pallet, or report a problem so a supervisor can decide.</p> : null}
         {!labelsOk ? <p className="mt-2 text-xs text-muted-foreground">{!hasLabelPhoto ? "Add the label photo first, then confirm both label steps." : "Confirm both label steps first."}</p> : null}
       </div>
     </section>
