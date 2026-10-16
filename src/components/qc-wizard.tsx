@@ -1,11 +1,12 @@
 "use client";
 
-import { AlertTriangle, Camera, Check, ChevronLeft, ChevronRight, ImagePlus, Info, Loader2, MessageSquare, RotateCcw } from "lucide-react";
+import { AlertTriangle, Camera, Check, ChevronLeft, ChevronRight, Images, ImagePlus, Info, Loader2, MessageSquare, RotateCcw } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useRef, useState, type Dispatch, type SetStateAction } from "react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/app-shell";
 import { CameraSheet } from "@/components/camera-sheet";
+import { SamplePhotosSheet } from "@/components/sample-photos-sheet";
 import { UpcBadge } from "@/components/qc-badges";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -230,6 +231,7 @@ function StepUpcs({ shipment, onPick, onReview }: { shipment: ShipmentDetail; on
 function PhotoPicker({ title, photos, required, requiredText, editable, pending, onAdd, alt }: { title: string; photos: string[]; required: boolean; requiredText: string; editable: boolean; pending: boolean; onAdd: (blob: Blob) => void; alt: string }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [cameraOpen, setCameraOpen] = useState(false);
+  const [samplesOpen, setSamplesOpen] = useState(false);
   return (
     <div>
       <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{title} ({photos.length}/{MAX_PHOTOS}){required ? " · required" : ""}</p>
@@ -242,12 +244,14 @@ function PhotoPicker({ title, photos, required, requiredText, editable, pending,
         </div>
       ) : required ? <p className="mb-2 rounded-xl bg-destructive/10 p-3 text-sm font-medium text-destructive">{requiredText}</p> : null}
       {editable && photos.length < MAX_PHOTOS ? (
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
           <Button variant="outline" size="lg" className="h-12" disabled={pending} onClick={() => setCameraOpen(true)}>{pending ? <Loader2 className="animate-spin" /> : <Camera />} Take photo</Button>
           <Button variant="outline" size="lg" className="h-12" disabled={pending} onClick={() => fileRef.current?.click()}><ImagePlus /> Upload</Button>
+          <Button variant="outline" size="lg" className="col-span-2 h-12 sm:col-span-1" disabled={pending} onClick={() => setSamplesOpen(true)}><Images /> Sample photos</Button>
         </div>
       ) : null}
       <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) onAdd(f); }} />
+      {samplesOpen ? <SamplePhotosSheet onPick={(b) => { setSamplesOpen(false); onAdd(b); }} onClose={() => setSamplesOpen(false)} /> : null}
       {cameraOpen ? <CameraSheet onCapture={(b) => { setCameraOpen(false); onAdd(b); }} onClose={() => setCameraOpen(false)} /> : null}
     </div>
   );
