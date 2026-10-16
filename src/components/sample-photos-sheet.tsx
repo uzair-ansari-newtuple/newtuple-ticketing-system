@@ -22,7 +22,7 @@ export function SamplePhotosSheet({ onPick, onClose }: { onPick: (blob: Blob) =>
           {SAMPLE_PHOTOS.map((n) => (
             <button key={n} onClick={() => pick(n)} className="relative block h-0 w-full overflow-hidden rounded-xl border bg-muted p-0 pb-[100%] outline-none transition hover:ring-2 hover:ring-primary active:scale-95 focus-visible:ring-3 focus-visible:ring-ring/50">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={`/sample-photos/${n}.jpg`} alt={n.replace(/-/g, " ")} loading="lazy" className="absolute inset-0 size-full object-cover" />
+              <img src={`/sample-photos/${n}.jpg`} decoding="async" alt={n.replace(/-/g, " ")} className="absolute inset-0 size-full object-cover" />
             </button>
           ))}
         </div>
