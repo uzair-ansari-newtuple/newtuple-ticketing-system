@@ -2,7 +2,7 @@ import { CLASSES, COLORS } from "@/lib/taxonomy";
 
 const ENDPOINT = "https://api.jina.ai/v1/embeddings";
 export const JINA_MODEL = "jina-clip-v2";
-const DIMENSIONS = 512;
+const DIMENSIONS = 1024;
 
 /** True when an API key is set, so photos are turned into vectors by Jina instead of a model running inside the server. */
 export const jinaEnabled = () => Boolean(process.env.JINA_API_KEY);

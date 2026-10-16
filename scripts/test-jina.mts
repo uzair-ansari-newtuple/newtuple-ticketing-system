@@ -15,7 +15,7 @@ globalThis.fetch = (async (url: string, init: RequestInit) => {
 check("a key turns Jina on", jinaEnabled());
 const v = await jinaImage(new Blob([new Uint8Array([1, 2, 3])], { type: "image/jpeg" }));
 check("an image is sent as base64 to the embeddings endpoint", sent!.url === "https://api.jina.ai/v1/embeddings" && sent!.body.input[0].image === Buffer.from([1, 2, 3]).toString("base64"), JSON.stringify(sent));
-check("the key and model are sent", sent!.headers.authorization === "Bearer test-key" && sent!.body.model === JINA_MODEL && sent!.body.dimensions === 512);
+check("the key and model are sent", sent!.headers.authorization === "Bearer test-key" && sent!.body.model === JINA_MODEL && sent!.body.dimensions === 1024);
 check("the vector comes back with length 1", Math.abs(Math.hypot(...v) - 1) < 1e-9 && Math.abs(v[0] - 0.6) < 1e-9, JSON.stringify(v));
 const t = await jinaTexts(["a", "b"]);
 check("texts are sent as text and come back in order", sent!.body.input[0].text === "a" && t.length === 2 && Math.abs(t[0][0] - 0.6) < 1e-9, JSON.stringify(t));
