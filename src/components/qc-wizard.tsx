@@ -97,16 +97,24 @@ function Notes({ comments }: { comments: UpcDetail["comments"] }) {
   );
 }
 
-function CountProgress({ expected, counted }: { expected: number; counted: number }) {
+function CountProgress({ expected, counted, unsaved }: { expected: number; counted: number; unsaved: boolean }) {
   const variance = counted - expected;
   const remaining = Math.max(0, expected - counted);
   const pct = expected ? Math.min(100, Math.round((counted / expected) * 100)) : 0;
   const exact = counted === expected && expected > 0;
+  const status =
+    counted === 0
+      ? { tone: "text-muted-foreground", text: "Nothing counted yet. This updates as you type your counts." }
+      : exact
+        ? { tone: "text-success", text: "✓ Matches what was expected." }
+        : counted < expected
+          ? { tone: "text-warning-foreground", text: `${fmt(remaining)} still to count. If this is everything, the UPC is short by ${fmt(remaining)}.` }
+          : { tone: "text-destructive", text: `${fmt(variance)} more than expected. Check the counts again.` };
   return (
-    <div className="rounded-2xl border bg-card p-3.5 shadow-sm">
+    <div className={`rounded-2xl border bg-card p-3.5 shadow-sm ${unsaved ? "ring-2 ring-primary/30" : ""}`}>
       <div className="flex items-center justify-between text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
         <span>This UPC so far</span>
-        {exact ? <span className="normal-case tracking-normal text-success">Matches what was expected.</span> : null}
+        {unsaved ? <span className="rounded-full bg-primary/10 px-2 py-0.5 normal-case tracking-normal text-primary">Not saved yet</span> : null}
       </div>
       <Progress value={pct} className="my-2 h-2" />
       <p className="mb-2 text-center text-[11px] text-muted-foreground">Expected = the amount the purchase order asked for.</p>
@@ -120,9 +128,11 @@ function CountProgress({ expected, counted }: { expected: number; counted: numbe
           <div key={m.label}><p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">{m.label}</p><p className={`text-lg font-bold ${m.tone}`}>{m.value}</p></div>
         ))}
       </div>
+      <p aria-live="polite" className={`mt-3 rounded-lg bg-muted/50 px-3 py-2 text-center text-sm font-medium ${status.tone}`}>{status.text}{unsaved ? " Tap “Save count and continue” to save it." : ""}</p>
     </div>
   );
 }
+
 
 // ------------------------------------------------------------------ step 1
 
@@ -456,7 +466,7 @@ function StepLabels({ upc, pallet, checks, setChecks, editable, onAnother, onDon
 // ------------------------------------------------------------------ one pallet: steps 2 to 4
 
 /** The inputs, content and button bar for one pallet. It is keyed by pallet, so each pallet starts from what is saved. */
-function PalletFlow({ upc, pallet, step, setStep, onPallet, onToUpcs }: { upc: UpcDetail; pallet: Pallet; step: Step; setStep: (s: Step) => void; onPallet: (id: string) => void; onToUpcs: () => void }) {
+function PalletFlow({ upc, pallet, index, total, step, setStep, onPallet, onToUpcs }: { upc: UpcDetail; pallet: Pallet; index: number; total: number; step: Step; setStep: (s: Step) => void; onPallet: (id: string) => void; onToUpcs: () => void }) {
   const { pallet: save, approve, flag, addPallet } = useQcMutations();
   const editable = upc.shipment_state === "IN_PROGRESS" && (upc.state === "PENDING" || upc.state === "IN_PROGRESS");
   const [bundled, setBundled] = useState(upc.is_prepack);
@@ -475,6 +485,10 @@ function PalletFlow({ upc, pallet, step, setStep, onPallet, onToUpcs }: { upc: U
   const suggested: FlagReason = reason ?? (upc.count ? suggestedReason(upc.count.result) : "OTHER");
 
   const hasPhoto = upc.photo_count >= 1;
+  // The count card follows what is typed on the Count step, before it is saved.
+  const draftTotal = palletTotal({ mdl_actual: num(draft.mdl), bundles_per_case: bundled ? num(draft.bundles) : 1, full_cases_count: num(draft.cases), partial_units: num(draft.loose) });
+  const countedLive = upc.received_units - pallet.total_units + (step === 3 ? draftTotal : pallet.total_units);
+  const unsaved = step === 3 && draftTotal !== pallet.total_units;
   const productReady = PRODUCT_CHECKS.every(([k]) => checks[k]) && hasPhoto;
   const countReady = num(draft.mdl) !== null && (!bundled || num(draft.bundles) !== null) && num(draft.cases) !== null;
 
@@ -525,6 +539,10 @@ function PalletFlow({ upc, pallet, step, setStep, onPallet, onToUpcs }: { upc: U
 
   return (
     <>
+      <div className="grid gap-3 lg:grid-cols-2">
+        <UpcBar upc={upc} index={index} total={total} pallet={pallet} />
+        <CountProgress expected={upc.expected_units} counted={countedLive} unsaved={unsaved} />
+      </div>
       {step === 2 ? <StepProduct upc={upc} pallet={pallet} bundled={bundled} setBundled={setBundled} checks={checks} setChecks={setChecks} editable={editable} /> : null}
       {step === 3 ? <StepCount upc={upc} pallet={pallet} bundled={bundled} draft={draft} setDraft={setDraft} editable={editable} /> : null}
       {step === 4 ? <StepLabels upc={upc} pallet={pallet} checks={checks} setChecks={setChecks} editable={editable} busy={busy} onAnother={anotherPallet} onDone={doneWithUpc} /> : null}
@@ -594,12 +612,8 @@ export function QcWizard({ shipment }: { shipment: ShipmentDetail }) {
         {step > 1 && upcId && !upc ? <p className="py-10 text-center text-sm text-muted-foreground"><Loader2 className="mr-2 inline animate-spin" size={16} /> Loading UPC…</p> : null}
         {step > 1 && upc && pallet ? (
           <>
-            <div className="grid gap-3 lg:grid-cols-2">
-              <UpcBar upc={upc} index={index} total={shipment.upcs.length} pallet={pallet} />
-              <CountProgress expected={upc.expected_units} counted={upc.received_units} />
-            </div>
             <Notes comments={upc.comments} />
-            <PalletFlow key={pallet.id} upc={upc} pallet={pallet} step={step} setStep={setStep} onPallet={setPalletId} onToUpcs={toUpcs} />
+            <PalletFlow key={pallet.id} upc={upc} pallet={pallet} index={index} total={shipment.upcs.length} step={step} setStep={setStep} onPallet={setPalletId} onToUpcs={toUpcs} />
           </>
         ) : null}
       </div>
