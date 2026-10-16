@@ -2,9 +2,9 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Ticketing System",
-    short_name: "Ticketing",
-    description: "Capture missing-ticket items, check image quality and extract item metadata.",
+    name: "Retail Ops",
+    short_name: "Retail Ops",
+    description: "DC quality control and store ticketing.",
     start_url: "/",
     display: "standalone",
     orientation: "portrait",

@@ -7,10 +7,10 @@ const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Ticketing System",
-  description: "Capture missing-ticket items, check image quality and extract item metadata.",
+  title: "Retail Ops",
+  description: "DC quality control and store ticketing.",
   icons: { icon: "/icon-192.png", apple: "/icon-192.png" },
-  appleWebApp: { capable: true, title: "Ticketing", statusBarStyle: "black-translucent" },
+  appleWebApp: { capable: true, title: "Retail Ops", statusBarStyle: "black-translucent" },
 };
 
 export const viewport: Viewport = {

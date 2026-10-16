@@ -54,7 +54,7 @@ export default function LoginPage() {
       <section className="relative flex flex-col justify-between overflow-hidden bg-gradient-to-br from-hero-from to-hero-to px-6 pb-10 pt-[max(2rem,env(safe-area-inset-top))] text-white lg:w-1/2 lg:px-14 lg:py-14">
         <div className="pointer-events-none absolute -right-24 -top-24 size-72 rounded-full bg-white/5" />
         <div className="pointer-events-none absolute -bottom-32 -left-16 size-80 rounded-full bg-white/5" />
-        <Reveal className="relative"><LogoOnDark className="h-6" /></Reveal>
+        <Reveal className="relative"><LogoOnDark size="lg" /></Reveal>
         <div className="relative mt-10 lg:mt-0">
           <Reveal delay={0.1}>
             <h1 className="text-3xl font-bold leading-tight tracking-tight lg:text-5xl">
@@ -80,7 +80,7 @@ export default function LoginPage() {
             </ul>
           </Stagger>
         </div>
-        <p className="relative mt-10 hidden text-xs text-white/50 lg:block">Newtuple · powered by the State Machine</p>
+        <p className="relative mt-10 hidden text-xs text-white/50 lg:block">Retail Ops · powered by the State Machine</p>
       </section>
 
       <section className="flex flex-1 items-center justify-center px-6 py-10">

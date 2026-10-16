@@ -1,5 +1,5 @@
 const CACHE = "ticketing-shell-v1";
-const SHELL = ["/", "/login", "/icon-192.png", "/icon-512.png", "/newtuple-logo.png"];
+const SHELL = ["/", "/login", "/icon-192.png", "/icon-512.png"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(SHELL)).then(() => self.skipWaiting()));

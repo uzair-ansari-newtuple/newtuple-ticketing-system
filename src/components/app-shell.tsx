@@ -75,7 +75,7 @@ export function AppShell({ title, subtitle, back, footer, nav = true, area = "ti
             </Button>
           ) : null}
           <Link href={HOME[area]} aria-label="Home" className="flex items-center">
-            <Logo className="h-4" />
+            <Logo size="sm" />
           </Link>
           <div className="flex-1" />
           <DropdownMenu>

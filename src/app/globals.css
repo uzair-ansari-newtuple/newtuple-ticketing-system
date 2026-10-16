@@ -4,7 +4,7 @@
 
 @custom-variant dark (&:is(.dark *));
 
-/* Newtuple blue (#1a50a3) drives primary; everything else is derived from it. */
+/* Brand blue (#1a50a3) drives primary; everything else is derived from it. */
 :root {
   --radius: 0.875rem;
 

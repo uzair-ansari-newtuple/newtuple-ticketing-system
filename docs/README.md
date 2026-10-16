@@ -1,4 +1,4 @@
-# Newtuple apps: documentation
+# Retail Ops: documentation
 
 One web app, two workflows, one data store.
 

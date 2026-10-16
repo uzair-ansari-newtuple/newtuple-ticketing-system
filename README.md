@@ -1,6 +1,6 @@
-# Newtuple Ticketing System
+# Retail Ops
 
-A mobile-first web app with two workflows for Newtuple: **DC QC**, where distribution center staff check a shipment against its purchase order UPC by UPC, and **Ticketing**, where a store fixes an item that is missing its price tag from a photo. Built with Next.js 16 and shadcn/ui, with the State Machine as its only data store.
+A mobile-first web app with two workflows: **DC QC**, where distribution center staff check a shipment against its purchase order UPC by UPC, and **Ticketing**, where a store fixes an item that is missing its price tag from a photo. Built with Next.js 16 and shadcn/ui, with the State Machine as its only data store.
 
 Everything is stored in the State Machine: accounts and roles, tickets and their photos, quality checks, and the product catalog with its photos and image vectors. The app has no database of its own.
 
