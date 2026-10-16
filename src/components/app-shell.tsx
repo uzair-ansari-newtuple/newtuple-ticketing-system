@@ -65,13 +65,13 @@ export function AppShell({ title, subtitle, back, backSmart, footer, nav = true,
   useEffect(() => {
     if (!hydrated) return;
     if (!token) router.replace("/login");
-    else if (user && user.role !== "store") {
+    else if (user && user.role === "resolver") {
       signOut();
       router.replace("/login");
     }
   }, [hydrated, token, user, signOut, router]);
 
-  if (!hydrated || !token || (user && user.role !== "store")) {
+  if (!hydrated || !token || (user && user.role === "resolver")) {
     return (
       <div className={`mx-auto w-full ${width} space-y-4 px-4 pt-20`}>
         <Skeleton className="h-8 w-48" />

@@ -4,8 +4,9 @@ import type { UserRole } from "@/lib/types";
 
 const TIMEOUT_MS = 8000;
 const CACHE_MS = 60_000;
-const STORE_ROLE = "store_associate";
+const STORE_ROLE = "storeassociate";
 const RESOLVER_ROLE = "resolver";
+const SUPERADMIN_ROLES = new Set(["superadmin", "superadministrator", "platformsuperadmin"]);
 const ASSIGNMENT_TYPE = "store_assignment";
 
 export interface AppUser {
@@ -38,22 +39,48 @@ async function storeFor(email: string): Promise<{ store_id: string; store_name: 
   return record ? { store_id: String(record.data.store_id), store_name: String(record.data.store_name ?? record.data.store_id) } : null;
 }
 
-/** Turns a State Machine token into an app user: name and email from the profile, role from the State Machine role, store from the user's store assignment. */
+const normalizedRole = (name: string) => name.toLowerCase().replace(/[ _-]/g, "");
+
+export function ticketingRoleFromNames(names: string[]): UserRole | null {
+  const normalized = names.map(normalizedRole);
+  if (normalized.some((name) => SUPERADMIN_ROLES.has(name))) return "superadmin";
+  if (normalized.includes(RESOLVER_ROLE)) return "resolver";
+  if (normalized.includes(STORE_ROLE)) return "store";
+  return null;
+}
+
+/** True only for the State Machine's platform Super Administrator role names. */
+export const isSuperAdmin = (user: AppUser | null | undefined): user is AppUser & { role: "superadmin" } => user?.role === "superadmin";
+
+/** Turns a State Machine token into an app user: profile and role from the user's token, and a store assignment when the account is a store associate. */
 async function buildUser(token: string): Promise<AppUser | null> {
   const [me, permissions] = await Promise.all([
     smAs<{ id: string; email: string; full_name: string }>(token, "/auth/me"),
     smAs<{ roles: { name: string }[] }>(token, "/roles/my-permissions"),
   ]);
   if (!me.body || !permissions.body) return null;
-  const names = permissions.body.roles.map((r) => r.name);
-  const role: UserRole | null = names.includes(RESOLVER_ROLE) ? "resolver" : names.includes(STORE_ROLE) ? "store" : null;
+  const role = ticketingRoleFromNames(permissions.body.roles.map((r) => r.name));
   if (!role) return null;
-  const user: AppUser = { id: me.body.id, name: me.body.full_name, email: me.body.email, role, store_id: null, store_name: role === "resolver" ? "Resolver desk" : "" };
+  const user: AppUser = {
+    id: me.body.id,
+    name: me.body.full_name,
+    email: me.body.email,
+    role,
+    store_id: null,
+    store_name: role === "resolver" ? "Resolver desk" : role === "superadmin" ? "All ticketing stores" : "",
+  };
   if (role === "store") {
     const store = await storeFor(me.body.email);
     if (!store) return null;
     user.store_id = store.store_id;
     user.store_name = store.store_name;
+  } else if (role === "superadmin") {
+    // Keep an optional assigned store as the default for store-bound actions while the admin can still access all stores.
+    const store = await storeFor(me.body.email).catch(() => null);
+    if (store) {
+      user.store_id = store.store_id;
+      user.store_name = `${store.store_name} · Super Admin`;
+    }
   }
   return user;
 }
@@ -69,7 +96,7 @@ export async function userFromToken(token: string): Promise<AppUser | null> {
   return user;
 }
 
-/** Signs in with the State Machine. The account must have a role the ticketing app understands, and a store assignment if it is a store user. */
+/** Signs in with the State Machine. A superadmin is authorized across ticketing records and does not need a store assignment. */
 export async function signIn(email: string, password: string): Promise<SignIn> {
   const res = await fetch(`${smBaseUrl()}/auth/login`, {
     method: "POST",
@@ -80,7 +107,7 @@ export async function signIn(email: string, password: string): Promise<SignIn> {
   const body = (await res.json().catch(() => null)) as (Tokens & { detail?: string }) | null;
   if (!res.ok || !body?.access_token) return { ok: false, status: res.status === 403 ? 403 : 401, detail: typeof body?.detail === "string" ? body.detail : "Invalid email or password" };
   const user = await buildUser(body.access_token);
-  if (!user) return { ok: false, status: 403, detail: "This account is not set up for the ticketing app. Ask an admin to give it the Store Associate or Resolver role." };
+  if (!user) return { ok: false, status: 403, detail: "This account is not set up for the ticketing app. Ask an admin to give it the Store Associate, Resolver, or Super Administrator role." };
   return { ok: true, tokens: { access_token: body.access_token, refresh_token: body.refresh_token }, user };
 }
 

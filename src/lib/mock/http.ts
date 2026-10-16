@@ -17,5 +17,5 @@ export async function userFromRequest(request: Request): Promise<AppUser | null>
 
 export async function storeIdFromRequest(request: Request): Promise<string | null> {
   const user = await userFromRequest(request);
-  return user?.role === "store" ? user.store_id : null;
+  return user?.role === "store" || user?.role === "superadmin" ? user.store_id : null;
 }

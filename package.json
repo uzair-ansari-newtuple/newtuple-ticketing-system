@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "test:roles": "tsx scripts/test-role-mapping.ts",
     "catalog": "tsx scripts/sm-catalog.ts",
     "dev:api": "WARM_UP_ANALYSIS=true NEXT_DIST_DIR=.next-api next dev -p 3001",
     "dev:web": "API_ORIGIN=http://localhost:3001 next dev -p 3000"
