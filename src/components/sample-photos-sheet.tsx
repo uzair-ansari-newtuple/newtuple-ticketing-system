@@ -18,11 +18,11 @@ export function SamplePhotosSheet({ onPick, onClose }: { onPick: (blob: Blob) =>
           </div>
           <button aria-label="Close" onClick={onClose} className="grid size-9 place-items-center rounded-full hover:bg-muted"><X size={18} /></button>
         </div>
-        <div className="grid grid-cols-3 gap-2 overflow-y-auto px-4 pb-4 sm:grid-cols-4">
+        <div className="grid min-h-0 grid-cols-3 content-start gap-2 overflow-y-auto px-4 pb-4 sm:grid-cols-4">
           {SAMPLE_PHOTOS.map((n) => (
-            <button key={n} onClick={() => pick(n)} className="overflow-hidden rounded-xl border outline-none focus-visible:ring-3 focus-visible:ring-ring/50">
+            <button key={n} onClick={() => pick(n)} className="block aspect-square h-auto w-full overflow-hidden rounded-xl border p-0 outline-none focus-visible:ring-3 focus-visible:ring-ring/50">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={`/sample-photos/${n}.jpg`} alt={n.replace(/-/g, " ")} loading="lazy" className="aspect-square w-full object-cover" />
+              <img src={`/sample-photos/${n}.jpg`} alt={n.replace(/-/g, " ")} loading="lazy" className="size-full object-cover" />
             </button>
           ))}
         </div>
