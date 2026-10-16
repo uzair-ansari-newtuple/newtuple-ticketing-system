@@ -417,8 +417,6 @@ function StepLabels({ upc, pallet, checks, setChecks, editable, onAnother, onDon
   const upcVariance = upc.received_units - upc.expected_units;
   const upcVariancePct = upc.expected_units ? (Math.abs(upcVariance) / upc.expected_units) * 100 : 0;
   const tooFar = upcVariancePct > MAX_VARIANCE_PCT_TO_FINISH;
-  const palletOk = checks.label_pallet_confirmed;
-  const casesOk = checks.label_cases_confirmed;
   const labelsOk = LABEL_CHECKS.every(([k]) => checks[k]) && hasLabelPhoto;
   async function addLabelPhoto(blob: Blob) {
     photo.mutate({ id: upc.id, photo: await makeThumb(blob, 640), kind: "label", pallet_id: pallet.id }, { onSuccess: () => toast.success("Label photo saved"), onError: (e) => toast.error(e.message) });
@@ -428,31 +426,25 @@ function StepLabels({ upc, pallet, checks, setChecks, editable, onAnother, onDon
   const perCase = (pallet.bundles_per_case ?? 0) * (pallet.mdl_actual ?? 0);
   return (
     <section className="rounded-2xl border bg-card p-4 shadow-sm">
-      <h2 className="text-xl font-bold">4. Scan labels</h2>
-      <p className="mt-1 text-sm text-muted-foreground">Scan the pallet label first, then every case label. Take a photo that shows the labels, confirm each step below, then say whether this UPC has another pallet.</p>
+      <h2 className="text-xl font-bold">4. Confirm the labels</h2>
+      <p className="mt-1 text-sm text-muted-foreground">Put the labels on the pallet and on every case, scan them, then tick both boxes. After that, tell us if this UPC has another pallet.</p>
 
-      <div className="mt-4 rounded-2xl border p-3.5">
-        <div className="flex items-center gap-3">
-          <span className={`grid size-7 shrink-0 place-items-center rounded-full text-sm font-bold ${palletOk ? "bg-success text-white" : "bg-primary/10 text-primary"}`}>{palletOk ? <Check size={15} /> : "A"}</span>
-          <div><h3 className="text-base font-semibold leading-tight">Pallet label</h3><p className="text-xs text-muted-foreground">Scan the label on the pallet first</p></div>
-        </div>
-        <div className="mt-3">
-          <PhotoPicker title={`Photo of the labels on pallet ${pallet.position}`} photos={labelPhotos} required requiredText="No label photo yet. Take a photo that shows the pallet label and the case labels." editable={editable} pending={photo.isPending} onAdd={addLabelPhoto} alt="Labels" />
-        </div>
-        <Button size="lg" variant={palletOk ? "secondary" : "default"} className="mt-3 h-12 w-full" disabled={!editable || !hasLabelPhoto} onClick={() => setChecks((c) => ({ ...c, label_pallet_confirmed: !c.label_pallet_confirmed }))}>
-          {palletOk ? <><Check /> Pallet label scanned</> : "Pallet label is on and scanned"}
-        </Button>
+      <div className="mt-4">
+        <PhotoPicker title={`Photo of the labels on pallet ${pallet.position}`} photos={labelPhotos} required requiredText="No label photo yet. Take a photo that shows the pallet label and the case labels, then tick the boxes below." editable={editable} pending={photo.isPending} onAdd={addLabelPhoto} alt="Labels" />
       </div>
 
-      <div className="mt-3 rounded-2xl border p-3.5">
-        <div className="flex items-center gap-3">
-          <span className={`grid size-7 shrink-0 place-items-center rounded-full text-sm font-bold ${casesOk ? "bg-success text-white" : "bg-primary/10 text-primary"}`}>{casesOk ? <Check size={15} /> : "B"}</span>
-          <div><h3 className="text-base font-semibold leading-tight">Case labels</h3><p className="text-xs text-muted-foreground">Then scan every case on the pallet</p></div>
-        </div>
-        {!palletOk ? <p className="mt-3 flex items-center gap-2 rounded-xl bg-warning/18 px-3 py-2.5 text-sm text-warning-foreground"><AlertTriangle size={16} className="shrink-0" /> Scan the pallet label above before scanning case labels.</p> : null}
-        <Button size="lg" variant={casesOk ? "secondary" : "default"} className="mt-3 h-12 w-full" disabled={!editable || !palletOk} onClick={() => setChecks((c) => ({ ...c, label_cases_confirmed: !c.label_cases_confirmed }))}>
-          {casesOk ? <><Check /> Every case label scanned</> : "Every case label is on and scanned"}
-        </Button>
+      <div className="mt-4 overflow-hidden rounded-2xl border">
+        <p className="bg-muted/60 px-3.5 py-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Tick both when done</p>
+        <ul className="divide-y">
+          {LABEL_CHECKS.map(([key]) => (
+            <li key={key}>
+              <button disabled={!editable || !hasLabelPhoto} role="checkbox" aria-checked={checks[key]} onClick={() => setChecks((c) => ({ ...c, [key]: !c[key] }))} className="flex w-full items-center gap-3 px-3.5 py-3 text-left outline-none focus-visible:bg-muted/50 disabled:opacity-60">
+                <span className={`grid size-6 shrink-0 place-items-center rounded-md border-2 ${checks[key] ? "border-success bg-success text-white" : "border-muted-foreground/40"}`}>{checks[key] ? <Check size={15} /> : null}</span>
+                <span><span className="block text-sm font-semibold">{key === "label_pallet_confirmed" ? "Pallet label is on and scanned" : "Every case label is on and scanned"}</span><span className="block text-xs text-muted-foreground">{key === "label_pallet_confirmed" ? "One label on the pallet itself" : "Every case on this pallet has its label"}</span></span>
+              </button>
+            </li>
+          ))}
+        </ul>
       </div>
 
       <div className="mt-3 rounded-2xl border p-3.5">
@@ -477,7 +469,7 @@ function StepLabels({ upc, pallet, checks, setChecks, editable, onAnother, onDon
           <Button size="lg" className="h-12 bg-success text-white hover:bg-success/90" disabled={!editable || !labelsOk || tooFar || busy} onClick={onDone}>{busy ? <Loader2 className="animate-spin" /> : <Check />} No, finish this UPC</Button>
         </div>
         {tooFar ? <p className="mt-2 text-xs font-medium text-destructive">This UPC is {Math.abs(upcVariance)} units {upcVariance < 0 ? "short" : "over"} ({Math.round(upcVariancePct * 10) / 10}% variance). You can only finish a UPC within {MAX_VARIANCE_PCT_TO_FINISH}%. Count again, add another pallet, or report a problem so a supervisor can decide.</p> : null}
-        {!labelsOk ? <p className="mt-2 text-xs text-muted-foreground">{!hasLabelPhoto ? "Add the label photo first, then confirm both label steps." : "Confirm both label steps first."}</p> : null}
+        {!labelsOk ? <p className="mt-2 text-xs text-muted-foreground">{!hasLabelPhoto ? "Add the label photo first, then tick both boxes." : "Tick both label boxes first."}</p> : null}
       </div>
     </section>
   );
