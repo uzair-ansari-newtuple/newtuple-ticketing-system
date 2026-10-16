@@ -80,7 +80,6 @@ export default function LoginPage() {
             </ul>
           </Stagger>
         </div>
-        <p className="relative mt-10 hidden text-xs text-white/50 lg:block">Retail Ops · powered by the State Machine</p>
       </section>
 
       <section className="flex flex-1 items-center justify-center px-6 py-10">
