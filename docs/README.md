@@ -6,6 +6,7 @@ One web app, two workflows, one data store.
 |---|---|
 | [DC QC](dc-qc.md) | Checking a shipment against its purchase order at the distribution center, UPC by UPC |
 | [Ticketing](ticketing.md) | Fixing an item that is missing its price tag, from a photo to a printed tag |
+| [DC QC demo script](dc-qc-demo-script.md) | A 10-minute walkthrough for presenting DC QC to a retailer |
 
 ## How the pieces fit
 
