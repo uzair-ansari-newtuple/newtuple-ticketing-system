@@ -1,6 +1,6 @@
 "use client";
 
-import { Camera, Check, ImagePlus, Image as ImageIcon, Images, MapPin, Trash2 } from "lucide-react";
+import { Camera, Check, ImagePlus, Images, Loader2, MapPin, Trash2 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import Link from "next/link";
 import { useRef, useState } from "react";
@@ -73,7 +73,6 @@ export default function CapturePage() {
         brightness: processed.brightness,
       },
     });
-    toast.success(`${SLOTS.find((s) => s.key === slot)?.label} photo added`);
   }
 
   async function run(work: () => Promise<void>) {
@@ -121,29 +120,62 @@ export default function CapturePage() {
         </div>
       }
     >
-      <Stagger className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+      <Card>
+        <CardContent>
+          <AnimatePresence mode="wait" initial={false}>
+            <motion.div key={active} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.18 }} className="flex items-start gap-3">
+              <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-accent text-primary"><activeSlot.icon size={22} /></span>
+              <div className="min-w-0">
+                <p className="text-xs font-medium uppercase tracking-wider text-primary">Step {SLOTS.findIndex((x) => x.key === active) + 1} of {MAX_PHOTOS} · {activeSlot.label}</p>
+                <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{activeSlot.hint}</p>
+              </div>
+            </motion.div>
+          </AnimatePresence>
+          <div className="mt-4 grid grid-cols-2 gap-3">
+            <Button size="lg" disabled={busy} onClick={() => setCameraOpen(true)}>
+              <Camera /> {activePhoto ? "Retake" : "Capture"}
+            </Button>
+            <Button size="lg" variant="outline" disabled={busy} onClick={() => fileRef.current?.click()}>
+              <ImagePlus /> Upload
+            </Button>
+          </div>
+          <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/heic,image/heif" multiple hidden onChange={(e) => onFiles(e.target.files)} />
+          <div className="mt-4 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5">
+              <Checkbox id="attach-location" checked={attachLocation} onCheckedChange={(v) => setAttachLocation(v === true)} />
+              <Label htmlFor="attach-location" className="text-muted-foreground">Attach my location</Label>
+            </div>
+            <Button variant="ghost" size="sm" disabled={busy} onClick={() => setSamplesOpen(true)} className="-mr-2 text-primary"><Images /> Samples</Button>
+          </div>
+          {busy ? <p className="mt-3 flex items-center gap-2 text-sm text-muted-foreground"><Loader2 size={14} className="animate-spin" /> Processing photo…</p> : null}
+        </CardContent>
+      </Card>
+
+      <h2 className="mb-3 mt-6 text-xs font-medium uppercase tracking-wider text-muted-foreground">Photos</h2>
+      <Stagger className="grid grid-cols-3 gap-3">
         {SLOTS.map((slot) => {
           const photo = photos.find((p) => p.slot === slot.key);
           const selected = slot.key === active;
+          const Icon = slot.icon;
           return (
             <StaggerItem
               key={slot.key}
               whileTap={{ scale: 0.97 }}
-              className={`relative aspect-[4/3] overflow-hidden rounded-2xl border-2 transition-[border-color,box-shadow] duration-200 ${selected ? "border-primary ring-4 ring-primary/15" : "border-border"} ${photo ? "" : "border-dashed bg-card"}`}
+              className={`relative aspect-square overflow-hidden rounded-2xl border-2 transition-[border-color,box-shadow] duration-200 ${selected ? "border-primary ring-4 ring-primary/10" : "border-border"} ${photo ? "" : "border-dashed bg-card"}`}
             >
-              <button onClick={() => setActive(slot.key)} aria-label={`Select ${slot.label} slot`} className="absolute inset-0 text-left">
+              <button onClick={() => setActive(slot.key)} aria-label={`Select ${slot.label} slot`} aria-pressed={selected} className="absolute inset-0 text-left">
                 <AnimatePresence mode="popLayout" initial={false}>
                   {photo ? (
-                     
+                    // eslint-disable-next-line @next/next/no-img-element
                     <motion.img key={photo.id} src={photo.dataUrl} alt={`${slot.label} photo`} className="absolute inset-0 size-full object-cover" initial={{ opacity: 0, scale: 1.08 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.35, ease: EASE }} />
                   ) : (
-                    <motion.span key="empty" className="absolute inset-0 grid place-items-center text-muted-foreground" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-                      <ImageIcon size={26} strokeWidth={1.5} />
+                    <motion.span key="empty" className={`absolute inset-0 grid place-items-center ${selected ? "text-primary" : "text-muted-foreground"}`} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                      <Icon size={26} />
                     </motion.span>
                   )}
                 </AnimatePresence>
-                <span className={`absolute inset-x-0 bottom-0 flex items-center gap-1.5 px-3 pb-2 pt-6 text-xs font-semibold ${photo ? "bg-gradient-to-t from-black/70 to-transparent text-white" : "text-foreground"}`}>
-                  {photo ? <Check size={13} className="text-emerald-300" /> : null}
+                <span className={`absolute inset-x-0 bottom-0 flex items-center gap-1 px-2 py-1.5 text-xs font-medium ${photo ? "bg-black/60 text-white" : selected ? "text-primary" : "text-muted-foreground"}`}>
+                  {photo ? <Check size={12} className="text-emerald-300" /> : null}
                   {slot.label}
                 </span>
               </button>
@@ -155,9 +187,9 @@ export default function CapturePage() {
                     exit={{ opacity: 0, scale: 0.6 }}
                     onClick={() => removePhoto(photo.id)}
                     aria-label={`Remove ${slot.label} photo`}
-                    className="absolute right-2 top-2 grid size-8 place-items-center rounded-full bg-black/55 text-white backdrop-blur"
+                    className="absolute right-1.5 top-1.5 grid size-7 place-items-center rounded-full bg-black/60 text-white backdrop-blur"
                   >
-                    <Trash2 size={14} />
+                    <Trash2 size={13} />
                   </motion.button>
                 ) : null}
               </AnimatePresence>
@@ -165,34 +197,6 @@ export default function CapturePage() {
           );
         })}
       </Stagger>
-
-      <Card className="mt-4">
-        <CardContent>
-          <AnimatePresence mode="wait" initial={false}>
-            <motion.div key={active} initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -10 }} transition={{ duration: 0.18 }}>
-              <p className="text-xs font-semibold uppercase tracking-wider text-primary">{activeSlot.label}</p>
-              <p className="mt-1 text-sm text-muted-foreground">{activeSlot.hint}</p>
-            </motion.div>
-          </AnimatePresence>
-          <div className="mt-4 grid grid-cols-2 gap-3">
-            <Button size="lg" disabled={busy} onClick={() => setCameraOpen(true)}>
-              <Camera /> {activePhoto ? "Retake" : "Capture"}
-            </Button>
-            <Button size="lg" variant="outline" disabled={busy} onClick={() => fileRef.current?.click()}>
-              <ImagePlus /> Upload
-            </Button>
-            <Button size="lg" variant="outline" className="col-span-2" disabled={busy} onClick={() => setSamplesOpen(true)}>
-              <Images /> Sample photos
-            </Button>
-          </div>
-          <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/heic,image/heif" multiple hidden onChange={(e) => onFiles(e.target.files)} />
-          <div className="mt-4 flex items-center gap-2.5">
-            <Checkbox id="attach-location" checked={attachLocation} onCheckedChange={(v) => setAttachLocation(v === true)} />
-            <Label htmlFor="attach-location" className="text-muted-foreground">Attach my location to live captures</Label>
-          </div>
-          {busy ? <p className="mt-3 text-sm text-muted-foreground">Processing photo…</p> : null}
-        </CardContent>
-      </Card>
 
       <AnimatePresence>
         {activePhoto ? (

@@ -54,9 +54,9 @@ export default function HomePage() {
     <AppShell title={`Hello, ${user?.name ?? "there"}`} subtitle={user?.store_name}>
       <Reveal>
         <motion.div whileTap={{ scale: 0.98 }}>
-          <Link href="/capture" onClick={resetCapture} className="flex items-center gap-4 rounded-2xl bg-primary p-5 text-primary-foreground shadow-lg shadow-primary/20">
-            <span className="grid size-12 place-items-center rounded-xl bg-white/15"><Camera size={26} /></span>
-            <span><span className="block text-lg font-bold">Photo match</span><span className="text-sm opacity-80">Photograph an item with a missing tag</span></span>
+          <Link href="/capture" onClick={resetCapture} className="flex items-center gap-4 rounded-2xl bg-brand p-5 text-white shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md">
+            <span className="grid size-12 place-items-center rounded-xl border border-white/30"><Camera size={24} strokeWidth={1.5} /></span>
+            <span><span className="block text-lg font-semibold">Photo match</span><span className="text-sm opacity-80">Photograph an item with a missing tag</span></span>
           </Link>
         </motion.div>
       </Reveal>
