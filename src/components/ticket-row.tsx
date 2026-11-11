@@ -11,12 +11,12 @@ import type { IncidentSummary } from "@/lib/types";
 export function TicketRow({ t }: { t: IncidentSummary }) {
   return (
     <Link href={`/incident/${t.id}`} className="block">
-      <Card size="sm" className="transition-shadow hover:shadow-md">
+      <Card size="sm" className="transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md">
         <CardContent className="flex items-center gap-3">
           <SafeImg src={t.thumb} className="size-14 shrink-0 rounded-xl" />
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
-              <p className="truncate font-bold uppercase">{t.title}</p>
+              <p className="truncate font-semibold capitalize">{t.title.toLowerCase()}</p>
               {t.unread ? <span className="size-2.5 shrink-0 rounded-full bg-primary" aria-label="Unread" /> : null}
             </div>
             <p className="truncate text-sm text-muted-foreground">#{t.short_number}{t.department ? ` · Dept ${t.department}` : ""}</p>
