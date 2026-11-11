@@ -136,7 +136,6 @@ export default function ReviewPage() {
           setStage("done");
           reset();
           await queryClient.invalidateQueries({ queryKey: ["incidents"] });
-          toast.success(`Ticket ${incident.number} created`);
           router.replace(`/incident/${incident.id}`);
         }
       } catch (err) {
@@ -190,7 +189,7 @@ export default function ReviewPage() {
 
   return (
     <AppShell nav={false} title="Processing" subtitle={stepMode ? "Step mode: tap Continue to move the ticket to the next state." : "Your ticket moves through each state by itself."} back="/capture">
-      <div className="mb-5 rounded-2xl bg-gradient-to-br from-hero-from to-hero-to p-5 text-white shadow-lg shadow-primary/20">
+      <div className="mb-5 rounded-2xl bg-brand p-6 text-white shadow-md">
         <div className="flex items-end justify-between"><p className="text-sm font-medium text-white/80">{error ? "Something went wrong" : qualityFailed ? "Needs a retake" : stage === "done" ? "All done" : `${STAGES[Math.min(current, STAGES.length - 1)].label}${incident ? ` · ${incident.number}` : ""}`}</p><p className="text-3xl font-bold tabular-nums">{overall}%</p></div>
         <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-white/20"><div className="h-full rounded-full bg-white transition-all duration-500" style={{ width: `${overall}%` }} /></div>
       </div>
