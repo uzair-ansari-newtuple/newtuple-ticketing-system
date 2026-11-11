@@ -34,8 +34,8 @@ export function BottomNav() {
                 className="group relative flex w-full flex-col items-center justify-end gap-0.5 pb-2 text-[11px] font-medium outline-none"
               >
                 {primary ? (
-                  <motion.span whileTap={{ scale: 0.92 }} className="-mt-6 mb-0.5 grid size-14 place-items-center rounded-full bg-primary text-primary-foreground shadow-lg shadow-primary/30 ring-4 ring-background">
-                    <Icon size={24} />
+                  <motion.span whileTap={{ scale: 0.92 }} className="-mt-6 mb-0.5 grid size-14 place-items-center rounded-full bg-primary text-primary-foreground shadow-md ring-4 ring-background">
+                    <Icon size={24} strokeWidth={1.75} />
                   </motion.span>
                 ) : (
                   <motion.span whileTap={{ scale: 0.9 }} className="relative grid h-8 w-14 place-items-center">

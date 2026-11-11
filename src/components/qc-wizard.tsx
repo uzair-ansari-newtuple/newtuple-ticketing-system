@@ -47,16 +47,23 @@ function InfoHint({ text, label }: { text: string; label: string }) {
 function StepTabs({ step, unlocked, onGo, onBack }: { step: Step; unlocked: boolean; onGo: (s: Step) => void; onBack: () => void }) {
   return (
     <div className="flex items-center gap-2">
-      <Button variant="outline" size="icon" aria-label="Back" className="size-11 shrink-0 rounded-full" onClick={onBack}><ChevronLeft /></Button>
-      <div role="tablist" aria-label="QC steps" className="flex min-w-0 flex-1 gap-1.5">
+      <Button variant="outline" size="icon" aria-label="Back" className="size-11 shrink-0" onClick={onBack}><ChevronLeft /></Button>
+      <div role="tablist" aria-label="QC steps" className="grid min-w-0 flex-1 grid-cols-4 gap-1.5">
         {STEPS.map(({ n, label }) => {
           const done = n < step;
           const current = n === step;
           const locked = n > 1 && !unlocked;
           return (
-            <button key={n} role="tab" aria-selected={current} disabled={locked || (n > step)} onClick={() => onGo(n)} className={`flex h-11 min-w-0 items-center justify-center gap-1.5 rounded-xl border px-1.5 text-xs font-semibold outline-none transition-colors focus-visible:ring-3 focus-visible:ring-ring/50 sm:flex-1 sm:text-sm ${current ? "flex-[2.4]" : "flex-1"} ${current ? "border-transparent bg-primary text-primary-foreground shadow-md shadow-primary/25" : done ? "border-success/30 bg-success/12 text-success" : "bg-card text-muted-foreground disabled:opacity-60"}`}>
-              <span className={`grid size-5 shrink-0 place-items-center rounded-full text-[11px] ${current ? "bg-white/25" : done ? "bg-success/20" : "bg-muted"}`}>{done ? <Check size={12} /> : n}</span>
-              <span className={`truncate ${current ? "" : "hidden sm:inline"}`}>{label}</span>
+            <button
+              key={n}
+              role="tab"
+              aria-selected={current}
+              disabled={locked || n > step}
+              onClick={() => onGo(n)}
+              className={`flex h-14 min-w-0 flex-col items-center justify-center gap-1 rounded-xl border text-xs font-medium outline-none transition-colors focus-visible:ring-3 focus-visible:ring-ring/30 disabled:opacity-50 ${current ? "border-primary bg-primary text-primary-foreground" : done ? "bg-card text-foreground hover:bg-muted" : "bg-card text-muted-foreground"}`}
+            >
+              <span className={`grid size-5 shrink-0 place-items-center rounded-full text-[11px] ${current ? "bg-white/25" : done ? "bg-success/15 text-success" : "bg-muted"}`}>{done ? <Check size={12} /> : n}</span>
+              <span className="truncate">{label}</span>
             </button>
           );
         })}
@@ -64,7 +71,6 @@ function StepTabs({ step, unlocked, onGo, onBack }: { step: Step; unlocked: bool
     </div>
   );
 }
-
 function UpcBar({ upc, index, total, pallet }: { upc: UpcDetail; index: number; total: number; pallet: Pallet | null }) {
   return (
     <div className="grid grid-cols-2 gap-3 rounded-2xl bg-primary p-3.5 text-primary-foreground shadow-lg shadow-primary/20 sm:grid-cols-[1.3fr_1fr_1.4fr]">
@@ -143,24 +149,22 @@ function StepUpcs({ shipment, onPick, onReview }: { shipment: ShipmentDetail; on
 
   return (
     <section className="rounded-2xl border bg-card p-4 shadow-sm">
-      <h2 className="text-xl font-bold">1. Pick a UPC</h2>
-      <p className="mt-1 text-sm text-muted-foreground">Tap the UPC you are standing in front of. For each of its pallets you will check the product, count the units and confirm the labels. A UPC turns green when it is approved.</p>
+      <h2 className="text-lg font-semibold">Pick a UPC</h2>
+      <p className="mt-1 text-sm text-muted-foreground">Tap the UPC in front of you. For each pallet: check the product, count the units, confirm the labels.</p>
 
       <div className="mt-4 rounded-2xl border bg-muted/40 p-3.5">
         <div className="flex items-center justify-between text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"><span>Worksheet summary</span><span className="text-success">{pct}% complete</span></div>
         <Progress value={pct} className="my-2 h-2" />
-        <div className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-3">
+        <div className="grid grid-cols-3 gap-3 text-sm">
           {[
             ["UPCs approved", `${t.approved}/${t.upcs}`],
-            ["Held for supervisor", String(t.on_hold)],
-            ["In progress", String(shipment.upcs.filter((u) => u.state === "IN_PROGRESS").length)],
-            ["Units counted", fmt(t.received)],
-            ["Units expected", fmt(t.units)],
-            ["Skipped (won't QC)", String(t.wont_qc)],
+            ["Units counted", `${fmt(t.received)}/${fmt(t.units)}`],
+            ["On hold", String(t.on_hold)],
           ].map(([label, value]) => (
-            <div key={label}><p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">{label}</p><p className="text-lg font-bold">{value}</p></div>
+            <div key={label}><p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">{label}</p><p className="mt-0.5 text-xl font-light tabular-nums">{value}</p></div>
           ))}
         </div>
+        <p className="mt-3 text-xs text-muted-foreground">{shipment.upcs.filter((u) => u.state === "IN_PROGRESS").length} in progress · {t.wont_qc} skipped</p>
       </div>
 
       <ul className="mt-4 space-y-2.5">
@@ -264,7 +268,7 @@ function StepProduct({ upc, pallet, bundled, setBundled, checks, setChecks, edit
   };
 
   async function add(blob: Blob) {
-    photo.mutate({ id: upc.id, photo: await makeThumb(blob, 640), kind: "goods" }, { onSuccess: () => toast.success("Photo saved"), onError: (e) => toast.error(e.message) });
+    photo.mutate({ id: upc.id, photo: await makeThumb(blob, 640), kind: "goods" }, { onError: (e) => toast.error(e.message) });
   }
 
   return (
@@ -419,7 +423,7 @@ function StepLabels({ upc, pallet, checks, setChecks, editable, onAnother, onDon
   const tooFar = upcVariancePct > MAX_VARIANCE_PCT_TO_FINISH;
   const labelsOk = LABEL_CHECKS.every(([k]) => checks[k]) && hasLabelPhoto;
   async function addLabelPhoto(blob: Blob) {
-    photo.mutate({ id: upc.id, photo: await makeThumb(blob, 640), kind: "label", pallet_id: pallet.id }, { onSuccess: () => toast.success("Label photo saved"), onError: (e) => toast.error(e.message) });
+    photo.mutate({ id: upc.id, photo: await makeThumb(blob, 640), kind: "label", pallet_id: pallet.id }, { onError: (e) => toast.error(e.message) });
   }
   const variance = pallet.expected_units ? pallet.total_units - pallet.expected_units : 0;
   const cases = pallet.full_cases_count ?? 0;
@@ -526,7 +530,6 @@ function PalletFlow({ upc, pallet, index, total, step, setStep, onPallet, onToUp
       if (target) {
         onPallet(target.id);
         setStep(2);
-        toast.success(`Pallet ${target.position} ready`);
       }
     } catch (e) {
       fail(e as Error);
@@ -548,7 +551,7 @@ function PalletFlow({ upc, pallet, index, total, step, setStep, onPallet, onToUp
       toast.error("Add at least one product photo first");
       return setStep(2);
     }
-    approve.mutate(fresh.id, { onSuccess: () => { toast.success(`${fresh.description} approved`); onToUpcs(); }, onError: fail });
+    approve.mutate(fresh.id, { onSuccess: onToUpcs, onError: fail });
   }
 
   return (
@@ -638,10 +641,9 @@ export function QcWizard({ shipment }: { shipment: ShipmentDetail }) {
   }, []);
 
   return (
-    <AppShell title="QC Check" subtitle="Work through each step at your own pace. You can flag an exception at any step." back="/qc" area="qc">
+    <AppShell title={shipment.po_number} subtitle={`${shipment.vendor_name} · ${shipment.shipment_number}`} back="/qc" area="qc">
       <div className="space-y-3">
         <StepTabs step={step} unlocked={Boolean(upc)} onGo={(s) => (s === 1 ? toUpcs() : setStep(s))} onBack={back} />
-        <p className="flex flex-wrap gap-x-4 gap-y-0.5 rounded-xl border bg-card px-3 py-2 text-xs"><span><span className="text-muted-foreground">Shipment #:</span> <strong>{shipment.shipment_number}</strong></span><span><span className="text-muted-foreground">PO:</span> <strong>{shipment.po_number}</strong></span><span className="min-w-0"><span className="text-muted-foreground">Vendor:</span> <strong>{shipment.vendor_name}</strong></span></p>
 
         {step === 1 ? <StepUpcs shipment={shipment} onPick={pick} onReview={() => router.push(`/qc/po/${shipment.id}/complete`)} /> : null}
         {step > 1 && upcId && !upc ? <p className="py-10 text-center text-sm text-muted-foreground"><Loader2 className="mr-2 inline animate-spin" size={16} /> Loading UPC…</p> : null}

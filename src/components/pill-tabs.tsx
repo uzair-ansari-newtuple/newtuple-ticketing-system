@@ -10,7 +10,7 @@ export interface PillTab<K extends string> {
   highlight?: boolean;
 }
 
-/** Horizontally scrolling pill tabs with an animated active pill, count badges and faded edges. */
+/** Horizontally scrolling pill tabs with an animated active pill and count badges. */
 export function PillTabs<K extends string>({ tabs, value, onChange, id }: { tabs: PillTab<K>[]; value: K; onChange: (key: K) => void; id: string }) {
   const activeRef = useRef<HTMLButtonElement>(null);
 
@@ -19,7 +19,7 @@ export function PillTabs<K extends string>({ tabs, value, onChange, id }: { tabs
   }, [value]);
 
   return (
-    <div className="-mx-4 [mask-image:linear-gradient(to_right,transparent,black_16px,black_calc(100%-16px),transparent)]">
+    <div className="-mx-4">
       <div role="tablist" className="flex snap-x gap-2 overflow-x-auto px-4 pb-1 pt-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {tabs.map((t) => {
           const active = t.key === value;
@@ -32,7 +32,7 @@ export function PillTabs<K extends string>({ tabs, value, onChange, id }: { tabs
               onClick={() => onChange(t.key)}
               className={`relative flex h-10 shrink-0 snap-center items-center gap-2 rounded-full border px-4 text-sm font-semibold outline-none transition-colors focus-visible:ring-3 focus-visible:ring-ring/50 ${active ? "border-transparent text-primary-foreground" : "bg-card text-muted-foreground hover:text-foreground"}`}
             >
-              {active ? <motion.span layoutId={`${id}-pill`} className="absolute inset-0 rounded-full bg-primary shadow-md shadow-primary/25" transition={{ type: "spring", stiffness: 420, damping: 34 }} /> : null}
+              {active ? <motion.span layoutId={`${id}-pill`} className="absolute inset-0 rounded-full bg-primary" transition={{ type: "spring", stiffness: 420, damping: 34 }} /> : null}
               <span className="relative">{t.label}</span>
               {t.count ? (
                 <span className={`relative grid min-w-5 place-items-center rounded-full px-1.5 text-[11px] font-bold leading-5 ${active ? "bg-white/25 text-primary-foreground" : t.highlight ? "bg-destructive text-white" : "bg-muted text-foreground"}`}>

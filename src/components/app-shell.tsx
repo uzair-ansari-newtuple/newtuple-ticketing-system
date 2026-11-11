@@ -75,7 +75,7 @@ export function AppShell({ title, subtitle, back, backSmart, footer, nav = true,
     return (
       <div className={`mx-auto w-full ${width} space-y-4 px-4 pt-20`}>
         <Skeleton className="h-8 w-48" />
-        <Skeleton className="h-40 w-full rounded-3xl" />
+        <Skeleton className="h-40 w-full rounded-2xl" />
         <Skeleton className="h-20 w-full" />
       </div>
     );
@@ -137,8 +137,8 @@ export function AppShell({ title, subtitle, back, backSmart, footer, nav = true,
 
       <main className={`mx-auto w-full min-w-0 ${width} flex-1 px-4 pt-6 pb-8`}>
         <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, ease: EASE }} className="mb-5">
-          <h1 className="text-2xl font-bold tracking-tight">{title}</h1>
-          {subtitle ? <p className="mt-1 text-sm text-muted-foreground">{subtitle}</p> : null}
+          <h1 className="text-3xl font-light tracking-tight">{title}</h1>
+          {subtitle ? <p className="mt-1.5 text-sm text-muted-foreground">{subtitle}</p> : null}
         </motion.div>
         {children}
       </main>

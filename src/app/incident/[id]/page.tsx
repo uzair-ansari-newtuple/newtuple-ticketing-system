@@ -105,7 +105,7 @@ function ActionCard({ d, token }: { d: IncidentDetail; token: string }) {
   const [picked, setPicked] = useState<string | null>(d.candidates[0]?.key ?? null);
   const [count, setCount] = useState(d.missing_price_tag_count);
   const refresh = () => Promise.all([qc.invalidateQueries({ queryKey: ["incident", d.id] }), qc.invalidateQueries({ queryKey: ["incidents"] })]);
-  const confirm = useMutation({ mutationFn: (key: string | null) => api.confirmIncident(token, d.id, key, count), onSuccess: () => { toast.success("Match confirmed"); return refresh(); }, onError: (e: Error) => toast.error(e.message) });
+  const confirm = useMutation({ mutationFn: (key: string | null) => api.confirmIncident(token, d.id, key, count), onSuccess: () => refresh(), onError: (e: Error) => toast.error(e.message) });
   const dispose = useMutation({ mutationFn: (x: Disposition) => api.setDisposition(token, d.id, x), onSuccess: () => { toast.success("Ticket closed"); return refresh(); }, onError: (e: Error) => toast.error(e.message) });
 
   useEffect(() => {
@@ -258,7 +258,7 @@ export default function IncidentPage({ params }: { params: Promise<{ id: string 
 
   return (
     <AppShell
-      title={d.title.toUpperCase()}
+      title={d.title.charAt(0).toUpperCase() + d.title.slice(1).toLowerCase()}
       subtitle={`#${String(d.short_number).padStart(3, "0")} · ${timeAgo(d.created_at)}`}
       back="/inbox"
       backSmart
@@ -276,17 +276,19 @@ export default function IncidentPage({ params }: { params: Promise<{ id: string 
         </motion.div>
       </AnimatePresence>
 
+      {meta?.Barcode || failed ? (
       <section className="mt-8">
-        <h2 className="mb-3 text-lg font-bold">Barcode</h2>
+        <h2 className="mb-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">Barcode</h2>
         {meta?.Barcode ? (
           <div className="rounded-2xl border bg-white p-4 text-black"><Barcode value={meta.Barcode} className="mx-auto h-24 w-full max-w-xs" /></div>
         ) : (
           <p className="rounded-2xl border border-dashed p-6 text-center text-sm text-muted-foreground">Barcode unavailable.</p>
         )}
       </section>
+      ) : null}
 
       <section className="mt-8">
-        <h2 className="mb-3 text-lg font-bold">Photos</h2>
+        <h2 className="mb-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">Photos</h2>
         {photos.length === 0 ? <p className="text-sm text-muted-foreground">{d.image_count === 0 ? "No photo was taken. This item was found by its barcode." : "Loading photos…"}</p> : null}
         <div className="flex gap-2 overflow-x-auto pb-2">
           {photos.map((p, i) => (
@@ -305,13 +307,13 @@ export default function IncidentPage({ params }: { params: Promise<{ id: string 
       </section>
 
       <section className="mt-8">
-        <h2 className="mb-3 text-lg font-bold">Item age</h2>
+        <h2 className="mb-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">Item age</h2>
         <Badge variant="secondary" className="h-7 px-3 text-sm"><HelpCircle /> {d.item_age === "NEW_FREIGHT" ? "New freight" : d.item_age === "OLD_MERCHANDISE" ? "Old merchandise" : "Not specified"}</Badge>
       </section>
 
       <section className="mt-8">
         <div className="mb-3 flex items-start justify-between gap-4">
-          <h2 className="text-lg font-bold">Item details</h2>
+          <h2 className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Item details</h2>
           {!failed && ex?.confidence != null ? <ConfidenceRing value={ex.confidence} /> : null}
         </div>
         {failed ? (
@@ -355,7 +357,7 @@ export default function IncidentPage({ params }: { params: Promise<{ id: string 
       </section>
 
       <section className="mt-8">
-        <h2 className="mb-3 text-lg font-bold">Activity</h2>
+        <h2 className="mb-3 text-xs font-medium uppercase tracking-wider text-muted-foreground">Activity</h2>
         <ol className="space-y-3 border-l-2 pl-4">
           {d.events.map((e, i) => (
             <li key={i} className="relative">

@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, Loader2, RotateCcw, ScanSearch, TriangleAlert } from "lucide-react";
+import { Barcode, Check, ClipboardList, Loader2, RotateCcw, ScanSearch, Ticket, Truck, TriangleAlert, type LucideIcon } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { AppShell } from "@/components/app-shell";
@@ -16,6 +16,39 @@ const STATE_LABEL: Record<string, string> = {
   CAPTURED: "Captured", IMAGE_MAPPED: "Image mapped", AI_IDENTIFICATION: "Identifying", NEW: "New", INPROGRESS: "In progress", RESOLVED: "Resolved",
   NOT_CT_MERCH: "Not our item", CANT_RESOLVE: "Can't resolve", NEEDS_L2: "Needs L2",
 };
+
+const SHADES = ["bg-primary", "bg-primary/70", "bg-primary/45", "bg-primary/25", "bg-primary/12"];
+const iconFor = (name: string): LucideIcon => (/shipment/i.test(name) ? Truck : /upc/i.test(name) ? Barcode : /incident|ticket/i.test(name) ? Ticket : ClipboardList);
+
+function StatusCard({ name, total, byState }: { name: string; total: number; byState: Record<string, number> }) {
+  const Icon = iconFor(name);
+  const rows = Object.entries(byState).sort((a, b) => b[1] - a[1]);
+  return (
+    <section className="flex flex-col rounded-2xl border bg-card p-5 shadow-sm">
+      <div className="flex items-center gap-2.5">
+        <span className="grid size-9 shrink-0 place-items-center rounded-xl border border-primary/30 text-primary"><Icon size={18} /></span>
+        <h2 className="min-w-0 truncate text-sm font-semibold tracking-tight" title={name}>{name}</h2>
+      </div>
+      <p className="mt-4 flex items-baseline gap-2"><span className="text-4xl font-light leading-none tabular-nums">{total}</span><span className="text-sm text-muted-foreground">{total === 1 ? "record" : "records"}</span></p>
+      {rows.length ? (
+        <>
+          <div className="mt-4 flex h-2 gap-0.5 overflow-hidden rounded-full bg-muted" role="img" aria-label={rows.map(([k, n]) => `${STATE_LABEL[k] ?? k} ${n}`).join(", ")}>
+            {rows.map(([k, n], i) => <span key={k} className={SHADES[Math.min(i, SHADES.length - 1)]} style={{ width: `${(n / total) * 100}%` }} />)}
+          </div>
+          <ul className="mt-4 space-y-1.5 text-sm">
+            {rows.map(([k, n], i) => (
+              <li key={k} className="flex items-center gap-2.5">
+                <span className={`size-2 shrink-0 rounded-full ${SHADES[Math.min(i, SHADES.length - 1)]}`} />
+                <span className="flex-1 text-muted-foreground">{STATE_LABEL[k] ?? k}</span>
+                <span className="font-medium tabular-nums">{n}</span>
+              </li>
+            ))}
+          </ul>
+        </>
+      ) : <p className="mt-4 text-sm text-muted-foreground">Nothing here yet</p>}
+    </section>
+  );
+}
 
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
 
@@ -50,7 +83,6 @@ export default function DemoCockpitPage() {
       onSuccess: (s) => {
         setSummary(s);
         setTyped("");
-        toast.success("Demo reset");
       },
       onError: (e) => toast.error(e.message),
     });
@@ -58,49 +90,58 @@ export default function DemoCockpitPage() {
 
   return (
     <AppShell title="Demo cockpit" subtitle="Put the demo back at the start, so you can run it again." area="hub" back="/apps">
-      <div className="space-y-4">
-        <div className="grid gap-3 md:grid-cols-3">
+      <div className="space-y-6">
+        <div className="grid gap-4 md:grid-cols-3">
           {status.data
-            ? status.data.workflows.map((w) => (
-                <section key={w.name} className="rounded-2xl border bg-card p-4 shadow-sm">
-                  <h2 className="text-sm font-semibold">{w.name}</h2>
-                  <p className="mt-1 text-3xl font-bold">{w.total}</p>
-                  <div className="mt-3 flex flex-wrap gap-1.5">
-                    {Object.entries(w.byState).length ? Object.entries(w.byState).map(([state, n]) => (
-                      <span key={state} className="rounded-full bg-muted px-2.5 py-1 text-xs font-medium">{STATE_LABEL[state] ?? state} · {n}</span>
-                    )) : <span className="text-xs text-muted-foreground">Nothing here yet</span>}
-                  </div>
-                </section>
-              ))
-            : [0, 1, 2].map((i) => <Skeleton key={i} className="h-32 rounded-2xl" />)}
+            ? status.data.workflows.map((w) => <StatusCard key={w.name} name={w.name} total={w.total} byState={w.byState} />)
+            : [0, 1, 2].map((i) => <Skeleton key={i} className="h-60 rounded-2xl" />)}
         </div>
 
-        <section className="rounded-2xl border bg-card p-4 shadow-sm">
-          <h2 className="text-base font-bold">Reset demo</h2>
-          <ul className="mt-2 space-y-1 text-sm text-muted-foreground">
-            <li>• Shipments go back to Created and UPCs to Pending. Counts, checks, photos and flags are cleared.</li>
-            <li>• Tickets go back to Captured. What the store photographed stays.</li>
-            <li>• Finished records are made again from the sample data.</li>
-            <li>• The product catalog and the sample photos are not touched.</li>
-          </ul>
-          <p className="mt-4 flex items-start gap-2 rounded-xl bg-warning/15 p-3 text-sm text-warning-foreground"><TriangleAlert size={16} className="mt-0.5 shrink-0" /> This clears what everyone has done in the demo so far.</p>
-          <label className="mt-4 block text-sm font-medium" htmlFor="confirm-reset">Type RESET to confirm</label>
-          <Input id="confirm-reset" value={typed} onChange={(e) => setTyped(e.target.value)} placeholder="RESET" autoComplete="off" className="mt-1.5 h-11" disabled={reset.isPending} />
-          <Button variant="destructive" size="lg" className="mt-3 h-12 w-full" disabled={!ready || reset.isPending} onClick={run}>
-            {reset.isPending ? <Loader2 className="animate-spin" /> : <RotateCcw />} {reset.isPending ? "Resetting, this takes a moment…" : "Reset demo"}
-          </Button>
-        </section>
+        <div className="grid items-start gap-4 lg:grid-cols-[3fr_2fr]">
+          <section className="rounded-2xl border bg-card p-6 shadow-sm">
+            <div className="flex items-center gap-3">
+              <span className="grid size-10 shrink-0 place-items-center rounded-xl border border-destructive/30 text-destructive"><RotateCcw size={20} /></span>
+              <div>
+                <h2 className="text-lg font-semibold tracking-tight">Reset demo</h2>
+                <p className="text-sm text-muted-foreground">Back to the start, ready for the next run.</p>
+              </div>
+            </div>
+            <ul className="mt-5 space-y-2 text-sm text-muted-foreground">
+              {[
+                "Shipments go back to Created and UPCs to Pending. Counts, checks, photos and flags are cleared.",
+                "Tickets go back to Captured. What the store photographed stays.",
+                "Finished records are made again from the sample data.",
+                "The product catalog and the sample photos are not touched.",
+              ].map((t) => (
+                <li key={t} className="flex gap-2.5"><Check size={16} className="mt-0.5 shrink-0 text-primary" />{t}</li>
+              ))}
+            </ul>
+            <p className="mt-5 flex items-center gap-2 rounded-xl bg-warning/15 px-4 py-3 text-sm text-warning-foreground"><TriangleAlert size={16} className="shrink-0" /> This clears what everyone has done in the demo so far.</p>
+            <label className="mt-5 block text-xs font-medium uppercase tracking-wider text-muted-foreground" htmlFor="confirm-reset">Type RESET to confirm</label>
+            <div className="mt-2 flex flex-col gap-3 sm:flex-row">
+              <Input id="confirm-reset" value={typed} onChange={(e) => setTyped(e.target.value)} placeholder="RESET" autoComplete="off" className="h-11 sm:flex-1" disabled={reset.isPending} />
+              <Button variant="destructive" size="lg" className="h-11 sm:px-6" disabled={!ready || reset.isPending} onClick={run}>
+                {reset.isPending ? <Loader2 className="animate-spin" /> : <RotateCcw />} {reset.isPending ? "Resetting…" : "Reset demo"}
+              </Button>
+            </div>
+            {reset.isPending ? <p className="mt-2 text-xs text-muted-foreground">This takes a moment.</p> : null}
+          </section>
 
-        {summary ? <Summary s={summary} /> : null}
-
-        <section className="rounded-2xl border bg-card p-4 shadow-sm">
-          <h2 className="text-base font-bold">Rebuild image index</h2>
-          <p className="mt-1 text-sm text-muted-foreground">Makes the image vector of every catalog product again with the model the app uses now. Run it once after the image model changes, so photos can be matched.</p>
-          <Button variant="outline" size="lg" className="mt-3 h-12 w-full" disabled={reindex.isPending} onClick={() => reindex.mutate(undefined, { onSuccess: (r) => toast.success(`Rebuilt ${r.updated} items with ${r.model}${r.failed.length ? `, ${r.failed.length} failed` : ""}`), onError: (e) => toast.error(e.message) })}>
-            {reindex.isPending ? <Loader2 className="animate-spin" /> : <ScanSearch />} {reindex.isPending ? "Rebuilding, this takes a minute…" : "Rebuild image index"}
-          </Button>
-          {reindex.data?.failed.length ? <p className="mt-2 text-sm text-warning-foreground">Could not rebuild: {reindex.data.failed.slice(0, 3).join("; ")}</p> : null}
-        </section>
+          <div className="space-y-4">
+            {summary ? <Summary s={summary} /> : null}
+            <section className="rounded-2xl border bg-card p-6 shadow-sm">
+              <div className="flex items-center gap-3">
+                <span className="grid size-10 shrink-0 place-items-center rounded-xl border border-primary/30 text-primary"><ScanSearch size={20} /></span>
+                <h2 className="text-lg font-semibold tracking-tight">Rebuild image index</h2>
+              </div>
+              <p className="mt-4 text-sm text-muted-foreground">Makes the image vector of every catalog product again with the model the app uses now. Run it once after the image model changes, so photos can be matched.</p>
+              <Button variant="outline" size="lg" className="mt-5 h-11 w-full" disabled={reindex.isPending} onClick={() => reindex.mutate(undefined, { onSuccess: (r) => toast.success(`Rebuilt ${r.updated} items with ${r.model}${r.failed.length ? `, ${r.failed.length} failed` : ""}`), onError: (e) => toast.error(e.message) })}>
+                {reindex.isPending ? <Loader2 className="animate-spin" /> : <ScanSearch />} {reindex.isPending ? "Rebuilding, this takes a minute…" : "Rebuild image index"}
+              </Button>
+              {reindex.data?.failed.length ? <p className="mt-2 text-sm text-warning-foreground">Could not rebuild: {reindex.data.failed.slice(0, 3).join("; ")}</p> : null}
+            </section>
+          </div>
+        </div>
       </div>
     </AppShell>
   );
