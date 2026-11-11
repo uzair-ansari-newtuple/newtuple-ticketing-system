@@ -33,10 +33,24 @@ async function smAs<T>(token: string, path: string): Promise<{ status: number; b
   return { status: res.status, body: res.ok ? ((await res.json()) as T) : null };
 }
 
-async function storeFor(email: string): Promise<{ store_id: string; store_name: string } | null> {
-  const found = await smFetch<{ items?: { data: Record<string, unknown> }[] }>("GET", `/entity-records?entity_type_name=${ASSIGNMENT_TYPE}&search=${encodeURIComponent(email)}&limit=10`);
-  const record = (found.items ?? []).find((r) => String(r.data.user_email).toLowerCase() === email.toLowerCase());
+type AssignmentRows = { items?: { data: Record<string, unknown> }[] };
+
+function pickAssignment(rows: AssignmentRows | null, email: string): { store_id: string; store_name: string } | null {
+  const record = (rows?.items ?? []).find((r) => String(r.data.user_email).toLowerCase() === email.toLowerCase());
   return record ? { store_id: String(record.data.store_id), store_name: String(record.data.store_name ?? record.data.store_id) } : null;
+}
+
+/** The store a user is assigned to. Asks as the service account first; when that finds nothing or fails, asks again with the user's own token, which can always see their own assignment. */
+async function storeFor(email: string, userToken: string): Promise<{ store_id: string; store_name: string } | null> {
+  const path = `/entity-records?entity_type_name=${ASSIGNMENT_TYPE}&search=${encodeURIComponent(email)}&limit=10`;
+  const asService = await smFetch<AssignmentRows>("GET", path).catch((e) => {
+    console.warn(`store lookup as the service account failed for ${email}:`, e instanceof Error ? e.message : e);
+    return null;
+  });
+  const found = pickAssignment(asService, email);
+  if (found) return found;
+  const asUser = await smAs<AssignmentRows>(userToken, path).catch(() => null);
+  return pickAssignment(asUser?.body ?? null, email);
 }
 
 const normalizedRole = (name: string) => name.toLowerCase().replace(/[ _-]/g, "");
@@ -70,13 +84,13 @@ async function buildUser(token: string): Promise<AppUser | null> {
     store_name: role === "resolver" ? "Resolver desk" : role === "superadmin" ? "All ticketing stores" : "",
   };
   if (role === "store") {
-    const store = await storeFor(me.body.email);
+    const store = await storeFor(me.body.email, token);
     if (!store) return null;
     user.store_id = store.store_id;
     user.store_name = store.store_name;
   } else if (role === "superadmin") {
     // Keep an optional assigned store as the default for store-bound actions while the admin can still access all stores.
-    const store = await storeFor(me.body.email).catch(() => null);
+    const store = await storeFor(me.body.email, token);
     if (store) {
       user.store_id = store.store_id;
       user.store_name = `${store.store_name} · Super Admin`;
