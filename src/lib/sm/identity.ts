@@ -150,6 +150,15 @@ async function buildUser(token: string): Promise<AppUser | null> {
   return user;
 }
 
+/** Keeps an answer for a short time. */
+function remember(key: string, user: AppUser | null) {
+  // A failed lookup is never kept, so one bad moment cannot stick to the account.
+  if (user?.store_status !== "unavailable") cache.set(key, { user, expires: Date.now() + (user?.store_status === "none" ? NO_STORE_CACHE_MS : CACHE_MS) });
+}
+
+/** Lookups running right now, by token, so requests that arrive together share one instead of each repeating it. */
+const lookups = new Map<string, Promise<AppUser | null>>();
+
 /**
  * Who a request belongs to, or null when the token is missing, expired or the account has no access.
  * A real answer is cached briefly. A failed lookup is never cached, so one bad moment cannot stick to the account.
@@ -159,18 +168,29 @@ export async function userFromToken(token: string): Promise<AppUser | null> {
   const key = cacheKey(token);
   const hit = cache.get(key);
   if (hit && hit.expires > Date.now()) return hit.user;
-  let user: AppUser | null;
-  try {
-    user = await buildUser(token);
-  } catch (e) {
-    if (e instanceof IdentityUnavailable) {
-      console.warn("could not identify the user:", e.message);
-      return null;
+  const running = lookups.get(key);
+  if (running) return running;
+
+  const mine: { run?: Promise<AppUser | null> } = {};
+  mine.run = (async () => {
+    try {
+      const user = await buildUser(token);
+      // Signed out while this was running? Then it must not bring the user back into memory.
+      if (lookups.get(key) === mine.run) remember(key, user);
+      return user;
+    } catch (e) {
+      if (e instanceof IdentityUnavailable) {
+        console.warn("could not identify the user:", e.message);
+        return null;
+      }
+      throw e;
+    } finally {
+      // Only remove this lookup's own entry: a sign-out may have removed it and a newer lookup may be running under the same token.
+      if (lookups.get(key) === mine.run) lookups.delete(key);
     }
-    throw e;
-  }
-  if (user?.store_status !== "unavailable") cache.set(key, { user, expires: Date.now() + (user?.store_status === "none" ? NO_STORE_CACHE_MS : CACHE_MS) });
-  return user;
+  })();
+  lookups.set(key, mine.run);
+  return mine.run;
 }
 
 /** Signs in with the State Machine. A superadmin is authorized across ticketing records and does not need a store assignment. */
@@ -194,12 +214,16 @@ export async function signIn(email: string, password: string): Promise<SignIn> {
   if (user?.role === "store" && user.store_status === "unavailable") return { ok: false, status: 503, detail: "We could not look up your store right now. Try again shortly." };
   if (user?.role === "store" && user.store_status === "none") return { ok: false, status: 403, detail: "No store is assigned to this account yet. Ask an admin to add it to a store." };
   if (!user) return { ok: false, status: 403, detail: "This account is not set up for the ticketing app. Ask an admin to give it the Store Associate, Resolver, or Super Administrator role." };
+  remember(cacheKey(body.access_token), user);
   return { ok: true, tokens: { access_token: body.access_token, refresh_token: body.refresh_token }, user };
 }
 
 /** Forgets what the app remembered about a token, so a signed-out token is not answered from memory. */
 export function forgetToken(token: string) {
-  if (token) cache.delete(cacheKey(token));
+  if (!token) return;
+  const key = cacheKey(token);
+  cache.delete(key);
+  lookups.delete(key);
 }
 
 /** Ends the session in the State Machine, so the refresh token stops working. Best effort: the access token also runs out on its own. */
