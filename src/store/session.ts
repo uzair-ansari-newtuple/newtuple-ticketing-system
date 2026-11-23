@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { clearLocalData } from "@/lib/local-data";
 import type { LoginResponse } from "@/lib/types";
 
 interface SessionState {
@@ -14,14 +15,22 @@ interface SessionState {
 
 export const useSession = create<SessionState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       token: null,
       refreshToken: null,
       user: null,
       signIn: (res) => set({ token: res.access_token, refreshToken: res.refresh_token, user: res.user }),
       setTokens: (token, refreshToken) => set({ token, refreshToken }),
       setUser: (user) => set({ user }),
-      signOut: () => set({ token: null, refreshToken: null, user: null }),
+      signOut: () => {
+        const { token, refreshToken } = get();
+        set({ token: null, refreshToken: null, user: null });
+        // End the session on the server too. keepalive lets the request finish even while the page changes.
+        if (token || refreshToken) {
+          fetch("/api/mock/auth/logout", { method: "POST", keepalive: true, headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) }, body: JSON.stringify({ refresh_token: refreshToken }) }).catch(() => undefined);
+        }
+        void clearLocalData();
+      },
     }),
     {
       name: "ticketing-session",
