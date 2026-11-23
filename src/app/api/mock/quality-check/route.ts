@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { jsonError, storeIdFromRequest } from "@/lib/mock/http";
+import { jsonError, requireStore, userFromRequest } from "@/lib/mock/http";
 import { saveQuality } from "@/lib/mock/quality";
 import type { ImagePayload, QualityImageResult } from "@/lib/types";
 
@@ -22,8 +22,9 @@ function judge(image: ImagePayload): QualityImageResult {
 }
 
 export async function POST(request: Request) {
-  const storeId = await storeIdFromRequest(request);
-  if (!storeId) return jsonError(401, "Could not validate credentials");
+  const needed = requireStore(await userFromRequest(request));
+  if (needed.error) return needed.error;
+  const storeId = needed.user.store_id;
   const body = (await request.json().catch(() => null)) as { images?: ImagePayload[] } | null;
   const images = body?.images;
   if (!images?.length) return jsonError(422, "At least one image is required");

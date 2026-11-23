@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { jsonError, storeIdFromRequest } from "@/lib/mock/http";
+import { jsonError, requireStore, userFromRequest } from "@/lib/mock/http";
 import { getQuality } from "@/lib/mock/quality";
 import { QUALITY_DURATION_MS, progressFor } from "@/lib/mock/store";
 import type { Job, QualityCheckResult } from "@/lib/types";
@@ -7,8 +7,9 @@ import type { Job, QualityCheckResult } from "@/lib/types";
 const RUNNING_AFTER_MS = 300;
 
 export async function GET(request: Request, ctx: RouteContext<"/api/mock/jobs/[id]">) {
-  const storeId = await storeIdFromRequest(request);
-  if (!storeId) return jsonError(401, "Could not validate credentials");
+  const needed = requireStore(await userFromRequest(request));
+  if (needed.error) return needed.error;
+  const storeId = needed.user.store_id;
   const { id } = await ctx.params;
   const check = await getQuality(id);
   if (!check || check.store_id !== storeId) return jsonError(404, "Job not found");
