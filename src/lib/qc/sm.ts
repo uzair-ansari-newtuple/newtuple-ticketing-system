@@ -1,5 +1,5 @@
 import { BUNDLES_PER_CASE, CASE_SIZE, MDL, SEED_SHIPMENTS } from "@/data/qc";
-import { createRecord, enroll, fire, getRecord, listRecords, listTickets, putRecord, type SmRecord, type TicketListItem } from "@/lib/sm/records";
+import { createRecord, deleteRecord, enroll, fire, getRecord, listRecords, listTickets, putRecord, type SmRecord, type TicketListItem } from "@/lib/sm/records";
 
 export const SHIPMENT_TYPE = "shipment";
 export const UPC_TYPE = "upc";
@@ -80,12 +80,20 @@ export const upcSeed = (s: SeedShipment, shipmentId: string, u: SeedUpc) => ({
   dcqc_evidence_revision: 0,
 });
 
-async function createUpc(s: SeedShipment, shipmentId: string, u: SeedUpc): Promise<string> {
-  const upc = await createRecord(UPC_TYPE, upcSeed(s, shipmentId, u));
-  await putRecord(upc.id, { dcqc_record_id: upc.id });
-  await enroll(upc.id, machines.upc());
-  return upc.id;
+/** Creates a record and starts it in its workflow. If any step fails the half-made record is removed, so a failed fetch does not leave records that no workflow owns. */
+async function createEnrolled(type: string, data: Record<string, unknown>, keyField: string, machine: string): Promise<string> {
+  const record = await createRecord(type, data);
+  try {
+    await putRecord(record.id, { [keyField]: record.id });
+    await enroll(record.id, type, machine);
+  } catch (e) {
+    await deleteRecord(record.id).catch(() => undefined);
+    throw e;
+  }
+  return record.id;
 }
+
+const createUpc = (s: SeedShipment, shipmentId: string, u: SeedUpc) => createEnrolled(UPC_TYPE, upcSeed(s, shipmentId, u), "dcqc_record_id", machines.upc());
 
 /** Creates the pallets of a UPC that it does not have yet. The expected units are shared across the pallets, the first ones taking the larger share. */
 async function createMissingPallets(s: SeedShipment, shipmentId: string, upcId: string, u: SeedUpc): Promise<void> {
@@ -124,10 +132,7 @@ export async function fetchShipments(): Promise<{ created: string[]; existing: s
     let shipmentId = known.get(s.po_number);
     let added = false;
     if (!shipmentId) {
-      const shipment = await createRecord(SHIPMENT_TYPE, shipmentSeed(s));
-      await putRecord(shipment.id, { record_id: shipment.id });
-      await enroll(shipment.id, machines.shipment());
-      shipmentId = shipment.id;
+      shipmentId = await createEnrolled(SHIPMENT_TYPE, shipmentSeed(s), "record_id", machines.shipment());
       added = true;
     }
 
