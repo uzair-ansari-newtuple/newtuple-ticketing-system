@@ -91,6 +91,8 @@ export const api = {
   qcNotifications: (token: string) => request<{ items: QcNotification[] }>("/qc/notifications", { token }),
   qcFlagged: (token: string) => request<{ items: FlaggedUpc[] }>("/qc/exceptions", { token }),
 
+  me: (token: string) => request<{ user: LoginResponse["user"] }>("/auth/me", { token }),
+
   login: (email: string, password: string) =>
     request<LoginResponse>("/auth/login", { method: "POST", body: JSON.stringify({ email, password }) }),
 

@@ -16,7 +16,7 @@ async function login(): Promise<string> {
     body: JSON.stringify({ email: process.env.SM_EMAIL, password: process.env.SM_PASSWORD }),
     signal: AbortSignal.timeout(TIMEOUT_MS),
   });
-  if (!res.ok) throw new Error(`State machine login failed (${res.status})`);
+  if (!res.ok) throw new SmError(res.status === 429 || res.status >= 500 ? res.status : 401, `State machine login failed (${res.status})`);
   return ((await res.json()) as { access_token: string }).access_token;
 }
 
