@@ -197,6 +197,27 @@ export async function signIn(email: string, password: string): Promise<SignIn> {
   return { ok: true, tokens: { access_token: body.access_token, refresh_token: body.refresh_token }, user };
 }
 
+/** Forgets what the app remembered about a token, so a signed-out token is not answered from memory. */
+export function forgetToken(token: string) {
+  if (token) cache.delete(cacheKey(token));
+}
+
+/** Ends the session in the State Machine, so the refresh token stops working. Best effort: the access token also runs out on its own. */
+export async function endSession(refreshToken: string): Promise<boolean> {
+  if (!refreshToken) return false;
+  try {
+    const res = await fetch(`${smBaseUrl()}/auth/logout`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ refresh_token: refreshToken }),
+      signal: AbortSignal.timeout(TIMEOUT_MS),
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
 export async function refresh(refreshToken: string): Promise<Tokens | null> {
   const res = await fetch(`${smBaseUrl()}/auth/refresh`, {
     method: "POST",
