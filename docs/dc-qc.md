@@ -281,7 +281,7 @@ The routes behind the screens are under `/api/mock/qc/`: `shipments` (list, `fet
 | A UPC stays in IN_PROGRESS after a count | The connector call failed. Check the State Machine's action history for the UPC. The app falls back after about 8 seconds |
 | QC cannot be submitted though everything looks done | A UPC is still held or unfinished. The list shows the count; resolve the held UPC on Exceptions |
 | A new user is missing from a dropdown | Run `node scripts/sm-dcqc.mjs` again |
-| Fetch shows nothing | Check `SM_DCQC_*` in `.env` and that the backend is running on port 3001 |
+| Fetch shows nothing or fails with "could not complete that" | The app finds the DC QC workflows by entity type (`shipment`, `upc`), so a wrong `SM_DCQC_*` name no longer matters. If it still fails, the message names the cause: a 404 means a workflow or entity type is missing in this State Machine, a 403 means the service account is not allowed. Check `/api/health/store` for the service account |
 | The camera does not open | The browser blocks it (needs HTTPS, or permission). Use Upload |
 
 ## Not built yet

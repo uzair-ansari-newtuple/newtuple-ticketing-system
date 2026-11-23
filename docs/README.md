@@ -95,9 +95,9 @@ Note: `test-qc-app.mjs` starts by deleting all DC QC data. `node scripts/sm-clea
 |---|---|
 | `SM_BASE_URL` | Where the State Machine API is |
 | `SM_EMAIL`, `SM_PASSWORD` | The service account the backend uses |
-| `SM_MACHINE_NAME`, `SM_ENTITY_TYPE` | The Ticketing workflow and its entity type |
-| `SM_CATALOG_MACHINE_NAME` | The product catalog workflow |
-| `SM_DCQC_SHIPMENT_MACHINE_NAME`, `SM_DCQC_UPC_MACHINE_NAME` | The two DC QC workflows (written by `sm-dcqc.mjs`) |
+| `SM_MACHINE_NAME`, `SM_ENTITY_TYPE` | The Ticketing workflow and its entity type. The workflow name is optional: the app finds the published workflow for the entity type itself |
+| `SM_CATALOG_MACHINE_NAME` | The product catalog workflow. Optional, found by entity type like the others |
+| `SM_DCQC_SHIPMENT_MACHINE_NAME`, `SM_DCQC_UPC_MACHINE_NAME` | The two DC QC workflows (written by `sm-dcqc.mjs`). Optional: a saved name is used only while it is really published for that entity type, otherwise the app finds the workflow itself and logs a warning |
 | `SM_CONNECTOR_KEY` | The shared key the State Machine sends on every connector call |
 | `SM_CONNECTOR_BASE_URL` | Where the State Machine's worker reaches the backend (default `http://host.docker.internal:3001`) |
 | `SM_STEP_MODE` | `true` when the Ticketing workflow waits for a click at each early state |

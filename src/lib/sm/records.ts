@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { SmError, smDownload, smEntityType, smFetch, smMachine, smUpload } from "@/lib/sm/client";
+import { machineFor } from "@/lib/sm/machines";
 
 export const PHOTO_FILE_TYPE = "incident_photo";
 export const QUALITY_ENTITY_TYPE = "quality_check";
@@ -98,7 +99,9 @@ export async function deleteRecord(id: string): Promise<void> {
   await smFetch("DELETE", `/entity-records/${id}`);
 }
 
-export async function enroll(id: string, machine = smMachine()): Promise<void> {
+/** Starts a record in the workflow that runs its entity type. `preferred` is the saved workflow name, used only while it is really published for that type. */
+export async function enroll(id: string, entityType = smEntityType(), preferred?: string): Promise<void> {
+  const machine = await machineFor(entityType, preferred ?? (entityType === smEntityType() ? smMachine() : undefined));
   await smFetch("POST", `/workflow-state-machines/${machine}/enrollments`, { entity_id: id });
 }
 
@@ -127,9 +130,10 @@ export interface TicketListItem {
 
 /** Lists tickets with only the fields asked for. Equality filters on ticket fields are applied by the State Machine. */
 export async function listTickets(opts: { fields: string[]; filters?: Record<string, string>; limit?: number; offset?: number; machine?: string; entityType?: string }): Promise<{ items: TicketListItem[]; total: number }> {
+  const entityType = opts.entityType ?? smEntityType();
   const query = new URLSearchParams({
-    machine_name: opts.machine ?? smMachine(),
-    entity_type_name: opts.entityType ?? smEntityType(),
+    machine_name: await machineFor(entityType, opts.machine ?? (entityType === smEntityType() ? smMachine() : undefined)),
+    entity_type_name: entityType,
     offset: String(opts.offset ?? 0),
     fields: opts.fields.join(","),
     sort_by: "created",

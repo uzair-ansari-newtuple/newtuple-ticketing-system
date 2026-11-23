@@ -1,6 +1,7 @@
 import { SEED_SHIPMENTS } from "@/data/qc";
 import { allOf, fetchShipments, FLAG_TYPE, machines, NOTIFICATION_TYPE, PALLET_TYPE, QC_PHOTO_TYPE, SHIPMENT_TYPE, shipmentSeed, UPC_TYPE, upcSeed } from "@/lib/qc/sm";
 import { smFetch, smEntityType, smMachine } from "@/lib/sm/client";
+import { machineFor } from "@/lib/sm/machines";
 import { addComment, deleteRecord, DEMO_RESET_MARKER, fire, getRecord, listRecords, PHOTO_FILE_TYPE, putRecord } from "@/lib/sm/records";
 
 /** States a workflow cannot leave, so a record in one of them is deleted and made again instead of reset. */
@@ -54,7 +55,8 @@ async function inBatches<T>(items: T[], size: number, work: (item: T) => Promise
   for (let i = 0; i < items.length; i += size) await Promise.all(items.slice(i, i + size).map(work));
 }
 
-async function schemaFields(machine: string): Promise<{ field: string; default?: unknown; nullable?: boolean }[]> {
+async function schemaFields(entityType: string, preferred: string): Promise<{ field: string; default?: unknown; nullable?: boolean }[]> {
+  const machine = await machineFor(entityType, preferred);
   const active = await smFetch<{ definition: { entity_schema: { fields: { field: string; default?: unknown; nullable?: boolean }[] } } }>("GET", `/workflow-state-machines/${machine}/active`);
   return active.definition.entity_schema.fields;
 }
@@ -149,7 +151,7 @@ export async function resetDemo(): Promise<ResetSummary> {
     allOf(machines.upc(), UPC_TYPE, ["po_number", "upc_code"]),
   ]);
   const shipmentIds = new Map(shipments.map((s) => [String(s.fields.po_number), s.id]));
-  const [shipmentSchema, upcSchema] = await Promise.all([schemaFields(machines.shipment()), schemaFields(machines.upc())]);
+  const [shipmentSchema, upcSchema] = await Promise.all([schemaFields(SHIPMENT_TYPE, machines.shipment()), schemaFields(UPC_TYPE, machines.upc())]);
   await inBatches(upcs, 4, async (u) => {
     summary.cleared.photos += await deleteQcPhotos(u.id);
     const seedShipment = SEED_SHIPMENTS.find((s) => s.po_number === u.fields.po_number);

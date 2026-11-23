@@ -143,7 +143,7 @@ export async function addUserItem(storeId: string, metadata: NormalizedMetadata,
     thumb,
     embeddings: JSON.stringify(embeddings),
   });
-  await enroll(record.id, catalogMachine());
+  await enroll(record.id, CATALOG_ENTITY_TYPE, catalogMachine());
   invalidate();
   return record.id;
 }
@@ -173,7 +173,7 @@ export async function upsertProduct({ product: p, embeddings }: CatalogInput, ph
     embeddings: JSON.stringify(embeddings),
   };
   const id = existing ? (await putRecord(existing.id, data), existing.id) : (await createRecord(CATALOG_ENTITY_TYPE, data)).id;
-  if (!existing) await enroll(id, catalogMachine());
+  if (!existing) await enroll(id, CATALOG_ENTITY_TYPE, catalogMachine());
   const old = await smFetch<{ items: { file_id: string }[] }>("POST", "/filehandler/list", { owner_entity_id: id, type_id: CATALOG_PHOTO_TYPE });
   for (const f of old.items) await smFetch("DELETE", `/filehandler/${f.file_id}`);
   const form = new FormData();
