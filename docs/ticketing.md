@@ -27,6 +27,8 @@ A State Machine **Super Administrator** can sign in to the ticketing app and vie
 
 The browser keeps the signed-in user, and refreshes it from `GET /api/mock/auth/me` when the app opens, when a new token arrives and when the window comes back into focus, so a store assigned later appears without signing in again. `npm run test:store` covers these cases without a network.
 
+**Checking it without signing in.** `GET /api/health/store` answers 200 when the service account can read store assignments, and 503 with the reason when it cannot (it could not sign in, is not allowed to read them, the `store_assignment` type is missing, or the State Machine is down). It returns only a count, never who is assigned where. If store lookups ever start failing, this is the first thing to open. Note that the `store_associate` role has no permissions of its own, so for store associates the service account is the path that matters; a Super Admin also falls back to their own token.
+
 The browser sends the signed-in user's access token with each ticketing API request. The API validates that token before handling the request. State Machine data operations remain server-side and use the app's configured service account; the service credentials are never sent to the browser.
 
 ## The whole journey
