@@ -19,6 +19,10 @@ const nextConfig: NextConfig = {
   ]),
   outputFileTracingExcludes: forMlRoutes(["./node_modules/onnxruntime-web/**"]),
   // When a separate backend is configured, the frontend forwards its /api calls to it.
+  // Answers about tickets, shipments and users must never be stored by the browser or a shared cache. The product photos set their own caching.
+  async headers() {
+    return [{ source: "/api/:path((?!mock/products/).*)", headers: [{ key: "Cache-Control", value: "no-store, max-age=0" }] }];
+  },
   async rewrites() {
     return apiOrigin ? [{ source: "/api/:path*", destination: `${apiOrigin}/api/:path*` }] : [];
   },
