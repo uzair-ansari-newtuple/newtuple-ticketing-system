@@ -8,6 +8,7 @@ interface SessionState {
   user: LoginResponse["user"] | null;
   signIn: (res: LoginResponse) => void;
   setTokens: (token: string, refreshToken: string) => void;
+  setUser: (user: LoginResponse["user"]) => void;
   signOut: () => void;
 }
 
@@ -19,6 +20,7 @@ export const useSession = create<SessionState>()(
       user: null,
       signIn: (res) => set({ token: res.access_token, refreshToken: res.refresh_token, user: res.user }),
       setTokens: (token, refreshToken) => set({ token, refreshToken }),
+      setUser: (user) => set({ user }),
       signOut: () => set({ token: null, refreshToken: null, user: null }),
     }),
     {

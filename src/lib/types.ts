@@ -11,6 +11,7 @@ export interface SessionUser {
   role: UserRole;
   store_id: string | null;
   store_name: string;
+  store_status?: "assigned" | "none" | "unavailable";
 }
 
 export interface LoginResponse {
