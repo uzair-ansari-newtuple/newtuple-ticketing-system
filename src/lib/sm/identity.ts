@@ -10,6 +10,8 @@ const STORE_ROLE = "storeassociate";
 const RESOLVER_ROLE = "resolver";
 const SUPERADMIN_ROLES = new Set(["superadmin", "superadministrator", "platformsuperadmin"]);
 const ASSIGNMENT_TYPE = "store_assignment";
+/** Rows asked for per lookup. The search already narrows to one email; 20 is accepted by every State Machine we run against (a larger page size is refused by some). */
+const LOOKUP_LIMIT = 20;
 
 export interface AppUser {
   id: string;
@@ -77,7 +79,7 @@ type StoreLookup = { state: "assigned"; store: Store } | { state: "none" } | { s
  * "none" means a lookup worked and found no assignment. "unavailable" means no lookup worked, so nothing is known.
  */
 async function resolveStore(email: string, userToken: string): Promise<StoreLookup> {
-  const path = `/entity-records?entity_type_name=${ASSIGNMENT_TYPE}&search=${encodeURIComponent(email)}&limit=100`;
+  const path = `/entity-records?entity_type_name=${ASSIGNMENT_TYPE}&search=${encodeURIComponent(email)}&limit=${LOOKUP_LIMIT}`;
   let answered = false;
 
   try {
