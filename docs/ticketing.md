@@ -17,6 +17,16 @@ A store associate belongs to one **store**. The store's id and name come from a 
 
 A State Machine **Super Administrator** can sign in to the ticketing app and view or act on tickets across stores. A superadmin does not need a store assignment to sign in or view tickets. Store-bound work such as starting a new ticket or running its photo quality check uses that account's optional `store_assignment` as the default store; assign one in the ticketing State Machine if the account needs to create tickets.
 
+**How the store is found, and what happens when it cannot be.** On sign-in and on every request the app reads the account's `store_assignment` record (matched on `user_email`). It asks as the app's service account first and, if that finds nothing or fails, asks again with the user's own token. The answer is one of three:
+
+| Store status | Meaning | What the app does |
+|---|---|---|
+| `assigned` | A record was found | Store-bound actions work. Cached for 60 seconds |
+| `none` | The State Machine answered and there is no record | A store associate cannot sign in ("No store is assigned to this account yet"). Store-bound actions answer 409. Cached for 10 seconds, so a new assignment shows up fast |
+| `unavailable` | No lookup could be completed | Store-bound actions answer 503 and say to try again. **Never cached**, so one bad moment does not stay with the account. The failure is logged as a warning in the server logs |
+
+The browser keeps the signed-in user, and refreshes it from `GET /api/mock/auth/me` when the app opens, when a new token arrives and when the window comes back into focus, so a store assigned later appears without signing in again. `npm run test:store` covers these cases without a network.
+
 The browser sends the signed-in user's access token with each ticketing API request. The API validates that token before handling the request. State Machine data operations remain server-side and use the app's configured service account; the service credentials are never sent to the browser.
 
 ## The whole journey
